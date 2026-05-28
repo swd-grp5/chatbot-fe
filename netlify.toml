@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist/client"
+
+# Client-side routes (e.g. /auth, /admin/users) when not prerendered as separate HTML files
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
