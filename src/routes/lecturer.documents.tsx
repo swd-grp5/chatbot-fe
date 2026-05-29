@@ -9,10 +9,13 @@ import {
   FileSpreadsheet,
   Presentation,
   FileType,
+  Pencil,
+  Plus,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -24,12 +27,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type DocStatus, type Doc } from "@/lib/mock-data";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  type DocStatus,
+  type Doc,
+  courseLabel,
+  normalizeCourseCode,
+} from "@/lib/mock-data";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -74,27 +96,140 @@ const guessType = (filename: string): Doc["type"] => {
   return "pdf";
 };
 
+type CourseFormMode = { type: "add" } | { type: "edit"; code: string };
+
 function LecturerDocumentsPage() {
+  const courses = useAppStore((s) => s.courses);
   const documents = useAppStore((s) => s.documents);
+  const addCourse = useAppStore((s) => s.addCourse);
+  const updateCourse = useAppStore((s) => s.updateCourse);
+  const deleteCourse = useAppStore((s) => s.deleteCourse);
   const addDocument = useAppStore((s) => s.addDocument);
   const deleteDocument = useAppStore((s) => s.deleteDocument);
   const updateDocument = useAppStore((s) => s.updateDocument);
   const init = useAppStore((s) => s.init);
+
+  const [selectedCourse, setSelectedCourse] = useState("");
   const [query, setQuery] = useState("");
+  const [editDoc, setEditDoc] = useState<Doc | null>(null);
+  const [editName, setEditName] = useState("");
+  const [courseForm, setCourseForm] = useState<CourseFormMode | null>(null);
+  const [formCode, setFormCode] = useState("");
+  const [formName, setFormName] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadCourse, setUploadCourse] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const labelOf = (code: string) => courseLabel(code, courses);
 
   useEffect(() => {
     init();
   }, [init]);
 
-  const filtered = documents.filter(
+  useEffect(() => {
+    if (courses.length === 0) {
+      setSelectedCourse("");
+      return;
+    }
+    if (selectedCourse && !courses.some((c) => c.code === selectedCourse)) {
+      setSelectedCourse("");
+    }
+  }, [courses, selectedCourse]);
+
+  const openAddCourse = () => {
+    setCourseForm({ type: "add" });
+    setFormCode("");
+    setFormName("");
+  };
+
+  const openEditCourse = (code: string) => {
+    const c = courses.find((x) => x.code === code);
+    if (!c) return;
+    setCourseForm({ type: "edit", code });
+    setFormCode(c.code);
+    setFormName(c.name);
+  };
+
+  const saveCourseForm = () => {
+    const code = normalizeCourseCode(formCode);
+    const name = formName.trim();
+    if (!code || !name) {
+      toast.error("Mã môn và tên môn không được để trống");
+      return;
+    }
+
+    if (courseForm?.type === "add") {
+      if (!addCourse({ code, name })) {
+        toast.error("Mã môn đã tồn tại");
+        return;
+      }
+      setSelectedCourse(code);
+      toast.success("Đã thêm môn học");
+    } else if (courseForm?.type === "edit") {
+      if (!updateCourse(courseForm.code, { code, name })) {
+        toast.error("Không cập nhật được — kiểm tra mã môn trùng");
+        return;
+      }
+      if (selectedCourse === courseForm.code && code !== courseForm.code) {
+        setSelectedCourse(code);
+      }
+      toast.success("Đã cập nhật môn học");
+    }
+    setCourseForm(null);
+  };
+
+  const removeCourse = (code: string) => {
+    const result = deleteCourse(code);
+    if (!result.ok) {
+      toast.error(`Không xóa được — môn còn ${result.docCount} tài liệu`);
+      return;
+    }
+    toast.success("Đã xóa môn học");
+  };
+
+  const courseDocs = selectedCourse
+    ? documents.filter((d) => d.course === selectedCourse)
+    : [];
+  const filtered = courseDocs.filter(
     (d) => !query || d.name.toLowerCase().includes(query.toLowerCase()),
   );
 
-  const readyCount = documents.filter((d) => d.status === "indexed").length;
+  const openUpload = () => {
+    if (courses.length === 0) {
+      toast.error("Thêm môn học trước khi tải tài liệu");
+      return;
+    }
+    setUploadCourse(selectedCourse || courses[0].code);
+    setUploadOpen(true);
+  };
+
+  const confirmUploadPick = () => {
+    if (!uploadCourse) {
+      toast.error("Chọn môn học để thêm tài liệu");
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const openEdit = (doc: Doc) => {
+    setEditDoc(doc);
+    setEditName(doc.name);
+  };
+
+  const saveEdit = () => {
+    if (!editDoc) return;
+    const name = editName.trim();
+    if (!name) {
+      toast.error("Tên tài liệu không được để trống");
+      return;
+    }
+    updateDocument(editDoc.id, { name });
+    toast.success("Đã cập nhật tài liệu");
+    setEditDoc(null);
+  };
 
   const handleFiles = (files: FileList | null) => {
-    if (!files) return;
+    if (!files || !uploadCourse) return;
     for (const f of Array.from(files)) {
       const sizeMb = f.size / (1024 * 1024);
       const size = sizeMb < 1 ? `${Math.round(f.size / 1024)} KB` : `${sizeMb.toFixed(1)} MB`;
@@ -102,8 +237,7 @@ function LecturerDocumentsPage() {
       const doc = addDocument({
         name: f.name,
         type: guessType(f.name),
-        course: "",
-        chapter: "",
+        course: uploadCourse,
         size,
         status: "processing",
         chunks: 0,
@@ -114,7 +248,9 @@ function LecturerDocumentsPage() {
         updateDocument(doc.id, { status: "indexed", chunks: Math.floor(40 + Math.random() * 200) });
       }, 1500);
     }
-    toast.success(`Đã thêm ${files.length} tài liệu`);
+    setSelectedCourse(uploadCourse);
+    setUploadOpen(false);
+    toast.success(`Đã thêm ${files.length} tài liệu vào ${labelOf(uploadCourse)}`);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -129,65 +265,119 @@ function LecturerDocumentsPage() {
         onChange={(e) => handleFiles(e.target.files)}
       />
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Quản lý tài liệu</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Thêm hoặc xóa tài liệu — sinh viên sẽ thấy cập nhật ngay trên trang Tài liệu.
+              Quản lý môn học và tài liệu theo từng môn.
             </p>
           </div>
-          <Button className="gap-2" onClick={() => fileInputRef.current?.click()}>
+          <Button className="gap-2" onClick={openUpload}>
             <Upload className="h-4 w-4" />
             Thêm tài liệu
           </Button>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <StatCard label="Tổng tài liệu" value={documents.length} />
-          <StatCard label="Sẵn sàng" value={`${readyCount}/${documents.length}`} />
-          <StatCard
-            label="Đang xử lý"
-            value={documents.filter((d) => d.status === "processing").length}
-          />
-        </div>
-
-        <Card
-          className="cursor-pointer border-dashed bg-card p-6 transition-colors hover:bg-secondary/40"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Upload className="h-5 w-5" />
-            </div>
-            <div className="flex-1">
-              <div className="text-sm font-medium">
-                Kéo thả tài liệu vào đây, hoặc bấm để chọn file
-              </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
-                PDF · DOCX · PPTX · XLSX · TXT
-              </div>
-            </div>
+        <Card className="overflow-hidden p-0">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="text-sm font-semibold">Môn học</h2>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={openAddCourse}>
+              <Plus className="h-3.5 w-3.5" />
+              Thêm môn
+            </Button>
           </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-secondary/40 hover:bg-secondary/40">
+                <TableHead className="w-28">Mã</TableHead>
+                <TableHead>Tên môn</TableHead>
+                <TableHead className="text-right">Tài liệu</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {courses.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                    Chưa có môn học — bấm Thêm môn để bắt đầu.
+                  </TableCell>
+                </TableRow>
+              )}
+              {courses.map((c) => {
+                const count = documents.filter((d) => d.course === c.code).length;
+                const active = selectedCourse === c.code;
+                return (
+                  <TableRow
+                    key={c.code}
+                    className={cn(
+                      "cursor-pointer",
+                      active && "bg-primary/5",
+                    )}
+                    onClick={() => {
+                      setSelectedCourse(c.code);
+                      setQuery("");
+                    }}
+                  >
+                    <TableCell className="font-mono text-sm font-medium">{c.code}</TableCell>
+                    <TableCell className="text-sm">{c.name}</TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">{count}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditCourse(c.code)}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" />
+                            Sửa
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => removeCourse(c.code)}
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                            Xoá
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </Card>
 
         <Card className="overflow-hidden p-0">
-          <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Tìm tài liệu..."
-                className="h-8 pl-8 text-xs"
-              />
+          <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+            <h2 className="text-sm font-semibold">
+              {selectedCourse
+                ? `Tài liệu — ${labelOf(selectedCourse)}`
+                : "Tài liệu"}
+            </h2>
+            {selectedCourse && (
+              <span className="text-xs text-muted-foreground">({courseDocs.length})</span>
+            )}
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <div className="relative w-56">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Tìm tài liệu..."
+                  className="h-8 pl-8 text-xs"
+                  disabled={!selectedCourse}
+                />
+              </div>
             </div>
-            <div className="ml-auto text-xs text-muted-foreground">{filtered.length} kết quả</div>
           </div>
 
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                <TableHead className="w-[45%]">Tài liệu</TableHead>
+                <TableHead className="w-[40%]">Tài liệu</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead className="text-right">Kích thước</TableHead>
                 <TableHead>Ngày thêm</TableHead>
@@ -195,13 +385,23 @@ function LecturerDocumentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 && (
+              {!selectedCourse && (
                 <TableRow>
                   <TableCell
                     colSpan={5}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
-                    Chưa có tài liệu nào — bấm Thêm tài liệu để bắt đầu.
+                    Chọn một môn ở bảng trên để xem tài liệu.
+                  </TableCell>
+                </TableRow>
+              )}
+              {selectedCourse && filtered.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
+                    Chưa có tài liệu — bấm Thêm tài liệu và chọn môn.
                   </TableCell>
                 </TableRow>
               )}
@@ -247,6 +447,10 @@ function LecturerDocumentsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(d)}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" />
+                            Sửa
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => {
@@ -267,17 +471,112 @@ function LecturerDocumentsPage() {
           </Table>
         </Card>
       </div>
-    </AppShell>
-  );
-}
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <Card className="p-4">
-      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
-    </Card>
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Thêm tài liệu</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Môn học *</Label>
+              <Select value={uploadCourse || undefined} onValueChange={setUploadCourse}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn môn học" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      {c.code} — {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              PDF · DOCX · PPTX · XLSX · TXT
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadOpen(false)}>
+              Huỷ
+            </Button>
+            <Button className="gap-2" onClick={confirmUploadPick}>
+              <Upload className="h-4 w-4" />
+              Chọn file
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!courseForm} onOpenChange={(open) => !open && setCourseForm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{courseForm?.type === "add" ? "Thêm môn học" : "Sửa môn học"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="course-code">Mã môn</Label>
+              <Input
+                id="course-code"
+                value={formCode}
+                onChange={(e) => setFormCode(e.target.value)}
+                placeholder="VD: SDN302"
+                className="font-mono uppercase"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="course-name">Tên môn</Label>
+              <Input
+                id="course-name"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="VD: Server-Side development with NodeJS, Express, and MongoDB"
+              />
+            </div>
+            {courseForm?.type === "edit" && (
+              <p className="text-xs text-muted-foreground">
+                Đổi mã môn sẽ cập nhật tất cả tài liệu thuộc môn này.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCourseForm(null)}>
+              Huỷ
+            </Button>
+            <Button onClick={saveCourseForm}>Lưu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editDoc} onOpenChange={(open) => !open && setEditDoc(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sửa tài liệu</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="doc-name">Tên tài liệu</Label>
+              <Input
+                id="doc-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            {editDoc && (
+              <p className="text-xs text-muted-foreground">
+                Môn: {labelOf(editDoc.course)} ({editDoc.course})
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDoc(null)}>
+              Huỷ
+            </Button>
+            <Button onClick={saveEdit}>Lưu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppShell>
   );
 }

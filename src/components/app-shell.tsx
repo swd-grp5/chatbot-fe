@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { Brain, FileText, Users, LogOut, ShieldCheck, GraduationCap, BookOpen, Loader2, Bot, CreditCard, MessageSquare } from "lucide-react";
+import { FileText, Users, LogOut, ShieldCheck, GraduationCap, BookOpen, Loader2, Bot, CreditCard, MessageSquare } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useRole, type AppRole } from "@/lib/use-role";
@@ -70,6 +71,7 @@ export function AppShell({ children, fullBleed = false }: { children: React.Reac
       ? [{ to: "/lecturer/documents", label: "Tài liệu", icon: FileText }]
       : [
           { to: "/", label: "Chat", icon: MessageSquare },
+          { to: "/documents", label: "Tài liệu", icon: FileText },
           { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
         ];
 
@@ -83,9 +85,7 @@ export function AppShell({ children, fullBleed = false }: { children: React.Reac
       <header className={cn("z-30 border-b border-border bg-card/95 backdrop-blur", fullBleed ? "shrink-0" : "sticky top-0")}>
         <div className="flex h-16 items-center gap-6 px-6">
           <Link to={HOME_FOR_ROLE[role]} className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Brain className="h-5 w-5" />
-            </div>
+            <Logo height={40} className="h-10" />
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-tight">EduBuddy</div>
               <div className="text-[11px] text-muted-foreground">Trợ lý học tập</div>

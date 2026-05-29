@@ -1,11 +1,13 @@
 import { create } from "zustand";
-import type { ChatMessage, Doc, Session as UISession } from "./mock-data";
+import type { ChatMessage, Course, Doc, Session as UISession } from "./mock-data";
 import {
   loadChatData,
+  loadCourses,
   loadDocuments,
   newDocId,
   newSessionId,
   saveChatData,
+  saveCourses,
   saveDocuments,
 } from "./mock-storage";
 import { generateMockReply, MOCK_REPLY_DELAY_MS, newMessageId } from "./mock-chat";
@@ -13,6 +15,7 @@ import { toSessionTimestamp, groupFor } from "./format-time";
 
 type Store = {
   userId: string | null;
+  courses: Course[];
   documents: Doc[];
   sessions: UISession[];
   conversations: Record<string, ChatMessage[]>;
@@ -25,6 +28,9 @@ type Store = {
   loadUserData: (userId: string) => void;
   clear: () => void;
 
+  addCourse: (course: Course) => boolean;
+  updateCourse: (oldCode: string, patch: Partial<Course>) => boolean;
+  deleteCourse: (code: string) => { ok: true } | { ok: false; docCount: number };
   addDocument: (doc: Omit<Doc, "id">) => Doc;
   deleteDocument: (docId: string) => void;
   updateDocument: (docId: string, patch: Partial<Doc>) => void;
@@ -79,6 +85,7 @@ const dedupeEmptySessions = (
 
 export const useAppStore = create<Store>((set, get) => ({
   userId: null,
+  courses: [],
   documents: [],
   sessions: [],
   conversations: {},
@@ -88,14 +95,17 @@ export const useAppStore = create<Store>((set, get) => ({
 
   init: () => {
     if (get().initialized) return;
-    set({ documents: loadDocuments(), initialized: true });
+    set({ courses: loadCourses(), documents: loadDocuments(), initialized: true });
 
     if (typeof window === "undefined") return;
 
     const reloadDocs = () => set({ documents: loadDocuments() });
+    const reloadCourses = () => set({ courses: loadCourses() });
     window.addEventListener("sdn-documents-changed", reloadDocs);
+    window.addEventListener("sdn-courses-changed", reloadCourses);
     window.addEventListener("storage", (e) => {
       if (e.key === "sdn-documents") reloadDocs();
+      if (e.key === "sdn-courses") reloadCourses();
     });
   },
 
@@ -124,6 +134,7 @@ export const useAppStore = create<Store>((set, get) => ({
     );
     set({
       userId,
+      courses: loadCourses(),
       documents: loadDocuments(),
       sessions: cleaned.sessions,
       conversations: cleaned.conversations,
@@ -136,6 +147,54 @@ export const useAppStore = create<Store>((set, get) => ({
     ) {
       persistChat(userId, cleaned);
     }
+  },
+
+  addCourse: (course) => {
+    const code = course.code.trim().toUpperCase();
+    const name = course.name.trim();
+    if (!code || !name) return false;
+    if (get().courses.some((c) => c.code === code)) return false;
+    const courses = [...get().courses, { code, name }];
+    saveCourses(courses);
+    set({ courses });
+    return true;
+  },
+
+  updateCourse: (oldCode, patch) => {
+    const list = get().courses;
+    const current = list.find((c) => c.code === oldCode);
+    if (!current) return false;
+
+    const nextCode = (patch.code ?? current.code).trim().toUpperCase();
+    const nextName = (patch.name ?? current.name).trim();
+    if (!nextCode || !nextName) return false;
+    if (nextCode !== oldCode && list.some((c) => c.code === nextCode)) return false;
+
+    const courses = list.map((c) =>
+      c.code === oldCode ? { code: nextCode, name: nextName } : c,
+    );
+    saveCourses(courses);
+
+    let documents = get().documents;
+    if (nextCode !== oldCode) {
+      documents = documents.map((d) =>
+        d.course === oldCode ? { ...d, course: nextCode } : d,
+      );
+      saveDocuments(documents);
+    }
+
+    set({ courses, documents });
+    return true;
+  },
+
+  deleteCourse: (code) => {
+    const docCount = get().documents.filter((d) => d.course === code).length;
+    if (docCount > 0) return { ok: false, docCount };
+
+    const courses = get().courses.filter((c) => c.code !== code);
+    saveCourses(courses);
+    set({ courses });
+    return { ok: true };
   },
 
   addDocument: (doc) => {

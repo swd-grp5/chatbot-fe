@@ -1,14 +1,17 @@
 import {
   documents as seedDocuments,
+  seedCourses,
   sessions as seedSessions,
   conversations as seedConversations,
   type ChatMessage,
+  type Course,
   type Doc,
   type Session,
 } from "./mock-data";
 import { normalizeSession } from "./format-time";
 
 const DOCS_KEY = "sdn-documents";
+const COURSES_KEY = "sdn-courses";
 const USERS_KEY = "sdn-users";
 const DEMO_CHAT_KEY = "sdn-chat-demo";
 
@@ -115,12 +118,40 @@ function writeJson(key: string, value: unknown) {
 export function initMockStorage() {
   if (typeof window === "undefined") return;
   if (!readJson<Doc[]>(DOCS_KEY)) writeJson(DOCS_KEY, seedDocuments);
+  if (!readJson<Course[]>(COURSES_KEY)) writeJson(COURSES_KEY, seedCourses);
   if (!readJson<MockUser[]>(USERS_KEY)) writeJson(USERS_KEY, seedUsers);
+}
+
+const LEGACY_COURSE_CODES = new Set(["ARCH", "PROG", "DB"]);
+const LEGACY_DOC_COURSE: Record<string, string> = {
+  ARCH: "SWD392",
+  PROG: "LAB211",
+  DB: "SDN302",
+};
+
+export function loadCourses(): Course[] {
+  initMockStorage();
+  const stored = readJson<Course[]>(COURSES_KEY);
+  if (!stored || stored.some((c) => LEGACY_COURSE_CODES.has(c.code))) {
+    writeJson(COURSES_KEY, seedCourses);
+    return seedCourses;
+  }
+  return stored;
+}
+
+export function saveCourses(courses: Course[]) {
+  writeJson(COURSES_KEY, courses);
+  window.dispatchEvent(new CustomEvent("sdn-courses-changed"));
 }
 
 export function loadDocuments(): Doc[] {
   initMockStorage();
-  return readJson<Doc[]>(DOCS_KEY) ?? seedDocuments;
+  const raw = readJson<(Doc & { chapter?: string })[]>(DOCS_KEY) ?? seedDocuments;
+  if (raw.some((d) => LEGACY_DOC_COURSE[d.course])) {
+    writeJson(DOCS_KEY, seedDocuments);
+    return seedDocuments;
+  }
+  return raw.map(({ chapter: _c, ...doc }) => doc);
 }
 
 export function saveDocuments(docs: Doc[]) {
@@ -185,6 +216,11 @@ export function loadChatData(userId: string): ChatData {
       sessionDocs: saved.sessionDocs ?? {},
     };
     if (data.sessions.length === 0 && isDemoStudent(userId)) {
+      const seeded = seedChat();
+      writeJson(key, seeded);
+      return seeded;
+    }
+    if (isDemoStudent(userId) && !data.sessions.some((s) => s.id === "s7")) {
       const seeded = seedChat();
       writeJson(key, seeded);
       return seeded;

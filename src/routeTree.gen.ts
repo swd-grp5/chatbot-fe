@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SubscriptionsRouteImport } from './routes/subscriptions'
 import { Route as LecturerRouteImport } from './routes/lecturer'
+import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -27,6 +28,11 @@ const SubscriptionsRoute = SubscriptionsRouteImport.update({
 const LecturerRoute = LecturerRouteImport.update({
   id: '/lecturer',
   path: '/lecturer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentsRoute = DocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/documents': typeof DocumentsRoute
   '/lecturer': typeof LecturerRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/documents': typeof DocumentsRoute
   '/lecturer': typeof LecturerRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/documents': typeof DocumentsRoute
   '/lecturer': typeof LecturerRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/documents'
     | '/lecturer'
     | '/subscriptions'
     | '/admin/ai-config'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/documents'
     | '/lecturer'
     | '/subscriptions'
     | '/admin/ai-config'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/documents'
     | '/lecturer'
     | '/subscriptions'
     | '/admin/ai-config'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DocumentsRoute: typeof DocumentsRoute
   LecturerRoute: typeof LecturerRouteWithChildren
   SubscriptionsRoute: typeof SubscriptionsRoute
 }
@@ -157,6 +170,13 @@ declare module '@tanstack/react-router' {
       path: '/lecturer'
       fullPath: '/lecturer'
       preLoaderRoute: typeof LecturerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documents': {
+      id: '/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof DocumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
+  DocumentsRoute: DocumentsRoute,
   LecturerRoute: LecturerRouteWithChildren,
   SubscriptionsRoute: SubscriptionsRoute,
 }

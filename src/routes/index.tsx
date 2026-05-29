@@ -16,7 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format-time";
-import { type Citation, type ChatMessage, sessionGroupOrder } from "@/lib/mock-data";
+import { type Citation, type ChatMessage, courseLabel, sessionGroupOrder } from "@/lib/mock-data";
 import { useAppStore } from "@/lib/store";
 
 export const Route = createFileRoute("/")({ component: ChatPage });
@@ -29,6 +29,8 @@ function ChatPage() {
   const [sending, setSending] = useState(false);
   const [, setTick] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const courses = useAppStore((s) => s.courses);
+  const documents = useAppStore((s) => s.documents);
   const sessions = useAppStore((s) => s.sessions);
   const conversations = useAppStore((s) => s.conversations);
   const activeSession = useAppStore((s) => s.activeSessionId);
@@ -69,14 +71,18 @@ function ChatPage() {
   };
 
   const citationsByDoc = useMemo(() => {
-    const map = new Map<string, { docName: string; chapter: string; items: Citation[] }>();
-    messages.forEach((m) => (m.citations ?? []).forEach((c) => {
-      const entry = map.get(c.docId) ?? { docName: c.docName, chapter: c.chapter, items: [] };
-      entry.items.push(c);
-      map.set(c.docId, entry);
-    }));
+    const map = new Map<string, { docName: string; course: string; items: Citation[] }>();
+    messages.forEach((m) =>
+      (m.citations ?? []).forEach((c) => {
+        const course =
+          c.course || documents.find((d) => d.id === c.docId)?.course || "";
+        const entry = map.get(c.docId) ?? { docName: c.docName, course, items: [] };
+        entry.items.push({ ...c, course: c.course || course });
+        map.set(c.docId, entry);
+      }),
+    );
     return Array.from(map.entries()).map(([docId, v]) => ({ docId, ...v }));
-  }, [messages]);
+  }, [messages, documents]);
 
   const filteredSessions = useMemo(() => {
     const q = sessionQuery.trim().toLowerCase();
@@ -229,7 +235,7 @@ function ChatPage() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={sending}
-                  placeholder="Hỏi về nội dung môn học... (Enter để gửi · Shift+Enter xuống dòng)"
+                  placeholder="Hỏi về nội dung môn học"
                   className="min-h-[60px] resize-none border-0 bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0"
                   rows={2}
                 />
@@ -273,7 +279,14 @@ function ChatPage() {
                 </div>
               )}
               {citationsByDoc.map((d, i) => (
-                <DocSourceCard key={d.docId} index={i + 1} docName={d.docName} chapter={d.chapter} citations={d.items} />
+                <DocSourceCard
+                  key={d.docId}
+                  index={i + 1}
+                  docName={d.docName}
+                  courseCode={d.course}
+                  courseName={courseLabel(d.course, courses)}
+                  citations={d.items}
+                />
               ))}
             </div>
           </div>
@@ -284,6 +297,12 @@ function ChatPage() {
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
+  const courses = useAppStore((s) => s.courses);
+  const documents = useAppStore((s) => s.documents);
+
+  const courseForCitation = (c: Citation) =>
+    c.course || documents.find((d) => d.id === c.docId)?.course || "";
+
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -319,14 +338,34 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
             {message.citations && message.citations.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border pt-3">
-                {message.citations.map((c, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-primary/10 text-[10px] font-semibold text-primary">{i + 1}</span>
-                    <FileText className="h-3 w-3" />
-                    <span className="max-w-[180px] truncate">{c.docName}</span>
-                    <span>· p.{c.page}</span>
-                  </span>
-                ))}
+                {message.citations.map((c, i) => {
+                  const code = courseForCitation(c);
+                  const name = courseLabel(code, courses);
+                  return (
+                    <span
+                      key={i}
+                      className="inline-flex max-w-full flex-wrap items-center gap-x-1 gap-y-0.5 rounded border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                    >
+                      <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-primary/10 text-[10px] font-semibold text-primary">
+                        {i + 1}
+                      </span>
+                      <FileText className="h-3 w-3 shrink-0" />
+                      <span className="max-w-[140px] truncate font-medium text-foreground">
+                        {c.docName}
+                      </span>
+                      <span className="text-border">·</span>
+                      <span className="font-mono text-[10px] font-medium text-primary">{code}</span>
+                      {name !== code && (
+                        <>
+                          <span className="text-border">·</span>
+                          <span className="max-w-[120px] truncate">{name}</span>
+                        </>
+                      )}
+                      <span className="text-border">·</span>
+                      <span>p.{c.page}</span>
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -342,8 +381,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 function DocSourceCard({
-  index, docName, chapter, citations,
-}: { index: number; docName: string; chapter: string; citations: Citation[] }) {
+  index,
+  docName,
+  courseCode,
+  courseName,
+  citations,
+}: {
+  index: number;
+  docName: string;
+  courseCode: string;
+  courseName: string;
+  citations: Citation[];
+}) {
   const [open, setOpen] = useState(index === 1);
   return (
     <div className="rounded-lg border border-border bg-card">
@@ -354,9 +403,12 @@ function DocSourceCard({
             <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
             <div className="truncate text-xs font-medium">{docName}</div>
           </div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            {chapter && <span className="truncate">{chapter}</span>}
-            {chapter && <span>·</span>}
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Badge variant="outline" className="h-4 px-1 font-mono text-[9px] font-semibold">
+              {courseCode}
+            </Badge>
+            <span className="truncate">{courseName}</span>
+            <span>·</span>
             <span>{citations.length} trích dẫn</span>
           </div>
         </div>
@@ -366,8 +418,10 @@ function DocSourceCard({
         <div className="border-t border-border bg-secondary/30 px-3 py-2.5 space-y-2">
           {citations.map((c, i) => (
             <div key={i}>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Đoạn trích · Trang {c.page}
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span>Đoạn trích</span>
+                <span className="normal-case font-mono text-primary">{c.course || courseCode}</span>
+                <span>· Trang {c.page}</span>
               </div>
               <p className="mt-1 border-l-2 border-primary/40 pl-2 text-xs leading-relaxed text-foreground/80">
                 {c.snippet}

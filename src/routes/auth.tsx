@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Brain, Loader2, ShieldCheck, GraduationCap, BookOpen } from "lucide-react";
+import { Loader2, ShieldCheck, GraduationCap, BookOpen } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -72,9 +73,7 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
       <Card className="w-full max-w-md p-8">
         <div className="mb-6 flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <Brain className="h-5 w-5" />
-          </div>
+          <Logo height={40} className="h-10" />
           <div>
             <div className="text-base font-semibold tracking-tight">EduBuddy</div>
             <div className="text-xs text-muted-foreground">Quản lý & tra cứu tài liệu</div>
