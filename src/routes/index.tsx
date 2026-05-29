@@ -8,6 +8,9 @@ import {
   MoreHorizontal, Pencil, Trash2, Bot, User, FileX, Loader2,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ChatWelcome } from "@/components/chat-welcome";
+import { useAuth } from "@/lib/auth-context";
+import { getUserPlan } from "@/lib/subscriptions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,8 +41,22 @@ function ChatPage() {
   const createSession = useAppStore((s) => s.createSession);
   const deleteSession = useAppStore((s) => s.deleteSession);
   const sendMessage = useAppStore((s) => s.sendMessage);
+  const init = useAppStore((s) => s.init);
+  const { user } = useAuth();
 
   const messages: ChatMessage[] = conversations[activeSession] ?? [];
+
+  const hasEverChatted = useMemo(
+    () => Object.values(conversations).some((msgs) => msgs.length > 0),
+    [conversations],
+  );
+
+  const showWelcome = messages.length === 0 && !hasEverChatted;
+  const userPlan = user ? getUserPlan(user.id) : null;
+
+  useEffect(() => {
+    init();
+  }, [init]);
   const activeTitle = sessions.find((s) => s.id === activeSession)?.title ?? "Hội thoại mới";
 
   useEffect(() => {
@@ -200,12 +217,15 @@ function ChatPage() {
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
-              {messages.length === 0 && (
+              {showWelcome && userPlan && (
+                <ChatWelcome courses={courses} documents={documents} plan={userPlan} />
+              )}
+              {messages.length === 0 && hasEverChatted && (
                 <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
                   <Bot className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                  <div className="text-sm font-medium">Bắt đầu hỏi đáp</div>
+                  <div className="text-sm font-medium">Hội thoại mới</div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Mọi câu trả lời đều kèm theo nguồn trích dẫn ở khung bên phải.
+                    Đặt câu hỏi về tài liệu môn học — trích dẫn hiển thị bên phải.
                   </p>
                 </div>
               )}
@@ -270,12 +290,36 @@ function ChatPage() {
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             <div className="space-y-3">
               {citationsByDoc.length === 0 && (
-                <div className="rounded-lg border border-dashed border-border bg-card/50 p-5 text-center">
-                  <FileX className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-                  <div className="text-xs font-medium">Chưa có trích dẫn</div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    Đặt câu hỏi để xem các đoạn tài liệu được hệ thống tham chiếu.
-                  </div>
+                <div className="rounded-lg border border-dashed border-border bg-card/50 p-5">
+                  {showWelcome ? (
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2 font-medium text-foreground">
+                        <BookOpen className="h-3.5 w-3.5 text-primary" />
+                        Sẵn sàng tra cứu
+                      </div>
+                      <p>
+                        Sau câu hỏi đầu tiên, các đoạn trích từ tài liệu (kèm mã môn) sẽ hiện
+                        tại đây.
+                      </p>
+                      {userPlan && (
+                        <p className="text-[11px]">
+                          Gói {userPlan.name}: còn{" "}
+                          <strong className="text-foreground">
+                            {userPlan.questionsPerMonth.toLocaleString("vi-VN")}
+                          </strong>{" "}
+                          câu hỏi/tháng.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <FileX className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+                      <div className="text-xs font-medium">Chưa có trích dẫn</div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">
+                        Đặt câu hỏi để xem các đoạn tài liệu được hệ thống tham chiếu.
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               {citationsByDoc.map((d, i) => (
