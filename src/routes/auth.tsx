@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { Loader2, ShieldCheck, GraduationCap, BookOpen } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,11 @@ import { toast } from "sonner";
 import { signIn, signUp } from "@/lib/mock-auth";
 import { findUserById, type MockUser } from "@/lib/mock-storage";
 import { useAuth } from "@/lib/auth-context";
+import { loginWithGoogle } from "@/lib/auth-api";
+import { ApiError } from "@/lib/api-client";
+import { setApiSession } from "@/lib/auth-session";
+import { apiRoleToAppRole, routeForAppRole } from "@/lib/auth-types";
+import { isGoogleAuthConfigured } from "@/components/google-auth-provider";
 
 export const Route = createFileRoute("/auth")({ component: AuthPage });
 
@@ -19,8 +25,7 @@ const DEMO_ACCOUNTS = [
   { label: "Student demo", email: "student@demo.edu", password: "student123", icon: GraduationCap },
 ];
 
-const routeForRole = (role: MockUser["role"]) =>
-  role === "admin" ? "/admin/users" : role === "lecturer" ? "/lecturer/documents" : "/";
+const routeForMockRole = (role: MockUser["role"]) => routeForAppRole(role);
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -30,11 +35,16 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [signupRole, setSignupRole] = useState<"student" | "lecturer">("student");
   const [busy, setBusy] = useState(false);
+  const googleEnabled = isGoogleAuthConfigured();
 
   useEffect(() => {
     if (!loading && user) {
+      if (user.source === "api") {
+        navigate({ to: routeForAppRole(user.role) });
+        return;
+      }
       const mockUser = findUserById(user.id);
-      navigate({ to: routeForRole(mockUser?.role ?? "student") });
+      navigate({ to: routeForMockRole(mockUser?.role ?? "student") });
     }
   }, [user, loading, navigate]);
 
@@ -43,9 +53,39 @@ function AuthPage() {
     try {
       const u = signIn(em, pw);
       toast.success("Đăng nhập thành công");
-      navigate({ to: routeForRole(u.role) });
+      navigate({ to: routeForMockRole(u.role) });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onGoogleSuccess = async (response: CredentialResponse) => {
+    const idToken = response.credential;
+    if (!idToken) {
+      toast.error("Không nhận được token từ Google");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const data = await loginWithGoogle(idToken);
+      if (!data.token) {
+        toast.error(data.message ?? "Đăng nhập thất bại");
+        return;
+      }
+      setApiSession({ token: data.token, user: data.user });
+      toast.success("Đăng nhập Google thành công");
+      navigate({ to: routeForAppRole(apiRoleToAppRole(data.user.role)) });
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Đăng nhập Google thất bại";
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -58,7 +98,7 @@ function AuthPage() {
       if (tab === "signup") {
         const u = signUp(email, password, signupRole);
         toast.success("Đăng ký thành công!");
-        navigate({ to: routeForRole(u.role) });
+        navigate({ to: routeForMockRole(u.role) });
       } else {
         await signInWith(email, password);
       }
@@ -107,7 +147,7 @@ function AuthPage() {
               autoComplete={tab === "signup" ? "new-password" : "current-password"}
             />
 
-            <TabsContent value="signin" className="m-0">
+            <TabsContent value="signin" className="m-0 space-y-3">
               <Button type="submit" className="w-full" disabled={busy}>
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Đăng nhập
@@ -141,6 +181,38 @@ function AuthPage() {
             </TabsContent>
           </form>
         </Tabs>
+
+        {tab === "signin" && (
+          <div className="mt-4 space-y-3">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">hoặc</span>
+              </div>
+            </div>
+            {googleEnabled ? (
+              <div className="flex justify-center [&>div]:w-full">
+                <GoogleLogin
+                  onSuccess={onGoogleSuccess}
+                  onError={() => toast.error("Đăng nhập Google bị hủy hoặc lỗi")}
+                  useOneTap={false}
+                  theme="outline"
+                  size="large"
+                  text="signin_with"
+                  shape="rectangular"
+                  width="100%"
+                />
+              </div>
+            ) : (
+              <p className="text-center text-xs text-muted-foreground">
+                Thiếu <code className="text-[11px]">VITE_GOOGLE_CLIENT_ID</code> trong file{" "}
+                <code className="text-[11px]">.env</code>
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 border-t border-border pt-4">
           <div className="mb-2 text-center text-[11px] uppercase tracking-wider text-muted-foreground">

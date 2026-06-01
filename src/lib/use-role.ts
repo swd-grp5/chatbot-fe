@@ -1,29 +1,16 @@
-import { useEffect, useState } from "react";
-import { findUserById } from "@/lib/mock-storage";
 import { useAuth } from "@/lib/auth-context";
+import type { AppRole } from "@/lib/auth-types";
 
-export type AppRole = "admin" | "lecturer" | "student";
+export type { AppRole };
 
 export function useRole() {
-  const { user, loading: authLoading } = useAuth();
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setRole(null);
-      setLoading(false);
-      return;
-    }
-    const mockUser = findUserById(user.id);
-    setRole(mockUser?.role ?? "student");
-    setLoading(false);
-  }, [user, authLoading]);
+  const role = user?.role ?? null;
 
   return {
     role,
-    loading: authLoading || loading,
+    loading,
     isAdmin: role === "admin",
     isLecturer: role === "lecturer",
     isStudent: role === "student",
