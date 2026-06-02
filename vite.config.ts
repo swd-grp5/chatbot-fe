@@ -3,6 +3,15 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  tanstackStart: {
+    prerender: {
+      enabled: true,
+      crawlLinks: true,
+      autoSubfolderIndex: true,
+      autoStaticPathsDiscovery: true,
+      failOnError: false,
+    },
+  },
   vite: {
     server: {
       port: 5173,
