@@ -1,4 +1,6 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "");
+let apiBase = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+if (!apiBase.startsWith("http")) apiBase = `https://${apiBase}`;
+const API_BASE = apiBase.replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(
