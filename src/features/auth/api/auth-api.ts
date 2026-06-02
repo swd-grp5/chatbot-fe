@@ -15,6 +15,27 @@ export const DEMO_ACCOUNT_BY_ROLE: Record<AppRole, { email: string; password: st
 
 export const DEMO_EMAILS = new Set(DEMO_ACCOUNTS.map((a) => a.email));
 
+export type RegisterRequest = {
+  fullName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
+
+export async function registerWithEmail(payload: RegisterRequest) {
+  return apiFetch<AuthApiResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resendVerificationEmail(email: string) {
+  return apiFetch<void>("/api/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function loginWithEmail(email: string, password: string, rememberMe = true) {
   return apiFetch<AuthApiResponse>("/api/auth/login", {
     method: "POST",

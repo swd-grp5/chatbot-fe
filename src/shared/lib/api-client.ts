@@ -6,13 +6,14 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly fieldErrors?: Record<string, string>,
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
-type ApiErrorBody = { message?: string };
+type ApiErrorBody = { message?: string; fieldErrors?: Record<string, string> };
 
 export async function apiFetch<T>(
   path: string,
@@ -31,18 +32,25 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     let message = res.statusText;
+    let fieldErrors: Record<string, string> | undefined;
     try {
       const body = (await res.json()) as ApiErrorBody;
       if (body.message) message = body.message;
+      fieldErrors = body.fieldErrors;
     } catch {
       /* ignore */
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, fieldErrors);
   }
 
   if (res.status === 204) {
     return undefined as T;
   }
 
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
