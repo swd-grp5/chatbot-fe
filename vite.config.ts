@@ -4,6 +4,9 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
+    router: {
+      virtualRouteConfig: "./src/routes.config.ts",
+    },
     prerender: {
       enabled: true,
       crawlLinks: true,

@@ -7,9 +7,9 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/lib/auth-context";
-import { GoogleAuthProvider } from "@/components/google-auth-provider";
+import { Toaster } from "@/shared/components/ui/sonner";
+import { AuthProvider } from "@/features/auth/lib/auth-context";
+import { GoogleAuthProvider } from "@/features/auth/components/google-auth-provider";
 
 import appCss from "../styles.css?url";
 

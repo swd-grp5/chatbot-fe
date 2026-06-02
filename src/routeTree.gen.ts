@@ -9,25 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SubscriptionsRouteImport } from './routes/subscriptions'
-import { Route as LecturerRouteImport } from './routes/lecturer'
-import { Route as DocumentsRouteImport } from './routes/documents'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as LecturerDocumentsRouteImport } from './routes/lecturer.documents'
-import { Route as AdminUsersRouteImport } from './routes/admin.users'
-import { Route as AdminSubscriptionsRouteImport } from './routes/admin.subscriptions'
-import { Route as AdminAiConfigRouteImport } from './routes/admin.ai-config'
+import { Route as SubscriptionsRouteImport } from './features/student/routes/subscriptions'
+import { Route as DocumentsRouteImport } from './features/student/routes/documents'
+import { Route as AuthRouteImport } from './features/auth/routes/auth'
+import { Route as LecturerRouteRouteImport } from './features/lecturer/routes/route'
+import { Route as AdminRouteRouteImport } from './features/admin/routes/route'
+import { Route as IndexRouteImport } from './features/student/routes/index'
+import { Route as LecturerDocumentsRouteImport } from './features/lecturer/routes/documents'
+import { Route as AdminUsersRouteImport } from './features/admin/routes/users'
+import { Route as AdminSubscriptionsRouteImport } from './features/admin/routes/subscriptions'
+import { Route as AdminAiConfigRouteImport } from './features/admin/routes/ai-config'
 
 const SubscriptionsRoute = SubscriptionsRouteImport.update({
   id: '/subscriptions',
   path: '/subscriptions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LecturerRoute = LecturerRouteImport.update({
-  id: '/lecturer',
-  path: '/lecturer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentsRoute = DocumentsRouteImport.update({
@@ -40,7 +35,12 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
+const LecturerRouteRoute = LecturerRouteRouteImport.update({
+  id: '/lecturer',
+  path: '/lecturer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
@@ -53,30 +53,30 @@ const IndexRoute = IndexRouteImport.update({
 const LecturerDocumentsRoute = LecturerDocumentsRouteImport.update({
   id: '/documents',
   path: '/documents',
-  getParentRoute: () => LecturerRoute,
+  getParentRoute: () => LecturerRouteRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
   id: '/subscriptions',
   path: '/subscriptions',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminAiConfigRoute = AdminAiConfigRouteImport.update({
   id: '/ai-config',
   path: '/ai-config',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/lecturer': typeof LecturerRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
-  '/lecturer': typeof LecturerRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -85,10 +85,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/lecturer': typeof LecturerRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
-  '/lecturer': typeof LecturerRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -98,10 +98,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/lecturer': typeof LecturerRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
-  '/lecturer': typeof LecturerRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -113,9 +113,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/lecturer'
     | '/auth'
     | '/documents'
-    | '/lecturer'
     | '/subscriptions'
     | '/admin/ai-config'
     | '/admin/subscriptions'
@@ -125,9 +125,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/lecturer'
     | '/auth'
     | '/documents'
-    | '/lecturer'
     | '/subscriptions'
     | '/admin/ai-config'
     | '/admin/subscriptions'
@@ -137,9 +137,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/lecturer'
     | '/auth'
     | '/documents'
-    | '/lecturer'
     | '/subscriptions'
     | '/admin/ai-config'
     | '/admin/subscriptions'
@@ -149,10 +149,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRouteWithChildren
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  LecturerRouteRoute: typeof LecturerRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   DocumentsRoute: typeof DocumentsRoute
-  LecturerRoute: typeof LecturerRouteWithChildren
   SubscriptionsRoute: typeof SubscriptionsRoute
 }
 
@@ -163,13 +163,6 @@ declare module '@tanstack/react-router' {
       path: '/subscriptions'
       fullPath: '/subscriptions'
       preLoaderRoute: typeof SubscriptionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lecturer': {
-      id: '/lecturer'
-      path: '/lecturer'
-      fullPath: '/lecturer'
-      preLoaderRoute: typeof LecturerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documents': {
@@ -186,11 +179,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lecturer': {
+      id: '/lecturer'
+      path: '/lecturer'
+      fullPath: '/lecturer'
+      preLoaderRoute: typeof LecturerRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -205,64 +205,66 @@ declare module '@tanstack/react-router' {
       path: '/documents'
       fullPath: '/lecturer/documents'
       preLoaderRoute: typeof LecturerDocumentsRouteImport
-      parentRoute: typeof LecturerRoute
+      parentRoute: typeof LecturerRouteRoute
     }
     '/admin/users': {
       id: '/admin/users'
       path: '/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/subscriptions': {
       id: '/admin/subscriptions'
       path: '/subscriptions'
       fullPath: '/admin/subscriptions'
       preLoaderRoute: typeof AdminSubscriptionsRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/ai-config': {
       id: '/admin/ai-config'
       path: '/ai-config'
       fullPath: '/admin/ai-config'
       preLoaderRoute: typeof AdminAiConfigRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof AdminRouteRoute
     }
   }
 }
 
-interface AdminRouteChildren {
+interface AdminRouteRouteChildren {
   AdminAiConfigRoute: typeof AdminAiConfigRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
-const AdminRouteChildren: AdminRouteChildren = {
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAiConfigRoute: AdminAiConfigRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
 
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
 
-interface LecturerRouteChildren {
+interface LecturerRouteRouteChildren {
   LecturerDocumentsRoute: typeof LecturerDocumentsRoute
 }
 
-const LecturerRouteChildren: LecturerRouteChildren = {
+const LecturerRouteRouteChildren: LecturerRouteRouteChildren = {
   LecturerDocumentsRoute: LecturerDocumentsRoute,
 }
 
-const LecturerRouteWithChildren = LecturerRoute._addFileChildren(
-  LecturerRouteChildren,
+const LecturerRouteRouteWithChildren = LecturerRouteRoute._addFileChildren(
+  LecturerRouteRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRouteWithChildren,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
+  LecturerRouteRoute: LecturerRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   DocumentsRoute: DocumentsRoute,
-  LecturerRoute: LecturerRouteWithChildren,
   SubscriptionsRoute: SubscriptionsRoute,
 }
 export const routeTree = rootRouteImport
