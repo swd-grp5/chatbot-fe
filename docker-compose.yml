@@ -1,0 +1,17 @@
+name: swdchatbox-fe
+
+services:
+  fe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+    image: swdchatbox-fe:latest
+    container_name: swdchatbox-fe
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${FE_PORT:-5173}:80"
