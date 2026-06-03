@@ -10,18 +10,34 @@ Chạy tại **thư mục gốc** `chatbox-fe` (có `docker-compose.yml`).
 
 | Biến | Bắt buộc | Mô tả |
 |------|----------|--------|
-| `VITE_API_BASE_URL` | Có | URL API backend (đặt trong `.env` local, **không** ghi vào Dockerfile) |
+| `VITE_API_BASE_URL` | Có | URL API backend (**không** ghi vào Dockerfile / git) |
 | `VITE_GOOGLE_CLIENT_ID` | Có (nếu dùng Google login) | Client ID OAuth — cùng giá trị `GOOGLE_CLIENT_ID` trên BE |
 | `FE_PORT` | Không (mặc định `5173`, giống `npm run dev`) | Cổng host map vào nginx trong container |
 
 > `VITE_*` được **nhúng lúc build image**. Đổi URL API hoặc Google ID phải **build lại**: `docker compose build --no-cache fe`.
 
-Sao chép mẫu:
+### Local (Docker Desktop)
 
 ```powershell
 Copy-Item .env.example .env
-# Điền VITE_API_BASE_URL, VITE_GOOGLE_CLIENT_ID (file .env đã gitignore)
+# Điền VITE_API_BASE_URL, VITE_GOOGLE_CLIENT_ID
 ```
+
+Compose tự đọc `.env` cùng thư mục khi thay `${VITE_*}` (file `.env` gitignore, không bắt buộc trong repo).
+
+### Portainer / stack deploy (`/data/compose/...`)
+
+**Không** dùng `env_file` — stack không có sẵn `.env` trên server.
+
+Trong **Stack → Environment variables** (hoặc Web editor), thêm:
+
+```env
+VITE_API_BASE_URL=https://your-be.example.com
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
+FE_PORT=5173
+```
+
+Rồi deploy lại stack. Nếu thiếu `VITE_API_BASE_URL`, bước build image sẽ báo lỗi.
 
 ## Chạy
 
