@@ -97,4 +97,17 @@ export function toSessionTimestamp(date = new Date()): string {
   return date.toISOString();
 }
 
+export function formatDateDMY(value: string | Date): string {
+  const date =
+    typeof value === "string"
+      ? new Date(value.includes("T") ? value : `${value}T00:00:00`)
+      : value;
+  if (Number.isNaN(date.getTime())) return typeof value === "string" ? value : "";
+  return date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 export { parseUpdatedAt };

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Search,
   Upload,
@@ -10,6 +10,8 @@ import {
   FileType,
   Pencil,
   Plus,
+  RefreshCw,
+  Layers,
 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Button } from "@/shared/components/ui/button";
@@ -17,6 +19,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
+import { Switch } from "@/shared/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -41,6 +44,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -51,7 +55,24 @@ import {
   courseLabel,
   normalizeCourseCode,
 } from "@/shared/lib/mock-data";
+import {
+  type ApiDocumentStatus,
+  type DocumentChunkResponse,
+  apiStatusToDocStatus,
+  deleteDocument as deleteDocumentApi,
+  DOCUMENT_STATUS_OPTIONS,
+  fetchDocumentChunks,
+  fetchDocuments,
+  isAllowedUploadFile,
+  mapDocumentResponse,
+  toggleDocumentActive,
+  uploadDocument,
+} from "@/features/lecturer/api/document-api";
+import { useAuth } from "@/features/auth/lib/auth-context";
+import { getApiToken } from "@/features/auth/lib/auth-session";
 import { useAppStore } from "@/features/student/lib/store";
+import { ApiError } from "@/shared/lib/api-client";
+import { formatDateDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "sonner";
 
@@ -95,7 +116,12 @@ const guessType = (filename: string): Doc["type"] => {
 
 type CourseFormMode = { type: "add" } | { type: "edit"; code: string };
 
+const API_DEFAULT_COURSE = { code: "SWD", name: "SWD" };
+
 export function LecturerDocumentsPage() {
+  const { user } = useAuth();
+  const isApiMode = user?.source === "api";
+
   const courses = useAppStore((s) => s.courses);
   const documents = useAppStore((s) => s.documents);
   const addCourse = useAppStore((s) => s.addCourse);
@@ -108,6 +134,7 @@ export function LecturerDocumentsPage() {
 
   const [selectedCourse, setSelectedCourse] = useState("");
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ApiDocumentStatus | "all">("all");
   const [editDoc, setEditDoc] = useState<Doc | null>(null);
   const [editName, setEditName] = useState("");
   const [courseForm, setCourseForm] = useState<CourseFormMode | null>(null);
@@ -115,15 +142,53 @@ export function LecturerDocumentsPage() {
   const [formName, setFormName] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadCourse, setUploadCourse] = useState("");
+  const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deleteDoc, setDeleteDoc] = useState<Doc | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [chunksDoc, setChunksDoc] = useState<Doc | null>(null);
+  const [chunks, setChunks] = useState<DocumentChunkResponse[]>([]);
+  const [chunksLoading, setChunksLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const labelOf = (code: string) => courseLabel(code, courses);
+  const tableColSpan = isApiMode ? 6 : 5;
+
+  const displayCourses = isApiMode ? [API_DEFAULT_COURSE] : courses;
+  const allDocuments = isApiMode ? apiDocuments : documents;
+  const labelOf = (code: string) => courseLabel(code, displayCourses);
+
+  const loadApiDocuments = useCallback(async () => {
+    const token = getApiToken();
+    if (!token) return;
+    setDocsLoading(true);
+    try {
+      const res = await fetchDocuments(token, {
+        keyword: query,
+        status: statusFilter === "all" ? undefined : statusFilter,
+      });
+      setApiDocuments(res.content.map(mapDocumentResponse));
+      setSelectedCourse("SWD");
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách tài liệu");
+    } finally {
+      setDocsLoading(false);
+    }
+  }, [query, statusFilter]);
 
   useEffect(() => {
     init();
   }, [init]);
 
   useEffect(() => {
+    if (!isApiMode) return;
+    const timer = setTimeout(() => loadApiDocuments(), 300);
+    return () => clearTimeout(timer);
+  }, [isApiMode, loadApiDocuments]);
+
+  useEffect(() => {
+    if (isApiMode) return;
     if (courses.length === 0) {
       setSelectedCourse("");
       return;
@@ -131,7 +196,7 @@ export function LecturerDocumentsPage() {
     if (selectedCourse && !courses.some((c) => c.code === selectedCourse)) {
       setSelectedCourse("");
     }
-  }, [courses, selectedCourse]);
+  }, [isApiMode, courses, selectedCourse]);
 
   const openAddCourse = () => {
     setCourseForm({ type: "add" });
@@ -185,13 +250,93 @@ export function LecturerDocumentsPage() {
   };
 
   const courseDocs = selectedCourse
-    ? documents.filter((d) => d.course === selectedCourse)
+    ? allDocuments.filter((d) => d.course === selectedCourse)
     : [];
-  const filtered = courseDocs.filter(
-    (d) => !query || d.name.toLowerCase().includes(query.toLowerCase()),
-  );
+  const filtered = isApiMode
+    ? courseDocs
+    : courseDocs.filter((d) => {
+      if (query && !d.name.toLowerCase().includes(query.toLowerCase())) return false;
+      if (statusFilter !== "all" && d.status !== apiStatusToDocStatus[statusFilter]) return false;
+      return true;
+    });
+
+  const handleRefresh = () => {
+    if (!isApiMode) return;
+    void loadApiDocuments();
+  };
+
+  const openChunks = async (doc: Doc) => {
+    const token = getApiToken();
+    if (!token) {
+      toast.error("Phiên đăng nhập hết hạn");
+      return;
+    }
+    setChunksDoc(doc);
+    setChunks([]);
+    setChunksLoading(true);
+    try {
+      const data = await fetchDocumentChunks(doc.id, token);
+      setChunks(data.sort((a, b) => a.chunkIndex - b.chunkIndex));
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Không tải được nội dung index");
+      setChunksDoc(null);
+    } finally {
+      setChunksLoading(false);
+    }
+  };
+
+  const handleToggleActive = async (doc: Doc) => {
+    const token = getApiToken();
+    if (!token) {
+      toast.error("Phiên đăng nhập hết hạn");
+      return;
+    }
+    setTogglingId(doc.id);
+    try {
+      const updated = await toggleDocumentActive(doc.id, token);
+      const mapped = mapDocumentResponse(updated);
+      setApiDocuments((prev) => prev.map((d) => (d.id === doc.id ? mapped : d)));
+      toast.success(mapped.active ? "Tài liệu đang bật" : "Tài liệu đã tắt");
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Không đổi được trạng thái");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const confirmDeleteDoc = async () => {
+    if (!deleteDoc) return;
+
+    if (isApiMode) {
+      const token = getApiToken();
+      if (!token) {
+        toast.error("Phiên đăng nhập hết hạn");
+        return;
+      }
+      setDeleting(true);
+      try {
+        await deleteDocumentApi(deleteDoc.id, token);
+        await loadApiDocuments();
+        toast.success("Đã xóa tài liệu");
+        setDeleteDoc(null);
+      } catch (e) {
+        toast.error(e instanceof ApiError ? e.message : "Xóa thất bại");
+      } finally {
+        setDeleting(false);
+      }
+      return;
+    }
+
+    deleteDocument(deleteDoc.id);
+    toast.success("Đã xóa tài liệu");
+    setDeleteDoc(null);
+  };
 
   const openUpload = () => {
+    if (isApiMode) {
+      fileInputRef.current?.click();
+      return;
+    }
     if (courses.length === 0) {
       toast.error("Thêm môn học trước khi tải tài liệu");
       return;
@@ -225,8 +370,41 @@ export function LecturerDocumentsPage() {
     setEditDoc(null);
   };
 
-  const handleFiles = (files: FileList | null) => {
-    if (!files || !uploadCourse) return;
+  const handleFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+
+    if (isApiMode) {
+      const token = getApiToken();
+      if (!token) {
+        toast.error("Phiên đăng nhập hết hạn");
+        return;
+      }
+
+      const picked = Array.from(files);
+      const invalid = picked.filter((f) => !isAllowedUploadFile(f));
+      if (invalid.length) {
+        toast.error("Chỉ hỗ trợ PDF, DOCX, TXT");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      setUploading(true);
+      try {
+        for (const file of picked) {
+          await uploadDocument(file, token);
+        }
+        await loadApiDocuments();
+        toast.success(`Đã tải lên ${picked.length} tài liệu`);
+      } catch (e) {
+        toast.error(e instanceof ApiError ? e.message : "Upload thất bại");
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    if (!uploadCourse) return;
     for (const f of Array.from(files)) {
       const sizeMb = f.size / (1024 * 1024);
       const size = sizeMb < 1 ? `${Math.round(f.size / 1024)} KB` : `${sizeMb.toFixed(1)} MB`;
@@ -257,7 +435,7 @@ export function LecturerDocumentsPage() {
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.docx,.pptx,.xlsx,.txt"
+        accept=".pdf,.docx,.txt"
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />
@@ -269,19 +447,21 @@ export function LecturerDocumentsPage() {
               Quản lý môn học và tài liệu theo từng môn.
             </p>
           </div>
-          <Button className="gap-2" onClick={openUpload}>
+          <Button className="gap-2" onClick={openUpload} disabled={uploading}>
             <Upload className="h-4 w-4" />
-            Thêm tài liệu
+            {uploading ? "Đang tải lên..." : "Thêm tài liệu"}
           </Button>
         </div>
 
         <Card className="overflow-hidden p-0">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-sm font-semibold">Môn học</h2>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={openAddCourse}>
-              <Plus className="h-3.5 w-3.5" />
-              Thêm môn
-            </Button>
+            {!isApiMode && (
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={openAddCourse}>
+                <Plus className="h-3.5 w-3.5" />
+                Thêm môn
+              </Button>
+            )}
           </div>
           <Table>
             <TableHeader>
@@ -293,15 +473,15 @@ export function LecturerDocumentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {courses.length === 0 && (
+              {displayCourses.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                     Chưa có môn học — bấm Thêm môn để bắt đầu.
                   </TableCell>
                 </TableRow>
               )}
-              {courses.map((c) => {
-                const count = documents.filter((d) => d.course === c.code).length;
+              {displayCourses.map((c) => {
+                const count = allDocuments.filter((d) => d.course === c.code).length;
                 const active = selectedCourse === c.code;
                 return (
                   <TableRow
@@ -318,28 +498,31 @@ export function LecturerDocumentsPage() {
                     <TableCell className="font-mono text-sm font-medium">{c.code}</TableCell>
                     <TableCell className="text-sm">{c.name}</TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">{count}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditCourse(c.code)}>
-                            <Pencil className="mr-2 h-3.5 w-3.5" />
-                            Sửa
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => removeCourse(c.code)}
-                          >
-                            <Trash2 className="mr-2 h-3.5 w-3.5" />
-                            Xoá
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                    {!isApiMode && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditCourse(c.code)}>
+                              <Pencil className="mr-2 h-3.5 w-3.5" />
+                              Sửa
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => removeCourse(c.code)}
+                            >
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                              Xoá
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                    {isApiMode && <TableCell />}
                   </TableRow>
                 );
               })}
@@ -358,6 +541,36 @@ export function LecturerDocumentsPage() {
               <span className="text-xs text-muted-foreground">({courseDocs.length})</span>
             )}
             <div className="ml-auto flex flex-wrap items-center gap-2">
+              {isApiMode && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={handleRefresh}
+                  disabled={!selectedCourse || docsLoading}
+                  title="Tải lại danh sách"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", docsLoading && "animate-spin")} />
+                  Tải lại
+                </Button>
+              )}
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v as ApiDocumentStatus | "all")}
+                disabled={!selectedCourse}
+              >
+                <SelectTrigger className="h-8 w-40 text-xs">
+                  <SelectValue placeholder="Trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  {DOCUMENT_STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="relative w-56">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -376,6 +589,7 @@ export function LecturerDocumentsPage() {
               <TableRow className="bg-secondary/40 hover:bg-secondary/40">
                 <TableHead className="w-[40%]">Tài liệu</TableHead>
                 <TableHead>Trạng thái</TableHead>
+                {isApiMode && <TableHead className="w-20 text-center">Kích hoạt</TableHead>}
                 <TableHead className="text-right">Kích thước</TableHead>
                 <TableHead>Ngày thêm</TableHead>
                 <TableHead className="w-10" />
@@ -385,20 +599,27 @@ export function LecturerDocumentsPage() {
               {!selectedCourse && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={tableColSpan}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
                     Chọn một môn ở bảng trên để xem tài liệu.
                   </TableCell>
                 </TableRow>
               )}
-              {selectedCourse && filtered.length === 0 && (
+              {selectedCourse && docsLoading && (
+                <TableRow>
+                  <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    Đang tải tài liệu...
+                  </TableCell>
+                </TableRow>
+              )}
+              {selectedCourse && !docsLoading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={tableColSpan}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
-                    Chưa có tài liệu — bấm Thêm tài liệu và chọn môn.
+                    Chưa có tài liệu — bấm Thêm tài liệu để upload.
                   </TableCell>
                 </TableRow>
               )}
@@ -432,10 +653,21 @@ export function LecturerDocumentsPage() {
                         {s.label}
                       </Badge>
                     </TableCell>
+                    {isApiMode && (
+                      <TableCell className="w-20 text-center">
+                        <Switch
+                          checked={d.active ?? true}
+                          disabled={togglingId === d.id}
+                          onCheckedChange={() => handleToggleActive(d)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="text-right text-sm text-muted-foreground">
                       {d.size}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{d.uploadedAt}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDateDMY(d.uploadedAt)}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -444,16 +676,26 @@ export function LecturerDocumentsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(d)}>
-                            <Pencil className="mr-2 h-3.5 w-3.5" />
-                            Sửa
-                          </DropdownMenuItem>
+                          {isApiMode && (
+                            <DropdownMenuItem onClick={() => openChunks(d)}>
+                              <Layers className="mr-2 h-3.5 w-3.5" />
+                              Xem nội dung index
+                              {d.chunks > 0 && (
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                  {d.chunks}
+                                </span>
+                              )}
+                            </DropdownMenuItem>
+                          )}
+                          {!isApiMode && (
+                            <DropdownMenuItem onClick={() => openEdit(d)}>
+                              <Pencil className="mr-2 h-3.5 w-3.5" />
+                              Sửa
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={() => {
-                              deleteDocument(d.id);
-                              toast.success("Đã xóa tài liệu");
-                            }}
+                            onClick={() => setDeleteDoc(d)}
                           >
                             <Trash2 className="mr-2 h-3.5 w-3.5" />
                             Xoá
@@ -468,6 +710,66 @@ export function LecturerDocumentsPage() {
           </Table>
         </Card>
       </div>
+
+      <Dialog
+        open={!!chunksDoc}
+        onOpenChange={(open) => !open && !chunksLoading && setChunksDoc(null)}
+      >
+        <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b border-border px-6 py-4">
+            <DialogTitle className="truncate pr-6">Nội dung đã index</DialogTitle>
+            <DialogDescription className="truncate">
+              {chunksDoc?.name}
+              {chunks.length > 0 && ` · ${chunks.length} đoạn`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {chunksLoading && (
+              <p className="py-8 text-center text-sm text-muted-foreground">Đang tải...</p>
+            )}
+            {!chunksLoading && chunks.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Chưa có nội dung index — tài liệu có thể đang xử lý.
+              </p>
+            )}
+            {!chunksLoading &&
+              chunks.map((chunk) => (
+                <div
+                  key={chunk.id}
+                  className="mb-4 rounded-lg border border-border bg-secondary/30 last:mb-0"
+                >
+                  <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+                    <span className="text-xs font-medium">
+                      Đoạn {chunk.chunkIndex + 1}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] font-normal">
+                      {chunk.tokenCount} tokens
+                    </Badge>
+                    {chunk.pageStart != null && (
+                      <Badge variant="outline" className="text-[10px] font-normal">
+                        Trang {chunk.pageStart}
+                        {chunk.pageEnd != null && chunk.pageEnd !== chunk.pageStart
+                          ? `–${chunk.pageEnd}`
+                          : ""}
+                      </Badge>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">
+                      ký tự {chunk.startCharIndex}–{chunk.endCharIndex}
+                    </span>
+                  </div>
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words p-3 font-sans text-xs leading-relaxed text-foreground">
+                    {chunk.content}
+                  </pre>
+                </div>
+              ))}
+          </div>
+          <DialogFooter className="border-t border-border px-6 py-3">
+            <Button variant="outline" onClick={() => setChunksDoc(null)} disabled={chunksLoading}>
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="sm:max-w-md">
@@ -491,7 +793,7 @@ export function LecturerDocumentsPage() {
               </Select>
             </div>
             <p className="text-xs text-muted-foreground">
-              PDF · DOCX · PPTX · XLSX · TXT
+              PDF · DOCX · TXT
             </p>
           </div>
           <DialogFooter>
@@ -542,6 +844,27 @@ export function LecturerDocumentsPage() {
               Huỷ
             </Button>
             <Button onClick={saveCourseForm}>Lưu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteDoc} onOpenChange={(open) => !open && !deleting && setDeleteDoc(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Xóa tài liệu</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Bạn có chắc muốn xóa{" "}
+            <span className="font-medium text-foreground">{deleteDoc?.name}</span>? Hành động này
+            không thể hoàn tác.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDoc(null)} disabled={deleting}>
+              Huỷ
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteDoc} disabled={deleting}>
+              {deleting ? "Đang xóa..." : "Xóa"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

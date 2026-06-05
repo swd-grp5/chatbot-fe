@@ -1,5 +1,4 @@
 import {
-  documents as seedDocuments,
   seedCourses,
   sessions as seedSessions,
   conversations as seedConversations,
@@ -117,7 +116,7 @@ function writeJson(key: string, value: unknown) {
 
 export function initMockStorage() {
   if (typeof window === "undefined") return;
-  if (!readJson<Doc[]>(DOCS_KEY)) writeJson(DOCS_KEY, seedDocuments);
+  if (!readJson<Doc[]>(DOCS_KEY)) writeJson(DOCS_KEY, []);
   if (!readJson<Course[]>(COURSES_KEY)) writeJson(COURSES_KEY, seedCourses);
   if (!readJson<MockUser[]>(USERS_KEY)) writeJson(USERS_KEY, seedUsers);
 }
@@ -144,12 +143,15 @@ export function saveCourses(courses: Course[]) {
   window.dispatchEvent(new CustomEvent("sdn-courses-changed"));
 }
 
+const isLegacyMockDoc = (doc: Doc) =>
+  doc.id.startsWith("d") || !!LEGACY_DOC_COURSE[doc.course];
+
 export function loadDocuments(): Doc[] {
   initMockStorage();
-  const raw = readJson<(Doc & { chapter?: string })[]>(DOCS_KEY) ?? seedDocuments;
-  if (raw.some((d) => LEGACY_DOC_COURSE[d.course])) {
-    writeJson(DOCS_KEY, seedDocuments);
-    return seedDocuments;
+  const raw = readJson<(Doc & { chapter?: string })[]>(DOCS_KEY) ?? [];
+  if (raw.some(isLegacyMockDoc)) {
+    writeJson(DOCS_KEY, []);
+    return [];
   }
   return raw.map(({ chapter: _c, ...doc }) => doc);
 }
