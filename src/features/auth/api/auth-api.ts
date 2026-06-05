@@ -23,28 +23,28 @@ export type RegisterRequest = {
 };
 
 export async function registerWithEmail(payload: RegisterRequest) {
-  return apiFetch<AuthApiResponse>("/api/auth/register", {
+  return apiFetch<AuthApiResponse>("/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function resendVerificationEmail(email: string) {
-  return apiFetch<void>("/api/auth/resend-verification", {
+  return apiFetch<void>("/auth/resend-verification", {
     method: "POST",
     body: JSON.stringify({ email }),
   });
 }
 
 export async function loginWithEmail(email: string, password: string, rememberMe = true) {
-  return apiFetch<AuthApiResponse>("/api/auth/login", {
+  return apiFetch<AuthApiResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password, rememberMe }),
   });
 }
 
 export async function loginWithGoogle(idToken: string, rememberMe = false) {
-  return apiFetch<AuthApiResponse>("/api/auth/google", {
+  return apiFetch<AuthApiResponse>("/auth/google", {
     method: "POST",
     body: JSON.stringify({ idToken, rememberMe }),
   });

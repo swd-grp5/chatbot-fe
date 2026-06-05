@@ -12,6 +12,7 @@ import {
 } from "@/shared/lib/mock-storage";
 import { generateMockReply, MOCK_REPLY_DELAY_MS, newMessageId } from "@/features/student/lib/mock-chat";
 import { toSessionTimestamp, groupFor } from "@/shared/lib/format-time";
+import { getApiSession } from "@/features/auth/lib/auth-session";
 
 type Store = {
   userId: string | null;
@@ -95,7 +96,12 @@ export const useAppStore = create<Store>((set, get) => ({
 
   init: () => {
     if (get().initialized) return;
-    set({ courses: loadCourses(), documents: loadDocuments(), initialized: true });
+    const skipMockDocs = !!getApiSession();
+    set({
+      courses: loadCourses(),
+      documents: skipMockDocs ? [] : loadDocuments(),
+      initialized: true,
+    });
 
     if (typeof window === "undefined") return;
 
