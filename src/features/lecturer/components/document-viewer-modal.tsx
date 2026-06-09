@@ -7,7 +7,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
-import { Download, FileText, Loader2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Download, ExternalLink, FileText, Loader2, X, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -260,6 +260,26 @@ export function DocumentViewerModal({
     URL.revokeObjectURL(anchor.href);
   };
 
+  const openInBrowserViewer = () => {
+    if (!meta) return;
+
+    let blob: Blob | null = null;
+    if (pdfBlob) {
+      blob = pdfBlob;
+    } else if (textContent) {
+      blob = new Blob([textContent], { type: meta.mimeType });
+    } else if (fileData) {
+      blob = new Blob([fileData], { type: meta.mimeType });
+    }
+    if (!blob) return;
+
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
@@ -278,11 +298,21 @@ export function DocumentViewerModal({
               </DialogDescription>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {meta && (fileData || textContent) && (
-                <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={downloadFile}>
-                  <Download className="h-3.5 w-3.5" />
-                  Tải xuống
-                </Button>
+              {meta && (pdfBlob || fileData || textContent) && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    onClick={openInBrowserViewer}
+                    title="Mở bằng viewer mặc định của trình duyệt"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={downloadFile}>
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                </>
               )}
               <DialogClose asChild>
                 <Button
