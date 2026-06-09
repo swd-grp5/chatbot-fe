@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { fetchDocumentFile, fetchDocumentViewer } from "@/features/lecturer/api/document-api";
-import { getApiToken } from "@/features/auth/lib/auth-session";
+import { DocxPreviewViewer } from "@/features/lecturer/components/docx-preview-viewer";
 import { documentTypeStyle } from "@/features/lecturer/components/documents-table-ui";
+import { DOCX_MIME, isPdfBytes, isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
+import { getApiToken } from "@/features/auth/lib/auth-session";
 import { cn } from "@/shared/lib/utils";
 import type { Doc } from "@/shared/lib/mock-data";
 
@@ -16,6 +18,9 @@ type PreviewCacheEntry = {
 } | {
   kind: "text";
   text: string;
+} | {
+  kind: "docx";
+  blob: Blob;
 } | {
   kind: "placeholder";
 };
@@ -74,27 +79,40 @@ export function DocumentPagePreview({ doc, className }: DocumentPagePreviewProps
         const viewer = await fetchDocumentViewer(doc.id, token);
         if (cancelled) return;
 
-        const isPdf =
-          viewer.mimeType === "application/pdf" || viewer.documentType === "PDF";
         const isText =
           viewer.mimeType === "text/plain" || viewer.documentType === "TXT";
 
-        if (isPdf) {
-          const blob = await fetchDocumentFile(doc.id, token);
-          if (cancelled) return;
-          const next: PreviewCacheEntry = { kind: "pdf", blob };
+        const blob = await fetchDocumentFile(doc.id, token);
+        if (cancelled) return;
+
+        if (isText) {
+          const text = (await blob.text()).trim();
+          const next: PreviewCacheEntry = {
+            kind: "text",
+            text: text.slice(0, 600) || "Tài liệu trống",
+          };
           previewCache.set(doc.id, next);
           setEntry(next);
           return;
         }
 
-        if (isText) {
-          const blob = await fetchDocumentFile(doc.id, token);
-          if (cancelled) return;
-          const text = (await blob.text()).trim();
+        const buffer = await blob.arrayBuffer();
+        if (cancelled) return;
+
+        if (isPdfBytes(buffer)) {
           const next: PreviewCacheEntry = {
-            kind: "text",
-            text: text.slice(0, 600) || "Tài liệu trống",
+            kind: "pdf",
+            blob: new Blob([buffer], { type: "application/pdf" }),
+          };
+          previewCache.set(doc.id, next);
+          setEntry(next);
+          return;
+        }
+
+        if (isZipBytes(buffer)) {
+          const next: PreviewCacheEntry = {
+            kind: "docx",
+            blob: toDocxBlob(buffer, blob.type || DOCX_MIME),
           };
           previewCache.set(doc.id, next);
           setEntry(next);
@@ -124,7 +142,7 @@ export function DocumentPagePreview({ doc, className }: DocumentPagePreviewProps
     <div
       ref={rootRef}
       className={cn(
-        "relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden bg-secondary/30",
+        "relative flex aspect-3/4 w-full items-center justify-center overflow-hidden bg-secondary/30",
         className,
       )}
     >
@@ -149,6 +167,10 @@ export function DocumentPagePreview({ doc, className }: DocumentPagePreviewProps
         <pre className="h-full w-full overflow-hidden p-3 text-left font-sans text-[10px] leading-relaxed text-foreground/80">
           {entry.text}
         </pre>
+      )}
+
+      {canPreview && entry?.kind === "docx" && (
+        <DocxPreviewViewer data={entry.blob} compact className="h-full w-full" />
       )}
 
       {canPreview && entry?.kind === "placeholder" && placeholder}

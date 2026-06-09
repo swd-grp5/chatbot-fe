@@ -17,6 +17,12 @@ import { Switch } from "@/shared/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Textarea } from "@/shared/components/ui/textarea";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip";
+import {
   Modal,
   ModalClose,
   ModalContent,
@@ -35,6 +41,8 @@ import {
   type DocumentChunkResponse,
   type DocumentViewerResponse,
 } from "@/features/lecturer/api/document-api";
+import { DocxPreviewViewer } from "@/features/lecturer/components/docx-preview-viewer";
+import { DOCX_MIME, isPdfBytes, isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
 import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
 import { cn } from "@/shared/lib/utils";
@@ -48,6 +56,7 @@ type PdfDocumentViewerProps = {
 };
 
 export type DocumentViewMode = "file" | "index";
+type FileContentKind = "pdf" | "docx" | "txt" | "other" | null;
 export type DocumentModalMode = "view" | "create" | "edit";
 
 type UploadFileDraft = {
@@ -168,17 +177,22 @@ function DocumentIndexPanel({
 
 function DocumentModalCloseButton({ disabled }: { disabled?: boolean }) {
   return (
-    <ModalClose asChild>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-        disabled={disabled}
-      >
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </Button>
-    </ModalClose>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <ModalClose asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+            disabled={disabled}
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Đóng</span>
+          </Button>
+        </ModalClose>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">Đóng</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -202,10 +216,12 @@ function DocumentModalShellHeader({
             <ModalDescription className="truncate">{description}</ModalDescription>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {actions}
-          <DocumentModalCloseButton disabled={closeDisabled} />
-        </div>
+        <TooltipProvider delayDuration={200}>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {actions}
+            <DocumentModalCloseButton disabled={closeDisabled} />
+          </div>
+        </TooltipProvider>
       </div>
     </ModalHeader>
   );
@@ -241,6 +257,8 @@ export function DocumentModal({
   const [meta, setMeta] = useState<DocumentViewerResponse | null>(null);
   const [fileData, setFileData] = useState<ArrayBuffer | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [docxBlob, setDocxBlob] = useState<Blob | null>(null);
+  const [fileKind, setFileKind] = useState<FileContentKind>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
   const [chunks, setChunks] = useState<DocumentChunkResponse[]>([]);
   const [chunksLoading, setChunksLoading] = useState(false);
@@ -250,6 +268,7 @@ export function DocumentModal({
   const [scale, setScale] = useState(1);
   const [zoomInput, setZoomInput] = useState("100");
   const [visiblePage, setVisiblePage] = useState(1);
+  const [docxTotalPages, setDocxTotalPages] = useState(0);
   const [PdfViewer, setPdfViewer] = useState<ComponentType<PdfDocumentViewerProps> | null>(
     null,
   );
@@ -381,10 +400,13 @@ export function DocumentModal({
       setMeta(null);
       setFileData(null);
       setPdfBlob(null);
+      setDocxBlob(null);
+      setFileKind(null);
       setTextContent(null);
       setScale(1);
       setZoomInput("100");
       setVisiblePage(1);
+      setDocxTotalPages(0);
       setPdfViewer(null);
       setChunks([]);
       setChunksLoading(false);
@@ -400,12 +422,29 @@ export function DocumentModal({
         if (cancelled) return;
 
         if (viewer.mimeType === "text/plain" || viewer.documentType === "TXT") {
+          setFileKind("txt");
           setTextContent(await blob.text());
           return;
         }
 
-        setPdfBlob(blob);
-        setFileData(await blob.arrayBuffer());
+        const arrayBuffer = await blob.arrayBuffer();
+        if (cancelled) return;
+
+        if (isPdfBytes(arrayBuffer)) {
+          setFileKind("pdf");
+          setPdfBlob(new Blob([arrayBuffer], { type: "application/pdf" }));
+          setFileData(arrayBuffer);
+          return;
+        }
+
+        if (isZipBytes(arrayBuffer)) {
+          setFileKind("docx");
+          setDocxBlob(toDocxBlob(arrayBuffer, blob.type || DOCX_MIME));
+          return;
+        }
+
+        setFileKind("other");
+        setFileData(arrayBuffer);
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof ApiError ? e.message : "Không tải được tài liệu");
@@ -421,24 +460,27 @@ export function DocumentModal({
     };
   }, [open, mode, documentId]);
 
-  const isPdf = meta?.mimeType === "application/pdf" || meta?.documentType === "PDF";
+  const isPdf = fileKind === "pdf";
 
   useEffect(() => {
     if (!open || mode !== "view") {
       setMeta(null);
       setFileData(null);
       setPdfBlob(null);
+      setDocxBlob(null);
+      setFileKind(null);
       setTextContent(null);
       setError(null);
       setLoading(false);
       setScale(1);
       setZoomInput("100");
       setVisiblePage(1);
+      setDocxTotalPages(0);
       setPdfViewer(null);
       return;
     }
 
-    if (!pdfBlob || !isPdf) {
+    if (fileKind !== "pdf" || !pdfBlob) {
       setPdfViewer(null);
       return;
     }
@@ -452,10 +494,16 @@ export function DocumentModal({
     return () => {
       cancelled = true;
     };
-  }, [open, mode, pdfBlob, isPdf, documentId]);
+  }, [open, mode, pdfBlob, fileKind, documentId]);
+
+  const isDocx = fileKind === "docx";
 
   useEffect(() => {
-    if (!open || mode !== "view" || !isPdf || !pdfBlob) return;
+    const canZoom =
+      open &&
+      mode === "view" &&
+      ((fileKind === "pdf" && pdfBlob) || (fileKind === "docx" && docxBlob));
+    if (!canZoom) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
@@ -474,13 +522,20 @@ export function DocumentModal({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, mode, isPdf, pdfBlob, zoomIn, zoomOut, resetZoom]);
+  }, [open, mode, fileKind, pdfBlob, docxBlob, zoomIn, zoomOut, resetZoom]);
+
+  const handleDocxPageChange = useCallback((page: number, totalPages: number) => {
+    setVisiblePage(page);
+    setDocxTotalPages(totalPages);
+  }, []);
 
   const handleOpenChange = (next: boolean) => {
     if (!next && submitting) return;
     if (!next) {
       setFileData(null);
       setPdfBlob(null);
+      setDocxBlob(null);
+      setFileKind(null);
       setPdfViewer(null);
       setChunks([]);
       setChunksLoading(false);
@@ -602,14 +657,20 @@ export function DocumentModal({
     }
   };
 
-  const showFileActions = viewMode === "file" && meta && (pdfBlob || fileData || textContent);
+  const showFileActions =
+    viewMode === "file" && meta && (pdfBlob || docxBlob || fileData || textContent);
+  const canOpenInBrowserViewer = Boolean(pdfBlob || textContent);
   const showFileContent = viewMode === "file";
   const showIndexContent = viewMode === "index";
 
   const downloadFile = () => {
     if (!meta) return;
-    const anchor = document.createElement("a");
-    if (fileData) {
+    const anchor = globalThis.document.createElement("a");
+    if (pdfBlob) {
+      anchor.href = URL.createObjectURL(pdfBlob);
+    } else if (docxBlob) {
+      anchor.href = URL.createObjectURL(docxBlob);
+    } else if (fileData) {
       anchor.href = URL.createObjectURL(new Blob([fileData], { type: meta.mimeType }));
     } else if (textContent) {
       anchor.href = URL.createObjectURL(new Blob([textContent], { type: "text/plain" }));
@@ -629,8 +690,6 @@ export function DocumentModal({
       blob = pdfBlob;
     } else if (textContent) {
       blob = new Blob([textContent], { type: meta.mimeType });
-    } else if (fileData) {
-      blob = new Blob([fileData], { type: meta.mimeType });
     }
     if (!blob) return;
 
@@ -675,18 +734,31 @@ export function DocumentModal({
       </Tabs>
       {showFileActions && (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5"
-            onClick={openInBrowserViewer}
-            title="Mở bằng viewer mặc định của trình duyệt"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={downloadFile}>
-            <Download className="h-3.5 w-3.5" />
-          </Button>
+          {canOpenInBrowserViewer && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={openInBrowserViewer}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span className="sr-only">Mở bằng viewer trình duyệt</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Mở bằng viewer trình duyệt</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={downloadFile}>
+                <Download className="h-3.5 w-3.5" />
+                <span className="sr-only">Tải xuống</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Tải xuống</TooltipContent>
+          </Tooltip>
         </>
       )}
     </>
@@ -900,7 +972,29 @@ export function DocumentModal({
             </div>
           )}
 
-          {showFileContent && !loading && !error && fileData && !isPdf && (
+          {showFileContent && !loading && !error && fileKind === "docx" && docxBlob && (
+            <DocxPreviewViewer
+              key={documentId ?? "docx"}
+              data={docxBlob}
+              className="h-full min-h-0"
+              scale={scale}
+              onZoomWheel={handleZoomWheel}
+              onPageChange={handleDocxPageChange}
+            />
+          )}
+
+          {showFileContent && !loading && !error && textContent != null && (
+            <pre className="whitespace-pre-wrap wrap-break-word p-6 font-sans text-sm leading-relaxed">
+              {textContent}
+            </pre>
+          )}
+
+          {showFileContent &&
+            !loading &&
+            !error &&
+            fileKind === "other" &&
+            fileData &&
+            textContent == null && (
             <div className="flex h-full min-h-64 flex-col items-center justify-center gap-4 px-6 text-center">
               <FileText className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
@@ -913,13 +1007,10 @@ export function DocumentModal({
             </div>
           )}
 
-          {showFileContent && !loading && !error && textContent != null && (
-            <pre className="whitespace-pre-wrap wrap-break-word p-6 font-sans text-sm leading-relaxed">
-              {textContent}
-            </pre>
-          )}
-
-          {showFileContent && isPdf && pdfBlob && !loading && !error && (
+          {showFileContent &&
+            !loading &&
+            !error &&
+            ((isPdf && pdfBlob) || (isDocx && docxBlob)) && (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 p-4">
               <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border/60 bg-background/90 px-2 py-1.5 shadow-md backdrop-blur-sm">
                 <Button
@@ -975,9 +1066,10 @@ export function DocumentModal({
                 </Button>
               </div>
 
-              {meta && meta.totalPages > 0 && (
+              {((isPdf && meta && meta.totalPages > 0) ||
+                (isDocx && docxTotalPages > 0)) && (
                 <div className="rounded-lg border border-border/60 bg-background/90 px-3 py-2 text-xs tabular-nums text-muted-foreground shadow-md backdrop-blur-sm">
-                  Trang {visiblePage}/{meta.totalPages}
+                  Trang {visiblePage}/{isPdf ? meta!.totalPages : docxTotalPages}
                 </div>
               )}
             </div>
