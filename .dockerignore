@@ -1,0 +1,11 @@
+node_modules
+dist
+.output
+.vinxi
+.tanstack
+.git
+.env
+.env.*
+!.env.example
+*.md
+docker/GUIDE.md

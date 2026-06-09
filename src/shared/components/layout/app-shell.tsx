@@ -24,7 +24,15 @@ const ROLE_META: Record<AppRole, { label: string; icon: typeof ShieldCheck }> = 
   student: { label: "Student", icon: GraduationCap },
 };
 
-export function AppShell({ children, fullBleed = false }: { children: React.ReactNode; fullBleed?: boolean }) {
+export function AppShell({
+  children,
+  fullBleed = false,
+  mainClassName,
+}: {
+  children: React.ReactNode;
+  fullBleed?: boolean;
+  mainClassName?: string;
+}) {
   const { location } = useRouterState();
   const { user, loading, signOut } = useAuth();
   const { role, loading: roleLoading, isAdmin, isLecturer } = useRole();
@@ -161,7 +169,14 @@ export function AppShell({ children, fullBleed = false }: { children: React.Reac
         </div>
       </header>
 
-      <main className={cn("min-h-0 flex-1", fullBleed ? "overflow-hidden" : "px-6 py-6")}>{children}</main>
+      <main
+        className={cn(
+          "min-h-0 flex-1",
+          fullBleed ? "overflow-hidden" : (mainClassName ?? "px-6 py-6"),
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 }

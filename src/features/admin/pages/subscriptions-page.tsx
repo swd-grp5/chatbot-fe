@@ -9,13 +9,13 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Switch } from "@/shared/components/ui/switch";
 import { Textarea } from "@/shared/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/components/ui/dialog";
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
+  ModalTrigger,
+} from "@/shared/components/ui/modal";
 import { toast } from "sonner";
 import {
   DEFAULT_PLANS,
@@ -147,11 +147,11 @@ export function AdminSubscriptionsPage() {
           ))}
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editing && plans.find((p) => p.id === editing.id) ? "Sửa gói" : "Tạo gói mới"}</DialogTitle>
-            </DialogHeader>
+        <Modal open={open} onOpenChange={setOpen}>
+          <ModalContent>
+            <ModalHeader>
+              <ModalTitle>{editing && plans.find((p) => p.id === editing.id) ? "Sửa gói" : "Tạo gói mới"}</ModalTitle>
+            </ModalHeader>
 
             {editing && (
               <div className="space-y-4">
@@ -207,12 +207,12 @@ export function AdminSubscriptionsPage() {
               </div>
             )}
 
-            <DialogFooter>
+            <ModalFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Hủy</Button>
               <Button onClick={save}>Lưu</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </div>
     </AppShell>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -19,9 +19,13 @@ import { cn } from "@/shared/lib/utils";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/shared/lib/format-time";
 import { type Citation, type ChatMessage, courseLabel, sessionGroupOrder } from "@/shared/lib/mock-data";
+import { fetchDocuments, mapDocumentResponse } from "@/features/lecturer/api/document-api";
+import { getApiToken } from "@/features/auth/lib/auth-session";
 import { useAppStore } from "@/features/student/lib/store";
+import type { Course, Doc } from "@/shared/lib/mock-data";
 
 const groupOrder = sessionGroupOrder;
+const API_DEFAULT_COURSE: Course = { code: "SWD", name: "SWD" };
 
 export function ChatPage() {
   const [input, setInput] = useState("");
@@ -40,6 +44,28 @@ export function ChatPage() {
   const sendMessage = useAppStore((s) => s.sendMessage);
   const init = useAppStore((s) => s.init);
   const { user } = useAuth();
+  const isApiMode = user?.source === "api";
+
+  const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
+
+  const displayCourses = isApiMode ? [API_DEFAULT_COURSE] : courses;
+  const displayDocuments = isApiMode ? apiDocuments : documents;
+
+  const loadApiDocuments = useCallback(async () => {
+    const token = getApiToken();
+    if (!token) return;
+    try {
+      const res = await fetchDocuments(token, { active: true, status: "INDEXED", size: 100 });
+      setApiDocuments(res.content.map(mapDocumentResponse));
+    } catch {
+      setApiDocuments([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isApiMode) return;
+    void loadApiDocuments();
+  }, [isApiMode, loadApiDocuments]);
 
   const messages: ChatMessage[] = conversations[activeSession] ?? [];
 
@@ -89,14 +115,14 @@ export function ChatPage() {
     messages.forEach((m) =>
       (m.citations ?? []).forEach((c) => {
         const course =
-          c.course || documents.find((d) => d.id === c.docId)?.course || "";
+          c.course || displayDocuments.find((d) => d.id === c.docId)?.course || "";
         const entry = map.get(c.docId) ?? { docName: c.docName, course, items: [] };
         entry.items.push({ ...c, course: c.course || course });
         map.set(c.docId, entry);
       }),
     );
     return Array.from(map.entries()).map(([docId, v]) => ({ docId, ...v }));
-  }, [messages, documents]);
+  }, [messages, displayDocuments]);
 
   const filteredSessions = useMemo(() => {
     const q = sessionQuery.trim().toLowerCase();
@@ -215,7 +241,11 @@ export function ChatPage() {
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
               {showWelcome && userPlan && (
-                <ChatWelcome courses={courses} documents={documents} plan={userPlan} />
+                <ChatWelcome
+                  courses={displayCourses}
+                  documents={displayDocuments}
+                  plan={userPlan}
+                />
               )}
               {messages.length === 0 && hasEverChatted && (
                 <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
@@ -325,7 +355,7 @@ export function ChatPage() {
                   index={i + 1}
                   docName={d.docName}
                   courseCode={d.course}
-                  courseName={courseLabel(d.course, courses)}
+                  courseName={courseLabel(d.course, displayCourses)}
                   citations={d.items}
                 />
               ))}

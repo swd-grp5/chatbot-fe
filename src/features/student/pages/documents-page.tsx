@@ -1,14 +1,7 @@
-import { useEffect, useState } from "react";
-import {
-  Search,
-  FileText,
-  FileSpreadsheet,
-  Presentation,
-  FileType,
-  Eye,
-  Lock,
-} from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Columns2, Eye, Lock, RefreshCw, Search } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
+import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
@@ -21,87 +14,214 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
 import { type Doc, courseLabel } from "@/shared/lib/mock-data";
-import { useAppStore } from "@/features/student/lib/store";
+import {
+  ACTIVE_FILTER_OPTIONS,
+  API_DEFAULT_COURSE,
+  API_DOC_COLUMNS,
+  activeStyles,
+  documentTypeStyle,
+  FilterTableHead,
+  FILTER_COL_WIDTH,
+  loadColumnVisibility,
+  SortableTableHead,
+  statusStyles,
+  TABLE_HEAD_LABEL,
+  type ActiveFilter,
+} from "@/features/lecturer/components/documents-table-ui";
+import {
+  type ApiDocumentStatus,
+  type ApiDocumentType,
+  type DocumentSortField,
+  type SortDirection,
+  DEFAULT_DOCUMENT_PAGE_SIZE,
+  DOCUMENT_STATUS_OPTIONS,
+  DOCUMENT_TYPE_OPTIONS,
+  fetchDocuments,
+  mapDocumentResponse,
+} from "@/features/lecturer/api/document-api";
+import { TablePagination } from "@/shared/components/ui/table-pagination";
+import { DocumentsCardGrid } from "@/features/lecturer/components/documents-card-grid";
+import {
+  DocumentsViewToggle,
+  type DocumentsViewMode,
+} from "@/features/lecturer/components/documents-view-toggle";
+import type { DocumentViewMode } from "@/features/lecturer/components/document-modal";
+import { getApiToken } from "@/features/auth/lib/auth-session";
+import { ApiError } from "@/shared/lib/api-client";
+import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "sonner";
 
-const typeIcons = {
-  pdf: { icon: FileText, color: "text-red-600 bg-red-50" },
-  docx: { icon: FileType, color: "text-blue-600 bg-blue-50" },
-  pptx: { icon: Presentation, color: "text-orange-600 bg-orange-50" },
-  xlsx: { icon: FileSpreadsheet, color: "text-green-600 bg-green-50" },
-  txt: { icon: FileText, color: "text-gray-600 bg-gray-50" },
-};
+const DocumentModal = lazy(() =>
+  import("@/features/lecturer/components/document-modal").then((m) => ({
+    default: m.DocumentModal,
+  })),
+);
 
-const mockPreview = (doc: Doc, subject: string) =>
-  [
-    `Đây là bản xem trước demo của **${doc.name}**.`,
-    `Môn: **${subject}**`,
-    "",
-    "Trong môi trường thật, nội dung tài liệu sẽ được hiển thị tại đây (PDF, slide, v.v.). Sinh viên chỉ được xem — không tải xuống, chỉnh sửa hay xóa.",
-    "",
-    "Bạn có thể dùng trang Chat để đặt câu hỏi dựa trên tài liệu các môn SDN302, SWD392, SWP391, LAB211.",
-  ].join("\n");
+const API_COLUMNS_STORAGE = "student-documents-api-columns";
+const VIEW_MODE_STORAGE = "student-documents-view-mode";
 
 export function StudentDocumentsPage() {
-  const documents = useAppStore((s) => s.documents);
-  const courses = useAppStore((s) => s.courses);
-  const init = useAppStore((s) => s.init);
   const [selectedCourse, setSelectedCourse] = useState("");
-  const [query, setQuery] = useState("");
-  const [viewDoc, setViewDoc] = useState<Doc | null>(null);
+  const [queryInput, setQueryInput] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ApiDocumentStatus | "all">("all");
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<ApiDocumentType | "all">("all");
+  const activeFilter: ActiveFilter = "true";
+  const [viewDoc, setViewDoc] = useState<{
+    doc: Doc;
+    viewTab: DocumentViewMode;
+  } | null>(null);
+  const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [sortBy, setSortBy] = useState<DocumentSortField | null>(null);
+  const [sortDir, setSortDir] = useState<SortDirection | null>(null);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [apiColumns, setApiColumns] = useState(() =>
+    loadColumnVisibility(
+      API_COLUMNS_STORAGE,
+      API_DOC_COLUMNS.map((column) => column.key),
+    ),
+  );
+  const [viewMode, setViewMode] = useState<DocumentsViewMode>(() => {
+    try {
+      return localStorage.getItem(VIEW_MODE_STORAGE) === "cards" ? "cards" : "table";
+    } catch {
+      return "table";
+    }
+  });
 
-  useEffect(() => {
-    init();
-  }, [init]);
+  const columnVisibility = apiColumns;
+  const columnOptions = API_DOC_COLUMNS;
 
-  useEffect(() => {
-    if (courses.length === 0) {
-      setSelectedCourse("");
+  const tableColSpan = useMemo(() => {
+    const visibleOptional = Object.values(columnVisibility).filter(Boolean).length;
+    return 3 + visibleOptional;
+  }, [columnVisibility]);
+
+  const displayCourses = [API_DEFAULT_COURSE];
+  const allDocuments = apiDocuments;
+  const labelOf = (code: string) => courseLabel(code, displayCourses);
+
+  const loadApiDocuments = useCallback(async () => {
+    const token = getApiToken();
+    if (!token) return;
+    setDocsLoading(true);
+    try {
+      const res = await fetchDocuments(token, {
+        keyword: searchKeyword,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        documentType: documentTypeFilter === "all" ? undefined : documentTypeFilter,
+        active: true,
+        ...(sortBy && sortDir ? { sortBy, sortDir } : {}),
+        page,
+        size: DEFAULT_DOCUMENT_PAGE_SIZE,
+      });
+      if (res.totalPages > 0 && page >= res.totalPages) {
+        setPage(res.totalPages - 1);
+        return;
+      }
+      setApiDocuments(res.content.map(mapDocumentResponse));
+      setTotalPages(res.totalPages);
+      setTotalElements(res.totalElements);
+      setSelectedCourse("SWD");
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách tài liệu");
+    } finally {
+      setDocsLoading(false);
+    }
+  }, [searchKeyword, statusFilter, documentTypeFilter, sortBy, sortDir, page]);
+
+  const handleSearch = () => {
+    setPage(0);
+    setSearchKeyword(queryInput.trim());
+  };
+
+  const handleSort = (field: DocumentSortField) => {
+    setPage(0);
+    if (sortBy !== field) {
+      setSortBy(field);
+      setSortDir("asc");
       return;
     }
-    if (selectedCourse && !courses.some((c) => c.code === selectedCourse)) {
-      setSelectedCourse("");
+    if (sortDir === "asc") {
+      setSortDir("desc");
+      return;
     }
-  }, [courses, selectedCourse]);
+    setSortBy(null);
+    setSortDir(null);
+  };
+
+  useEffect(() => {
+    localStorage.setItem(API_COLUMNS_STORAGE, JSON.stringify(apiColumns));
+  }, [apiColumns]);
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_MODE_STORAGE, viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => loadApiDocuments(), 300);
+    return () => clearTimeout(timer);
+  }, [loadApiDocuments]);
 
   const courseDocs = selectedCourse
-    ? documents.filter((d) => d.course === selectedCourse)
+    ? allDocuments.filter((d) => d.course === selectedCourse)
     : [];
-  const filtered = courseDocs.filter(
-    (d) => !query || d.name.toLowerCase().includes(query.toLowerCase()),
-  );
+  const filtered = courseDocs;
+  const displayTotalElements = totalElements;
+  const displayTotalPages = totalPages;
+  const tableRows = filtered;
 
-  const openViewer = (doc: Doc) => {
+  const handleRefresh = () => {
+    void loadApiDocuments();
+  };
+
+  const openDocumentViewer = (doc: Doc, viewTab: DocumentViewMode = "file") => {
     if (doc.status !== "indexed") {
       toast.info("Tài liệu chưa sẵn sàng để xem");
       return;
     }
-    setViewDoc(doc);
+    setViewDoc({ doc, viewTab });
   };
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tài liệu học tập</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Chọn môn để xem tài liệu. Chế độ chỉ đọc — không thể thêm, sửa hay xóa.
-          </p>
+    <AppShell mainClassName="px-32 py-10">
+      <div className="w-full space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Tài liệu học tập</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Xem tài liệu theo từng môn — chỉ đọc, không thể thêm, sửa hay xóa.
+            </p>
+          </div>
+          <span className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" />
+            Chế độ chỉ xem
+          </span>
         </div>
 
         <Card className="overflow-hidden p-0">
-          <div className="border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <h2 className="text-sm font-semibold">Môn học</h2>
           </div>
-          <Table>
+          <Table className="[&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3">
             <TableHeader>
               <TableRow className="bg-secondary/40 hover:bg-secondary/40">
                 <TableHead className="w-28">Mã</TableHead>
@@ -110,18 +230,15 @@ export function StudentDocumentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {courses.length === 0 && (
+              {displayCourses.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
-                    Chưa có môn học nào.
+                    Chưa có môn học.
                   </TableCell>
                 </TableRow>
               )}
-              {courses.map((c) => {
-                const count = documents.filter((d) => d.course === c.code).length;
-                const ready = documents.filter(
-                  (d) => d.course === c.code && d.status === "indexed",
-                ).length;
+              {displayCourses.map((c) => {
+                const count = allDocuments.filter((d) => d.course === c.code).length;
                 const active = selectedCourse === c.code;
                 return (
                   <TableRow
@@ -129,14 +246,14 @@ export function StudentDocumentsPage() {
                     className={cn("cursor-pointer", active && "bg-primary/5")}
                     onClick={() => {
                       setSelectedCourse(c.code);
-                      setQuery("");
+                      setQueryInput("");
+                      setSearchKeyword("");
+                      setPage(0);
                     }}
                   >
                     <TableCell className="font-mono text-sm font-medium">{c.code}</TableCell>
                     <TableCell className="text-sm">{c.name}</TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {ready}/{count} sẵn sàng
-                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">{count}</TableCell>
                   </TableRow>
                 );
               })}
@@ -145,144 +262,349 @@ export function StudentDocumentsPage() {
         </Card>
 
         <Card className="overflow-hidden p-0">
-          <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold">
-              {selectedCourse
-                ? `Tài liệu — ${courseLabel(selectedCourse, courses)}`
-                : "Tài liệu"}
-            </h2>
-            <div className="ml-auto flex items-center gap-2">
-              <div className="relative w-56">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="truncate text-sm font-semibold">
+                {selectedCourse ? `Tài liệu — ${labelOf(selectedCourse)}` : "Tài liệu"}
+              </h2>
+              {selectedCourse && (
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  ({displayTotalElements})
+                </span>
+              )}
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <div className="relative w-80 sm:w-96">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Tìm tài liệu..."
+                  value={queryInput}
+                  onChange={(e) => setQueryInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSearch();
+                  }}
+                  placeholder="Tìm theo tên và nội dung tài liệu"
                   className="h-8 pl-8 text-xs"
                   disabled={!selectedCourse}
                 />
               </div>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Lock className="h-3 w-3" />
-                Chỉ xem
-              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 shrink-0 px-3 text-xs"
+                onClick={handleSearch}
+                disabled={!selectedCourse}
+              >
+                Tìm
+              </Button>
+              <TooltipProvider delayDuration={200}>
+                {viewMode === "table" && (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs"
+                          disabled={!selectedCourse}
+                        >
+                          <Columns2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Hiển thị cột</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {columnOptions.map(({ key, label }) => (
+                      <DropdownMenuCheckboxItem
+                        key={key}
+                        checked={Boolean(columnVisibility[key as keyof typeof columnVisibility])}
+                        onCheckedChange={(checked) => {
+                          setApiColumns((prev) => ({
+                            ...prev,
+                            [key]: checked === true,
+                          }));
+                        }}
+                      >
+                        {label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                )}
+                <DocumentsViewToggle
+                  value={viewMode}
+                  onChange={setViewMode}
+                  disabled={!selectedCourse}
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={handleRefresh}
+                      disabled={!selectedCourse || docsLoading}
+                    >
+                      <RefreshCw className={cn("h-3.5 w-3.5", docsLoading && "animate-spin")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">Tải lại danh sách</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                <TableHead className="w-[55%]">Tài liệu</TableHead>
-                <TableHead className="text-right">Kích thước</TableHead>
-                <TableHead>Ngày thêm</TableHead>
-                <TableHead className="w-24 text-right">Xem</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!selectedCourse && (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Chọn một môn ở bảng trên để xem tài liệu.
-                  </TableCell>
+          {viewMode === "cards" ? (
+            <DocumentsCardGrid
+              rows={tableRows}
+              page={page}
+              loading={docsLoading}
+              selectedCourse={selectedCourse}
+              readOnly
+              onView={(doc) => openDocumentViewer(doc, "file")}
+              emptyMessage="Chưa có tài liệu trong môn này."
+            />
+          ) : (
+          <TooltipProvider delayDuration={0}>
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow className="bg-secondary/40 hover:bg-secondary/40">
+                  <TableHead className={cn(TABLE_HEAD_LABEL, "w-12 text-center")}>STT</TableHead>
+                  <SortableTableHead
+                    label="Tài liệu"
+                    field="title"
+                    activeField={sortBy}
+                    direction={sortDir}
+                    onSort={handleSort}
+                    className="w-[30%]"
+                  />
+                  {apiColumns.documentType && (
+                    <FilterTableHead
+                      label="Loại"
+                      filterValue={documentTypeFilter}
+                      onFilterChange={(v) => {
+                        setPage(0);
+                        setDocumentTypeFilter(v as ApiDocumentType | "all");
+                      }}
+                      filterOptions={DOCUMENT_TYPE_OPTIONS}
+                      field="documentType"
+                      activeField={sortBy}
+                      direction={sortDir}
+                      onSort={handleSort}
+                      className={FILTER_COL_WIDTH.documentType}
+                      disabled={!selectedCourse}
+                    />
+                  )}
+                  {apiColumns.description && (
+                    <TableHead className={cn(TABLE_HEAD_LABEL, "w-36 max-w-36")}>Mô tả</TableHead>
+                  )}
+                  {columnVisibility.status && (
+                    <FilterTableHead
+                      label="Trạng thái"
+                      filterValue={statusFilter}
+                      onFilterChange={(v) => {
+                        setPage(0);
+                        setStatusFilter(v as ApiDocumentStatus | "all");
+                      }}
+                      filterOptions={DOCUMENT_STATUS_OPTIONS}
+                      field="status"
+                      activeField={sortBy}
+                      direction={sortDir}
+                      onSort={handleSort}
+                      className={FILTER_COL_WIDTH.status}
+                      disabled={!selectedCourse}
+                    />
+                  )}
+                  {apiColumns.active && (
+                    <FilterTableHead
+                      label="Kích hoạt"
+                      filterValue={activeFilter}
+                      onFilterChange={() => {}}
+                      filterOptions={ACTIVE_FILTER_OPTIONS}
+                      className={FILTER_COL_WIDTH.active}
+                      disabled
+                    />
+                  )}
+                  {columnVisibility.size && (
+                    <TableHead className={cn(TABLE_HEAD_LABEL, "w-28 text-right")}>Kích thước</TableHead>
+                  )}
+                  {apiColumns.createdAt && (
+                    <SortableTableHead
+                      label="Ngày tạo"
+                      field="createdAt"
+                      activeField={sortBy}
+                      direction={sortDir}
+                      onSort={handleSort}
+                      className="w-36"
+                    />
+                  )}
+                  {apiColumns.updatedAt && (
+                    <SortableTableHead
+                      label="Cập nhật"
+                      field="updatedAt"
+                      activeField={sortBy}
+                      direction={sortDir}
+                      onSort={handleSort}
+                      className="w-36"
+                    />
+                  )}
+                  <TableHead className={cn(TABLE_HEAD_LABEL, "w-20 text-center")}>Thao tác</TableHead>
                 </TableRow>
-              )}
-              {selectedCourse && filtered.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Chưa có tài liệu trong môn này.
-                  </TableCell>
-                </TableRow>
-              )}
-              {filtered.map((d) => {
-                const t = typeIcons[d.type];
-                const Icon = t.icon;
-                const canView = d.status === "indexed";
-                return (
-                  <TableRow
-                    key={d.id}
-                    className={cn(canView && "cursor-pointer hover:bg-secondary/30")}
-                    onClick={() => canView && openViewer(d)}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={cn(
-                            "flex h-8 w-8 items-center justify-center rounded-md",
-                            t.color,
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">{d.name}</div>
-                          <div className="text-[11px] uppercase text-muted-foreground">
-                            {d.type}
-                            {!canView && (
-                              <span className="ml-2 normal-case text-info">· Chưa sẵn sàng</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {d.size}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{d.uploadedAt}</TableCell>
-                    <TableCell className="text-right">
-                      {canView ? (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 border-success/20 bg-success/10 font-normal text-success"
-                        >
-                          <Eye className="h-3 w-3" />
-                          Xem
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="font-normal text-muted-foreground">
-                          Chờ xử lý
-                        </Badge>
-                      )}
+              </TableHeader>
+              <TableBody
+                className={cn(
+                  docsLoading && tableRows.length > 0 && "pointer-events-none opacity-50",
+                )}
+              >
+                {!selectedCourse && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
+                      Chọn một môn ở bảng trên để xem tài liệu.
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                )}
+                {selectedCourse && docsLoading && tableRows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                      Đang tải tài liệu...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {selectedCourse && !docsLoading && filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
+                      Chưa có tài liệu trong môn này.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!(docsLoading && tableRows.length === 0) &&
+                  tableRows.map((d, index) => {
+                    const s = statusStyles[d.status];
+                    const docType = documentTypeStyle(d.type);
+                    const a = d.active === false ? activeStyles.inactive : activeStyles.active;
+                    const canView = d.status === "indexed";
+                    const rowNumber = page * DEFAULT_DOCUMENT_PAGE_SIZE + index + 1;
+                    return (
+                      <TableRow key={d.id}>
+                        <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
+                          {rowNumber}
+                        </TableCell>
+                        <TableCell>
+                          <div className="truncate text-sm font-medium">{d.name}</div>
+                        </TableCell>
+                        {apiColumns.documentType && (
+                          <TableCell className="text-center">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "font-mono text-[11px] font-semibold uppercase",
+                                docType.className,
+                              )}
+                            >
+                              {docType.label}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {apiColumns.description && (
+                          <TableCell className="w-36 max-w-36 text-sm text-muted-foreground">
+                            {d.description?.trim() ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="block cursor-default truncate">
+                                    {d.description.trim()}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap">
+                                  {d.description.trim()}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                        )}
+                        {columnVisibility.status && (
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className={cn("gap-1.5 font-normal", s.className)}>
+                              {s.label}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {apiColumns.active && (
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className={cn("gap-1.5 font-normal", a.className)}>
+                              {a.label}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {columnVisibility.size && (
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {d.size}
+                          </TableCell>
+                        )}
+                        {apiColumns.createdAt && (
+                          <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                            {d.createdAt
+                              ? formatDateTimeDMY(d.createdAt)
+                              : formatDateDMY(d.uploadedAt)}
+                          </TableCell>
+                        )}
+                        {apiColumns.updatedAt && (
+                          <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                            {d.updatedAt ? formatDateTimeDMY(d.updatedAt) : "—"}
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <div className="flex items-center justify-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => openDocumentViewer(d, "file")}
+                              title="Xem tài liệu"
+                              disabled={!canView}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
+          </TooltipProvider>
+          )}
+          {selectedCourse && displayTotalPages > 1 && (
+            <TablePagination
+              page={page}
+              totalPages={displayTotalPages}
+              onPageChange={setPage}
+              disabled={docsLoading}
+            />
+          )}
         </Card>
       </div>
 
-      <Dialog open={!!viewDoc} onOpenChange={(open) => !open && setViewDoc(null)}>
-        <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 p-0 sm:max-w-3xl">
-          {viewDoc && (
-            <>
-              <DialogHeader className="shrink-0 border-b border-border px-6 py-4 pr-12 text-left">
-                <DialogTitle className="truncate pr-2">{viewDoc.name}</DialogTitle>
-                <DialogDescription className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs">{viewDoc.course}</span>
-                  <span className="text-muted-foreground">
-                    {courseLabel(viewDoc.course, courses)}
-                  </span>
-                  <span className="text-muted-foreground">· {viewDoc.size}</span>
-                  <Badge variant="outline" className="h-5 text-[10px] font-normal">
-                    Chỉ xem
-                  </Badge>
-                </DialogDescription>
-              </DialogHeader>
-              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 select-text">
-                <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                  {mockPreview(viewDoc, courseLabel(viewDoc.course, courses))}
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <Suspense fallback={null}>
+        <DocumentModal
+          mode="view"
+          document={viewDoc?.doc ?? null}
+          initialViewMode={viewDoc?.viewTab ?? "file"}
+          open={!!viewDoc}
+          onOpenChange={(open) => !open && setViewDoc(null)}
+          courseLabel={labelOf}
+        />
+      </Suspense>
     </AppShell>
   );
 }

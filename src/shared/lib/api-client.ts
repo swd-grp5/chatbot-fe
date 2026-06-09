@@ -54,3 +54,67 @@ export async function apiFetch<T>(
 
   return JSON.parse(text) as T;
 }
+
+export async function apiFetchBlob(
+  path: string,
+  init?: RequestInit & { token?: string },
+): Promise<Blob> {
+  const { token, headers: initHeaders, ...rest } = init ?? {};
+  const headers = new Headers(initHeaders);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...rest, headers });
+
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const body = (await res.json()) as ApiErrorBody;
+      if (body.message) message = body.message;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(message, res.status);
+  }
+
+  return res.blob();
+}
+
+export async function apiUpload<T>(
+  path: string,
+  formData: FormData,
+  init?: { token?: string; method?: "POST" | "PUT" },
+): Promise<T> {
+  const { token, method = "POST" } = init ?? {};
+  const headers = new Headers();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { method, headers, body: formData });
+
+  if (!res.ok) {
+    let message = res.statusText;
+    let fieldErrors: Record<string, string> | undefined;
+    try {
+      const body = (await res.json()) as ApiErrorBody;
+      if (body.message) message = body.message;
+      fieldErrors = body.fieldErrors;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(message, res.status, fieldErrors);
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  const text = await res.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
+}

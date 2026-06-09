@@ -58,7 +58,7 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
         <p className="mb-4 text-xs text-muted-foreground">
           Hiện tại hệ thống có {indexed.length} tài liệu sẵn sàng trên{" "}
           {byCourse.filter((g) => g.docs.length > 0).length} môn. Gõ câu hỏi bên dưới để bắt
-          đầu — ví dụ: &quot;Tóm tắt UML&quot;, &quot;Middleware Express là gì?&quot;
+          đầu — ví dụ: &quot;Tóm tắt nội dung tài liệu&quot;, &quot;Scrum là gì?&quot;
         </p>
         <div className="space-y-3">
           {byCourse.map(({ course, docs }) => (

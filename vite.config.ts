@@ -16,6 +16,15 @@ export default defineConfig({
     },
   },
   vite: {
+    optimizeDeps: {
+      include: [
+        "react-pdf",
+        "pdfjs-dist/build/pdf.mjs",
+        "pdfjs-dist/build/pdf.worker.min.mjs",
+        "docx-preview",
+        "jszip",
+      ],
+    },
     server: {
       port: 5173,
       strictPort: true,

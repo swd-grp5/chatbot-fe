@@ -3,12 +3,17 @@ export type DocStatus = "indexed" | "processing" | "uploaded" | "failed";
 export interface Doc {
   id: string;
   name: string;
+  title?: string;
+  description?: string | null;
   type: "pdf" | "docx" | "pptx" | "xlsx" | "txt";
   course: string;
   size: string;
   uploadedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   status: DocStatus;
   chunks: number;
+  active?: boolean;
 }
 
 export interface Course {
@@ -33,21 +38,7 @@ export const normalizeCourseCode = (raw: string) =>
 export const courseLabel = (code: string, list: Course[]) =>
   list.find((c) => c.code === code)?.name ?? code;
 
-export const documents: Doc[] = [
-  { id: "d1", name: "UML_Basics.pdf", type: "pdf", course: "SWD392", size: "4.2 MB", uploadedAt: "2026-05-12", status: "indexed", chunks: 184 },
-  { id: "d2", name: "UseCases_Lecture_Slides.pptx", type: "pptx", course: "SWD392", size: "8.7 MB", uploadedAt: "2026-05-14", status: "indexed", chunks: 96 },
-  { id: "d3", name: "Design_Patterns_GoF.pdf", type: "pdf", course: "SWD392", size: "12.1 MB", uploadedAt: "2026-05-18", status: "indexed", chunks: 312 },
-  { id: "d4", name: "Software_Architectures_Notes.docx", type: "docx", course: "SWD392", size: "1.8 MB", uploadedAt: "2026-05-20", status: "processing", chunks: 0 },
-  { id: "d5", name: "Object_Interaction_Examples.pdf", type: "pdf", course: "SWD392", size: "3.4 MB", uploadedAt: "2026-05-22", status: "uploaded", chunks: 0 },
-  { id: "d6", name: "Architecture_Quiz_Bank.xlsx", type: "xlsx", course: "SWD392", size: "612 KB", uploadedAt: "2026-05-23", status: "failed", chunks: 0 },
-  { id: "d7", name: "Express_REST_API_Guide.pdf", type: "pdf", course: "SDN302", size: "2.4 MB", uploadedAt: "2026-05-10", status: "indexed", chunks: 156 },
-  { id: "d8", name: "MongoDB_Schema_Design.pdf", type: "pdf", course: "SDN302", size: "5.3 MB", uploadedAt: "2026-05-11", status: "indexed", chunks: 210 },
-  { id: "d9", name: "NodeJS_Async_Patterns.pdf", type: "pdf", course: "SDN302", size: "1.9 MB", uploadedAt: "2026-05-15", status: "indexed", chunks: 128 },
-  { id: "d10", name: "SWP391_Project_Brief.pdf", type: "pdf", course: "SWP391", size: "890 KB", uploadedAt: "2026-05-08", status: "indexed", chunks: 72 },
-  { id: "d11", name: "SWP391_Sprint_Template.docx", type: "docx", course: "SWP391", size: "420 KB", uploadedAt: "2026-05-16", status: "indexed", chunks: 48 },
-  { id: "d12", name: "Java_OOP_Lab_Workbook.pdf", type: "pdf", course: "LAB211", size: "2.1 MB", uploadedAt: "2026-05-09", status: "indexed", chunks: 142 },
-  { id: "d13", name: "Inheritance_Polymorphism_Exercises.pdf", type: "pdf", course: "LAB211", size: "1.2 MB", uploadedAt: "2026-05-19", status: "processing", chunks: 0 },
-];
+export const documents: Doc[] = [];
 
 export const sessionGroupOrder = ["Hôm nay", "Hôm qua", "7 ngày qua", "Cũ hơn"] as const;
 export type SessionGroup = (typeof sessionGroupOrder)[number];
