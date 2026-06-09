@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   Search,
   Upload,
@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Layers,
+  Eye,
 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Button } from "@/shared/components/ui/button";
@@ -75,6 +76,11 @@ import { ApiError } from "@/shared/lib/api-client";
 import { formatDateDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "sonner";
+const DocumentViewerModal = lazy(() =>
+  import("@/features/lecturer/components/document-viewer-modal").then((m) => ({
+    default: m.DocumentViewerModal,
+  })),
+);
 
 const statusStyles: Record<DocStatus, { label: string; className: string; dot: string }> = {
   indexed: {
@@ -151,6 +157,7 @@ export function LecturerDocumentsPage() {
   const [chunksDoc, setChunksDoc] = useState<Doc | null>(null);
   const [chunks, setChunks] = useState<DocumentChunkResponse[]>([]);
   const [chunksLoading, setChunksLoading] = useState(false);
+  const [viewDoc, setViewDoc] = useState<Doc | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const tableColSpan = isApiMode ? 6 : 5;
@@ -677,6 +684,12 @@ export function LecturerDocumentsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {isApiMode && (
+                            <DropdownMenuItem onSelect={() => setViewDoc(d)}>
+                              <Eye className="mr-2 h-3.5 w-3.5" />
+                              Xem tài liệu
+                            </DropdownMenuItem>
+                          )}
+                          {isApiMode && (
                             <DropdownMenuItem onClick={() => openChunks(d)}>
                               <Layers className="mr-2 h-3.5 w-3.5" />
                               Xem nội dung index
@@ -710,6 +723,15 @@ export function LecturerDocumentsPage() {
           </Table>
         </Card>
       </div>
+
+      <Suspense fallback={null}>
+        <DocumentViewerModal
+          documentId={viewDoc?.id ?? null}
+          documentName={viewDoc?.name}
+          open={!!viewDoc}
+          onOpenChange={(open) => !open && setViewDoc(null)}
+        />
+      </Suspense>
 
       <Dialog
         open={!!chunksDoc}

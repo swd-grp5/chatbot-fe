@@ -1,4 +1,4 @@
-import { apiFetch, apiUpload } from "@/shared/lib/api-client";
+import { apiFetch, apiFetchBlob, apiUpload } from "@/shared/lib/api-client";
 import type { Doc, DocStatus } from "@/shared/lib/mock-data";
 
 export const ALLOWED_UPLOAD_EXTENSIONS = new Set(["pdf", "docx", "txt"]);
@@ -142,4 +142,23 @@ export type DocumentChunkResponse = {
 
 export async function fetchDocumentChunks(documentId: string, token: string) {
   return apiFetch<DocumentChunkResponse[]>(`/documents/${documentId}/chunks`, { token });
+}
+
+export type DocumentViewerResponse = {
+  id: string;
+  title: string;
+  description: string | null;
+  documentType: ApiDocumentType;
+  totalPages: number;
+  fileId: string;
+  fileName: string;
+  mimeType: string;
+};
+
+export async function fetchDocumentViewer(documentId: string, token: string) {
+  return apiFetch<DocumentViewerResponse>(`/documents/${documentId}/viewer`, { token });
+}
+
+export async function fetchDocumentFile(documentId: string, token: string) {
+  return apiFetchBlob(`/documents/${documentId}/view`, { token });
 }
