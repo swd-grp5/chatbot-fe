@@ -187,6 +187,9 @@ export function PdfViewer({
           <p className="py-12 text-sm text-destructive">Không hiển thị được PDF.</p>
         }
         onLoadSuccess={handleLoadSuccess}
+        onLoadError={(err) => {
+          console.error("PDF viewer load failed:", err);
+        }}
       >
         {numPages > 0 && (
           <div
