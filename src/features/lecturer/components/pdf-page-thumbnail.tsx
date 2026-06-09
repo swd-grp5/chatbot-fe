@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import pdfWorkerDev from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+pdfjs.GlobalWorkerOptions.workerSrc = import.meta.env.DEV
+  ? pdfWorkerDev
+  : `${import.meta.env.BASE_URL}pdf.worker.min.js`;
 
 type PdfPageThumbnailProps = {
   blob: Blob;
