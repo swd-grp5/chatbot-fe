@@ -3,10 +3,14 @@ export type DocStatus = "indexed" | "processing" | "uploaded" | "failed";
 export interface Doc {
   id: string;
   name: string;
+  title?: string;
+  description?: string | null;
   type: "pdf" | "docx" | "pptx" | "xlsx" | "txt";
   course: string;
   size: string;
   uploadedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   status: DocStatus;
   chunks: number;
   active?: boolean;

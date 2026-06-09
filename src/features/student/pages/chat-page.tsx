@@ -55,7 +55,7 @@ export function ChatPage() {
     const token = getApiToken();
     if (!token) return;
     try {
-      const res = await fetchDocuments(token, { active: true, status: "INDEXED" });
+      const res = await fetchDocuments(token, { active: true, status: "INDEXED", size: 100 });
       setApiDocuments(res.content.map(mapDocumentResponse));
     } catch {
       setApiDocuments([]);
