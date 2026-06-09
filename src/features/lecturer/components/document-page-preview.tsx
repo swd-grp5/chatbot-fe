@@ -122,10 +122,10 @@ export function DocumentPagePreview({ doc, className }: DocumentPagePreviewProps
         const next: PreviewCacheEntry = { kind: "placeholder" };
         previewCache.set(doc.id, next);
         setEntry(next);
-      } catch {
+      } catch (err) {
+        console.error("Document preview failed:", doc.id, err);
         if (!cancelled) {
-          const next: PreviewCacheEntry = { kind: "placeholder" };
-          setEntry(next);
+          setEntry({ kind: "placeholder" });
         }
       } finally {
         if (!cancelled) setLoading(false);
