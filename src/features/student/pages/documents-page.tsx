@@ -48,6 +48,11 @@ import {
   mapDocumentResponse,
 } from "@/features/lecturer/api/document-api";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
+import { DocumentsCardGrid } from "@/features/lecturer/components/documents-card-grid";
+import {
+  DocumentsViewToggle,
+  type DocumentsViewMode,
+} from "@/features/lecturer/components/documents-view-toggle";
 import type { DocumentViewMode } from "@/features/lecturer/components/document-modal";
 import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
@@ -68,6 +73,7 @@ const DocumentModal = lazy(() =>
 );
 
 const API_COLUMNS_STORAGE = "student-documents-api-columns";
+const VIEW_MODE_STORAGE = "student-documents-view-mode";
 
 export function StudentDocumentsPage() {
   const [selectedCourse, setSelectedCourse] = useState("");
@@ -93,6 +99,13 @@ export function StudentDocumentsPage() {
       API_DOC_COLUMNS.map((column) => column.key),
     ),
   );
+  const [viewMode, setViewMode] = useState<DocumentsViewMode>(() => {
+    try {
+      return localStorage.getItem(VIEW_MODE_STORAGE) === "cards" ? "cards" : "table";
+    } catch {
+      return "table";
+    }
+  });
 
   const columnVisibility = apiColumns;
   const columnOptions = API_DOC_COLUMNS;
@@ -158,6 +171,10 @@ export function StudentDocumentsPage() {
   useEffect(() => {
     localStorage.setItem(API_COLUMNS_STORAGE, JSON.stringify(apiColumns));
   }, [apiColumns]);
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_MODE_STORAGE, viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     const timer = setTimeout(() => loadApiDocuments(), 300);
@@ -280,6 +297,7 @@ export function StudentDocumentsPage() {
                 Tìm
               </Button>
               <TooltipProvider delayDuration={200}>
+                {viewMode === "table" && (
                 <DropdownMenu>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -315,6 +333,12 @@ export function StudentDocumentsPage() {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
+                )}
+                <DocumentsViewToggle
+                  value={viewMode}
+                  onChange={setViewMode}
+                  disabled={!selectedCourse}
+                />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -333,6 +357,17 @@ export function StudentDocumentsPage() {
             </div>
           </div>
 
+          {viewMode === "cards" ? (
+            <DocumentsCardGrid
+              rows={tableRows}
+              page={page}
+              loading={docsLoading}
+              selectedCourse={selectedCourse}
+              readOnly
+              onView={(doc) => openDocumentViewer(doc, "file")}
+              emptyMessage="Chưa có tài liệu trong môn này."
+            />
+          ) : (
           <TooltipProvider delayDuration={0}>
             <Table className="table-fixed">
               <TableHeader>
@@ -548,6 +583,7 @@ export function StudentDocumentsPage() {
               </TableBody>
             </Table>
           </TooltipProvider>
+          )}
           {selectedCourse && displayTotalPages > 1 && (
             <TablePagination
               page={page}
