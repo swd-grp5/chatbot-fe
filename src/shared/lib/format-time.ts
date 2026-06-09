@@ -97,16 +97,30 @@ export function toSessionTimestamp(date = new Date()): string {
   return date.toISOString();
 }
 
+function parseDateInput(value: string | Date): Date {
+  if (value instanceof Date) return value;
+  return new Date(value.includes("T") ? value : `${value}T00:00:00`);
+}
+
 export function formatDateDMY(value: string | Date): string {
-  const date =
-    typeof value === "string"
-      ? new Date(value.includes("T") ? value : `${value}T00:00:00`)
-      : value;
+  const date = parseDateInput(value);
   if (Number.isNaN(date.getTime())) return typeof value === "string" ? value : "";
   return date.toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+  });
+}
+
+export function formatDateTimeDMY(value: string | Date): string {
+  const date = parseDateInput(value);
+  if (Number.isNaN(date.getTime())) return typeof value === "string" ? value : "";
+  return date.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 

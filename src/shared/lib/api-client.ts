@@ -55,6 +55,32 @@ export async function apiFetch<T>(
   return JSON.parse(text) as T;
 }
 
+export async function apiFetchBlob(
+  path: string,
+  init?: RequestInit & { token?: string },
+): Promise<Blob> {
+  const { token, headers: initHeaders, ...rest } = init ?? {};
+  const headers = new Headers(initHeaders);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...rest, headers });
+
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const body = (await res.json()) as ApiErrorBody;
+      if (body.message) message = body.message;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(message, res.status);
+  }
+
+  return res.blob();
+}
+
 export async function apiUpload<T>(
   path: string,
   formData: FormData,

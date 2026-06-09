@@ -1,0 +1,16 @@
+/* pdf.js renders invisible text spans over the canvas for selection */
+.react-pdf__Page .textLayer ::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+.react-pdf__Page .textLayer span::selection {
+  color: transparent;
+}
+
+.pdf-virtual-row {
+  box-sizing: border-box;
+}
+
+.pdf-virtual-row .react-pdf__Page {
+  position: relative;
+}
