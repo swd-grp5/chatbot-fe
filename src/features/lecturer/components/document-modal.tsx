@@ -60,6 +60,8 @@ type PdfDocumentViewerProps = {
   scale: number;
   onZoomWheel: (direction: number) => void;
   onVisiblePageChange: (page: number) => void;
+  scrollToPage?: number;
+  scrollToPageKey?: number;
 };
 
 export type DocumentViewMode = "file" | "index";
@@ -280,11 +282,17 @@ export function DocumentModal({
   const [scale, setScale] = useState(1);
   const [zoomInput, setZoomInput] = useState("100");
   const [visiblePage, setVisiblePage] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
+  const [pageScrollRequest, setPageScrollRequest] = useState<{
+    page: number;
+    key: number;
+  } | null>(null);
   const [docxTotalPages, setDocxTotalPages] = useState(0);
   const [PdfViewer, setPdfViewer] = useState<ComponentType<PdfDocumentViewerProps> | null>(
     null,
   );
   const isEditingZoom = useRef(false);
+  const isEditingPage = useRef(false);
   const chunksLoadedFor = useRef<string | null>(null);
 
   const zoomIn = useCallback(
@@ -325,6 +333,32 @@ export function DocumentModal({
       setZoomInput(scaleToPercent(scale));
     }
   }, [scale]);
+
+  const applyPageInput = useCallback(() => {
+    isEditingPage.current = false;
+    const total =
+      fileKind === "pdf" ? meta?.totalPages : fileKind === "docx" ? docxTotalPages : 0;
+    if (!total) {
+      setPageInput(String(visiblePage));
+      return;
+    }
+
+    const parsed = Number.parseInt(pageInput, 10);
+    if (Number.isNaN(parsed)) {
+      setPageInput(String(visiblePage));
+      return;
+    }
+
+    const page = Math.min(Math.max(1, parsed), total);
+    setPageInput(String(page));
+    setPageScrollRequest({ page, key: Date.now() });
+  }, [pageInput, visiblePage, fileKind, meta?.totalPages, docxTotalPages]);
+
+  useEffect(() => {
+    if (!isEditingPage.current) {
+      setPageInput(String(visiblePage));
+    }
+  }, [visiblePage]);
 
   const resetFormState = useCallback(() => {
     setTitle("");
@@ -418,6 +452,8 @@ export function DocumentModal({
       setScale(1);
       setZoomInput("100");
       setVisiblePage(1);
+      setPageInput("1");
+      setPageScrollRequest(null);
       setDocxTotalPages(0);
       setPdfViewer(null);
       setChunks([]);
@@ -487,6 +523,8 @@ export function DocumentModal({
       setScale(1);
       setZoomInput("100");
       setVisiblePage(1);
+      setPageInput("1");
+      setPageScrollRequest(null);
       setDocxTotalPages(0);
       setPdfViewer(null);
       return;
@@ -986,6 +1024,8 @@ export function DocumentModal({
                     scale={scale}
                     onZoomWheel={handleZoomWheel}
                     onVisiblePageChange={setVisiblePage}
+                    scrollToPage={pageScrollRequest?.page}
+                    scrollToPageKey={pageScrollRequest?.key}
                   />
                 </PdfViewerErrorBoundary>
               ) : (
@@ -1005,6 +1045,8 @@ export function DocumentModal({
               scale={scale}
               onZoomWheel={handleZoomWheel}
               onPageChange={handleDocxPageChange}
+              scrollToPage={pageScrollRequest?.page}
+              scrollToPageKey={pageScrollRequest?.key}
             />
           )}
 
@@ -1093,8 +1135,35 @@ export function DocumentModal({
 
               {((isPdf && meta && meta.totalPages > 0) ||
                 (isDocx && docxTotalPages > 0)) && (
-                <div className="rounded-lg border border-border/60 bg-background/90 px-3 py-2 text-xs tabular-nums text-muted-foreground shadow-md backdrop-blur-sm">
-                  Trang {visiblePage}/{isPdf ? meta!.totalPages : docxTotalPages}
+                <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border/60 bg-background/90 px-2 py-1.5 text-xs tabular-nums text-muted-foreground shadow-md backdrop-blur-sm">
+                  <span>Trang</span>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label="Số trang"
+                    className="h-8 w-12 border-border/60 bg-background px-2 text-center text-xs tabular-nums shadow-none"
+                    value={pageInput}
+                    onFocus={() => {
+                      isEditingPage.current = true;
+                    }}
+                    onChange={(event) => {
+                      setPageInput(event.target.value.replace(/\D/g, ""));
+                    }}
+                    onBlur={applyPageInput}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        applyPageInput();
+                        event.currentTarget.blur();
+                      }
+                      if (event.key === "Escape") {
+                        isEditingPage.current = false;
+                        setPageInput(String(visiblePage));
+                        event.currentTarget.blur();
+                      }
+                    }}
+                  />
+                  <span>/{isPdf ? meta!.totalPages : docxTotalPages}</span>
                 </div>
               )}
             </div>

@@ -9,11 +9,19 @@ import {
 import { useMeasuredMaxWidth } from "@/shared/lib/measure-text-width";
 import type { SubjectOption } from "@/features/lecturer/api/subject-api";
 
-export function formatSubjectSelectLabel(
+function resolveDocumentCount(
+  subject: SubjectOption,
+  documentCountsByCode?: Record<string, number>,
+) {
+  if (subject.totalDocuments != null) return subject.totalDocuments;
+  return documentCountsByCode?.[subject.code];
+}
+
+function formatSubjectSelectLabel(
   subject: Pick<SubjectOption, "code" | "name">,
   documentCount?: number,
 ) {
-  const suffix = documentCount != null && documentCount > 0 ? ` (${documentCount})` : "";
+  const suffix = documentCount != null ? ` (${documentCount})` : "";
   return `${subject.code} — ${subject.name}${suffix}`;
 }
 
@@ -42,7 +50,7 @@ export function DocumentsSubjectSelect({
 }: DocumentsSubjectSelectProps) {
   const widthLabels = useMemo(() => {
     const optionLabels = subjects.map((subject) =>
-      formatSubjectSelectLabel(subject, documentCountsByCode?.[subject.code]),
+      formatSubjectSelectLabel(subject, resolveDocumentCount(subject, documentCountsByCode)),
     );
     return [
       ...optionLabels,
@@ -59,7 +67,8 @@ export function DocumentsSubjectSelect({
     defaultPlaceholder,
   ]);
 
-  const triggerWidth = useMeasuredMaxWidth(widthLabels);
+  // Extra padding: trigger px/chevron + SelectItem check indicator (pr-8).
+  const triggerWidth = useMeasuredMaxWidth(widthLabels, "text-xs font-normal", 56);
 
   const placeholder = loading
     ? loadingPlaceholder
@@ -79,10 +88,16 @@ export function DocumentsSubjectSelect({
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent className="min-w-[var(--radix-select-trigger-width)]">
+      <SelectContent
+        className="min-w-(--radix-select-trigger-width)"
+        style={triggerWidth ? { minWidth: triggerWidth } : undefined}
+      >
         {subjects.map((subject) => (
           <SelectItem key={subject.id} value={subject.code} className="text-xs">
-            {formatSubjectSelectLabel(subject, documentCountsByCode?.[subject.code])}
+            {formatSubjectSelectLabel(
+              subject,
+              resolveDocumentCount(subject, documentCountsByCode),
+            )}
           </SelectItem>
         ))}
       </SelectContent>

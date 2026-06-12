@@ -1,7 +1,9 @@
 import { apiFetch } from "@/shared/lib/api-client";
 import type { PageResponse } from "@/features/lecturer/api/document-api";
 
-export type SubjectOption = Pick<SubjectResponse, "id" | "code" | "name">;
+export type SubjectOption = Pick<SubjectResponse, "id" | "code" | "name"> & {
+  totalDocuments?: number;
+};
 
 export type SubjectResponse = {
   id: string;

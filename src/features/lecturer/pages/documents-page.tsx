@@ -114,7 +114,6 @@ export function LecturerDocumentsPage() {
   const [sortDir, setSortDir] = useState<SortDirection | null>(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
   const [apiColumns, setApiColumns] = useState(() =>
     loadColumnVisibility(
       API_COLUMNS_STORAGE,
@@ -172,7 +171,6 @@ export function LecturerDocumentsPage() {
     if (!selectedSubjectId) {
       setApiDocuments([]);
       setTotalPages(0);
-      setTotalElements(0);
       setDocsLoading(false);
       return;
     }
@@ -195,7 +193,6 @@ export function LecturerDocumentsPage() {
       }
       setApiDocuments(res.content.map(mapDocumentResponse));
       setTotalPages(res.totalPages);
-      setTotalElements(res.totalElements);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách tài liệu");
     } finally {
@@ -249,7 +246,6 @@ export function LecturerDocumentsPage() {
     return () => clearTimeout(timer);
   }, [loadApiDocuments]);
 
-  const displayTotalElements = totalElements;
   const displayTotalPages = totalPages;
   const tableRows = apiDocuments;
 
@@ -327,11 +323,6 @@ export function LecturerDocumentsPage() {
                 onValueChange={handleSubjectChange}
                 loading={subjectsLoading}
               />
-              {selectedCourse && (
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {displayTotalElements} tài liệu
-                </span>
-              )}
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <div className="relative w-80 sm:w-96">
@@ -358,41 +349,41 @@ export function LecturerDocumentsPage() {
               </Button>
               <TooltipProvider delayDuration={200}>
                 {viewMode === "table" && (
-                <DropdownMenu>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 gap-1.5 text-xs"
-                          disabled={!selectedCourse}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs"
+                            disabled={!selectedCourse}
+                          >
+                            <Columns2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">Hiển thị cột</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {columnOptions.map(({ key, label }) => (
+                        <DropdownMenuCheckboxItem
+                          key={key}
+                          checked={Boolean(columnVisibility[key as keyof typeof columnVisibility])}
+                          onCheckedChange={(checked) => {
+                            setApiColumns((prev) => ({
+                              ...prev,
+                              [key]: checked === true,
+                            }));
+                          }}
                         >
-                          <Columns2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">Hiển thị cột</TooltipContent>
-                  </Tooltip>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {columnOptions.map(({ key, label }) => (
-                      <DropdownMenuCheckboxItem
-                        key={key}
-                        checked={Boolean(columnVisibility[key as keyof typeof columnVisibility])}
-                        onCheckedChange={(checked) => {
-                          setApiColumns((prev) => ({
-                            ...prev,
-                            [key]: checked === true,
-                          }));
-                        }}
-                      >
-                        {label}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                          {label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
                 <DocumentsViewToggle
                   value={viewMode}
@@ -430,287 +421,287 @@ export function LecturerDocumentsPage() {
               emptyMessage="Chưa có tài liệu — bấm Thêm tài liệu để upload."
             />
           ) : (
-          <TooltipProvider delayDuration={0}>
-            <Table
-              className="table-fixed w-full [&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3"
-              style={{ minWidth: tableMinWidth }}
-            >
-              <TableHeader>
-                <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                  <ResizableTableHead
-                    className={cn(TABLE_HEAD_LABEL, "text-center")}
-                    {...resize("stt")}
-                  >
-                    STT
-                  </ResizableTableHead>
-                  <SortableTableHead
-                    label="Tài liệu"
-                    field="title"
-                    activeField={sortBy}
-                    direction={sortDir}
-                    onSort={handleSort}
-                    {...resize("title")}
-                  />
-                  {apiColumns.documentType && (
-                    <FilterTableHead
-                      label="Loại"
-                      filterValue={documentTypeFilter}
-                      onFilterChange={(v) => {
-                        setPage(0);
-                        setDocumentTypeFilter(v as ApiDocumentType | "all");
-                      }}
-                      filterOptions={DOCUMENT_TYPE_OPTIONS}
-                      field="documentType"
-                      activeField={sortBy}
-                      direction={sortDir}
-                      onSort={handleSort}
-                      className="text-center"
-                      {...resize("documentType")}
-                      disabled={!selectedCourse}
-                    />
-                  )}
-                  {apiColumns.description && (
-                    <ResizableTableHead className={TABLE_HEAD_LABEL} {...resize("description")}>
-                      Mô tả
-                    </ResizableTableHead>
-                  )}
-                  {columnVisibility.status && (
-                    <FilterTableHead
-                      label="Trạng thái"
-                      filterValue={statusFilter}
-                      onFilterChange={(v) => {
-                        setPage(0);
-                        setStatusFilter(v as ApiDocumentStatus | "all");
-                      }}
-                      filterOptions={DOCUMENT_STATUS_OPTIONS}
-                      field="status"
-                      activeField={sortBy}
-                      direction={sortDir}
-                      onSort={handleSort}
-                      className="text-center"
-                      {...resize("status")}
-                      disabled={!selectedCourse}
-                    />
-                  )}
-                  {apiColumns.active && (
-                    <FilterTableHead
-                      label="Kích hoạt"
-                      filterValue={activeFilter}
-                      onFilterChange={(v) => {
-                        setPage(0);
-                        setActiveFilter(v as ActiveFilter);
-                      }}
-                      filterOptions={ACTIVE_FILTER_OPTIONS}
-                      className="text-center"
-                      {...resize("active")}
-                      disabled={!selectedCourse}
-                    />
-                  )}
-                  {columnVisibility.size && (
-                    <ResizableTableHead
-                      className={cn(TABLE_HEAD_LABEL, "text-right")}
-                      {...resize("size")}
-                    >
-                      Kích thước
-                    </ResizableTableHead>
-                  )}
-                  {apiColumns.createdAt && (
-                    <SortableTableHead
-                      label="Ngày tạo"
-                      field="createdAt"
-                      activeField={sortBy}
-                      direction={sortDir}
-                      onSort={handleSort}
-                      {...resize("createdAt")}
-                    />
-                  )}
-                  {apiColumns.updatedAt && (
-                    <SortableTableHead
-                      label="Cập nhật"
-                      field="updatedAt"
-                      activeField={sortBy}
-                      direction={sortDir}
-                      onSort={handleSort}
-                      {...resize("updatedAt")}
-                    />
-                  )}
-                  <ResizableTableHead
-                    className={cn(TABLE_HEAD_LABEL, "text-center")}
-                    {...resize("actions")}
-                  >
-                    Thao tác
-                  </ResizableTableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody
-                className={cn(
-                  docsLoading && tableRows.length > 0 && "pointer-events-none opacity-50",
-                )}
+            <TooltipProvider delayDuration={0}>
+              <Table
+                className="table-fixed w-full [&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3"
+                style={{ minWidth: tableMinWidth }}
               >
-                {!selectedCourse && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={tableColSpan}
-                      className="py-10 text-center text-sm text-muted-foreground"
+                <TableHeader>
+                  <TableRow className="bg-secondary/40 hover:bg-secondary/40">
+                    <ResizableTableHead
+                      className={cn(TABLE_HEAD_LABEL, "text-center")}
+                      {...resize("stt")}
                     >
-                      Chọn một môn ở bảng trên để xem tài liệu.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {selectedCourse && docsLoading && tableRows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
-                      Đang tải tài liệu...
-                    </TableCell>
-                  </TableRow>
-                )}
-                {selectedCourse && !docsLoading && tableRows.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={tableColSpan}
-                      className="py-10 text-center text-sm text-muted-foreground"
-                    >
-                      Chưa có tài liệu — bấm Thêm tài liệu để upload.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {!(docsLoading && tableRows.length === 0) && tableRows.map((d, index) => {
-                  const s = statusStyles[d.status];
-                  const docType = documentTypeStyle(d.type);
-                  const isInactive = d.active === false;
-                  const rowNumber = page * DEFAULT_DOCUMENT_PAGE_SIZE + index + 1;
-                  return (
-                    <TableRow
-                      key={d.id}
-                      className={cn(isInactive && "opacity-50")}
-                    >
-                      <TableCell
-                        className="text-center text-sm tabular-nums text-muted-foreground"
-                        style={cell("stt")}
+                      STT
+                    </ResizableTableHead>
+                    <SortableTableHead
+                      label="Tài liệu"
+                      field="title"
+                      activeField={sortBy}
+                      direction={sortDir}
+                      onSort={handleSort}
+                      {...resize("title")}
+                    />
+                    {apiColumns.documentType && (
+                      <FilterTableHead
+                        label="Loại"
+                        filterValue={documentTypeFilter}
+                        onFilterChange={(v) => {
+                          setPage(0);
+                          setDocumentTypeFilter(v as ApiDocumentType | "all");
+                        }}
+                        filterOptions={DOCUMENT_TYPE_OPTIONS}
+                        field="documentType"
+                        activeField={sortBy}
+                        direction={sortDir}
+                        onSort={handleSort}
+                        className="text-center"
+                        {...resize("documentType")}
+                        disabled={!selectedCourse}
+                      />
+                    )}
+                    {apiColumns.description && (
+                      <ResizableTableHead className={TABLE_HEAD_LABEL} {...resize("description")}>
+                        Mô tả
+                      </ResizableTableHead>
+                    )}
+                    {columnVisibility.status && (
+                      <FilterTableHead
+                        label="Trạng thái"
+                        filterValue={statusFilter}
+                        onFilterChange={(v) => {
+                          setPage(0);
+                          setStatusFilter(v as ApiDocumentStatus | "all");
+                        }}
+                        filterOptions={DOCUMENT_STATUS_OPTIONS}
+                        field="status"
+                        activeField={sortBy}
+                        direction={sortDir}
+                        onSort={handleSort}
+                        className="text-center"
+                        {...resize("status")}
+                        disabled={!selectedCourse}
+                      />
+                    )}
+                    {apiColumns.active && (
+                      <FilterTableHead
+                        label="Kích hoạt"
+                        filterValue={activeFilter}
+                        onFilterChange={(v) => {
+                          setPage(0);
+                          setActiveFilter(v as ActiveFilter);
+                        }}
+                        filterOptions={ACTIVE_FILTER_OPTIONS}
+                        className="text-center"
+                        {...resize("active")}
+                        disabled={!selectedCourse}
+                      />
+                    )}
+                    {columnVisibility.size && (
+                      <ResizableTableHead
+                        className={cn(TABLE_HEAD_LABEL, "text-right")}
+                        {...resize("size")}
                       >
-                        {rowNumber}
-                      </TableCell>
-                      <TableCell style={cell("title")}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-default truncate text-sm font-medium">{d.name}</div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-sm">
-                            {d.name}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TableCell>
-                      {apiColumns.documentType && (
-                        <TableCell className="text-center" style={cell("documentType")}>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "font-mono text-[11px] font-semibold uppercase",
-                              docType.className,
-                            )}
-                          >
-                            {docType.label}
-                          </Badge>
-                        </TableCell>
-                      )}
-                      {apiColumns.description && (
-                        <TableCell className="text-sm text-muted-foreground" style={cell("description")}>
-                          {d.description?.trim() ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="block cursor-default truncate">
-                                  {d.description.trim()}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap">
-                                {d.description.trim()}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                      )}
-                      {columnVisibility.status && (
-                        <TableCell className="text-center" style={cell("status")}>
-                          <Badge variant="outline" className={cn("gap-1.5 font-normal", s.className)}>
-                            {s.label}
-                          </Badge>
-                        </TableCell>
-                      )}
-                      {apiColumns.active && (
-                        <TableCell className="text-center" style={cell("active")}>
-                          <ToggleActiveBadge
-                            active={d.active !== false}
-                            onToggle={() => void handleToggleActive(d)}
-                            tooltipActive="Tắt tài liệu"
-                            tooltipInactive="Bật tài liệu"
-                          />
-                        </TableCell>
-                      )}
-                      {columnVisibility.size && (
-                        <TableCell
-                          className="text-right text-sm text-muted-foreground"
-                          style={cell("size")}
-                        >
-                          {d.size}
-                        </TableCell>
-                      )}
-                      {apiColumns.createdAt && (
-                        <TableCell
-                          className="whitespace-nowrap text-sm text-muted-foreground"
-                          style={cell("createdAt")}
-                        >
-                          {d.createdAt
-                            ? formatDateTimeDMY(d.createdAt)
-                            : formatDateDMY(d.uploadedAt)}
-                        </TableCell>
-                      )}
-                      {apiColumns.updatedAt && (
-                        <TableCell
-                          className="whitespace-nowrap text-sm text-muted-foreground"
-                          style={cell("updatedAt")}
-                        >
-                          {d.updatedAt ? formatDateTimeDMY(d.updatedAt) : "—"}
-                        </TableCell>
-                      )}
-                      <TableCell style={cell("actions")}>
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => openDocumentViewer(d, "file")}
-                            title="Xem tài liệu"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => openEdit(d)}
-                            title="Sửa"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setDeleteDoc(d)}
-                            title="Xoá"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        Kích thước
+                      </ResizableTableHead>
+                    )}
+                    {apiColumns.createdAt && (
+                      <SortableTableHead
+                        label="Ngày tạo"
+                        field="createdAt"
+                        activeField={sortBy}
+                        direction={sortDir}
+                        onSort={handleSort}
+                        {...resize("createdAt")}
+                      />
+                    )}
+                    {apiColumns.updatedAt && (
+                      <SortableTableHead
+                        label="Cập nhật"
+                        field="updatedAt"
+                        activeField={sortBy}
+                        direction={sortDir}
+                        onSort={handleSort}
+                        {...resize("updatedAt")}
+                      />
+                    )}
+                    <ResizableTableHead
+                      className={cn(TABLE_HEAD_LABEL, "text-center")}
+                      {...resize("actions")}
+                    >
+                      Thao tác
+                    </ResizableTableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody
+                  className={cn(
+                    docsLoading && tableRows.length > 0 && "pointer-events-none opacity-50",
+                  )}
+                >
+                  {!selectedCourse && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={tableColSpan}
+                        className="py-10 text-center text-sm text-muted-foreground"
+                      >
+                        Chọn một môn ở bảng trên để xem tài liệu.
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TooltipProvider>
+                  )}
+                  {selectedCourse && docsLoading && tableRows.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                        Đang tải tài liệu...
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {selectedCourse && !docsLoading && tableRows.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={tableColSpan}
+                        className="py-10 text-center text-sm text-muted-foreground"
+                      >
+                        Chưa có tài liệu — bấm Thêm tài liệu để upload.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!(docsLoading && tableRows.length === 0) && tableRows.map((d, index) => {
+                    const s = statusStyles[d.status];
+                    const docType = documentTypeStyle(d.type);
+                    const isInactive = d.active === false;
+                    const rowNumber = page * DEFAULT_DOCUMENT_PAGE_SIZE + index + 1;
+                    return (
+                      <TableRow
+                        key={d.id}
+                        className={cn(isInactive && "opacity-50")}
+                      >
+                        <TableCell
+                          className="text-center text-sm tabular-nums text-muted-foreground"
+                          style={cell("stt")}
+                        >
+                          {rowNumber}
+                        </TableCell>
+                        <TableCell style={cell("title")}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="cursor-default truncate text-sm font-medium">{d.name}</div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-sm">
+                              {d.name}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        {apiColumns.documentType && (
+                          <TableCell className="text-center" style={cell("documentType")}>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "font-mono text-[11px] font-semibold uppercase",
+                                docType.className,
+                              )}
+                            >
+                              {docType.label}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {apiColumns.description && (
+                          <TableCell className="text-sm text-muted-foreground" style={cell("description")}>
+                            {d.description?.trim() ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="block cursor-default truncate">
+                                    {d.description.trim()}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap">
+                                  {d.description.trim()}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                        )}
+                        {columnVisibility.status && (
+                          <TableCell className="text-center" style={cell("status")}>
+                            <Badge variant="outline" className={cn("gap-1.5 font-normal", s.className)}>
+                              {s.label}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {apiColumns.active && (
+                          <TableCell className="text-center" style={cell("active")}>
+                            <ToggleActiveBadge
+                              active={d.active !== false}
+                              onToggle={() => void handleToggleActive(d)}
+                              tooltipActive="Tắt tài liệu"
+                              tooltipInactive="Bật tài liệu"
+                            />
+                          </TableCell>
+                        )}
+                        {columnVisibility.size && (
+                          <TableCell
+                            className="text-right text-sm text-muted-foreground"
+                            style={cell("size")}
+                          >
+                            {d.size}
+                          </TableCell>
+                        )}
+                        {apiColumns.createdAt && (
+                          <TableCell
+                            className="whitespace-nowrap text-sm text-muted-foreground"
+                            style={cell("createdAt")}
+                          >
+                            {d.createdAt
+                              ? formatDateTimeDMY(d.createdAt)
+                              : formatDateDMY(d.uploadedAt)}
+                          </TableCell>
+                        )}
+                        {apiColumns.updatedAt && (
+                          <TableCell
+                            className="whitespace-nowrap text-sm text-muted-foreground"
+                            style={cell("updatedAt")}
+                          >
+                            {d.updatedAt ? formatDateTimeDMY(d.updatedAt) : "—"}
+                          </TableCell>
+                        )}
+                        <TableCell style={cell("actions")}>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => openDocumentViewer(d, "file")}
+                              title="Xem tài liệu"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => openEdit(d)}
+                              title="Sửa"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => setDeleteDoc(d)}
+                              title="Xoá"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TooltipProvider>
           )}
           {selectedCourse && displayTotalPages > 1 && (
             <TablePagination
@@ -730,7 +721,10 @@ export function LecturerDocumentsPage() {
           initialViewMode={docModal?.viewTab ?? "file"}
           open={!!docModal}
           onOpenChange={(open) => !open && setDocModal(null)}
-          onDocumentsChange={loadApiDocuments}
+          onDocumentsChange={() => {
+            void loadApiDocuments();
+            void loadSubjects();
+          }}
           courseLabel={labelOf}
           subjects={subjects}
           defaultSubjectId={selectedSubjectId}
