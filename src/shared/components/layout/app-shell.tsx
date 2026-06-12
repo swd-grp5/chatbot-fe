@@ -70,7 +70,7 @@ export function AppShell({
 
   const navItems = isAdmin
     ? [
-        { to: "/admin/users", label: "Người dùng", icon: Users },
+        { to: "/admin/users", label: "Sinh viên", icon: Users },
         { to: "/admin/subjects", label: "Môn học", icon: BookOpen },
         { to: "/admin/subscriptions", label: "Gói tháng", icon: CreditCard },
         { to: "/admin/ai-config", label: "Cấu hình AI", icon: Bot },

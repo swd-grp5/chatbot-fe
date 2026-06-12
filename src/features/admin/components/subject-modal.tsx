@@ -72,10 +72,12 @@ export function SubjectModal({
   useEffect(() => {
     if (!open) {
       setDetail(null);
+      setLoadingDetail(false);
       return;
     }
 
     if (mode === "create") {
+      setLoadingDetail(false);
       setDetail(null);
       setCode("");
       setName("");
@@ -104,13 +106,15 @@ export function SubjectModal({
           onOpenChange(false);
         })
         .finally(() => {
-          if (!cancelled) setLoadingDetail(false);
+          setLoadingDetail(false);
         });
 
       return () => {
         cancelled = true;
       };
     }
+
+    setLoadingDetail(false);
   }, [open, mode, subjectId, onOpenChange]);
 
   const handleSubmit = async () => {
