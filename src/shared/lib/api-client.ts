@@ -1,3 +1,5 @@
+import { getApiToken } from "@/features/auth/lib/auth-session";
+
 let apiBase = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 if (!apiBase.startsWith("http")) apiBase = `https://${apiBase}`;
 const API_BASE = apiBase.replace(/\/$/, "");
@@ -15,18 +17,34 @@ export class ApiError extends Error {
 
 type ApiErrorBody = { message?: string; fieldErrors?: Record<string, string> };
 
-export async function apiFetch<T>(
-  path: string,
-  init?: RequestInit & { token?: string },
-): Promise<T> {
-  const { token, headers: initHeaders, ...rest } = init ?? {};
+type ApiRequestInit = RequestInit & {
+  /** Skip attaching Bearer token (login, register, …). */
+  skipAuth?: boolean;
+};
+
+function resolveAuthToken(skipAuth?: boolean): string | null {
+  if (skipAuth) return null;
+  const token = getApiToken();
+  if (!token) {
+    throw new ApiError("Phiên đăng nhập hết hạn", 401);
+  }
+  return token;
+}
+
+function applyAuthHeader(headers: Headers, skipAuth?: boolean) {
+  const token = resolveAuthToken(skipAuth);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+}
+
+export async function apiFetch<T>(path: string, init?: ApiRequestInit): Promise<T> {
+  const { skipAuth, headers: initHeaders, ...rest } = init ?? {};
   const headers = new Headers(initHeaders);
   if (!headers.has("Content-Type") && rest.body) {
     headers.set("Content-Type", "application/json");
   }
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
+  applyAuthHeader(headers, skipAuth);
 
   const res = await fetch(`${API_BASE}${path}`, { ...rest, headers });
 
@@ -55,15 +73,10 @@ export async function apiFetch<T>(
   return JSON.parse(text) as T;
 }
 
-export async function apiFetchBlob(
-  path: string,
-  init?: RequestInit & { token?: string },
-): Promise<Blob> {
-  const { token, headers: initHeaders, ...rest } = init ?? {};
+export async function apiFetchBlob(path: string, init?: ApiRequestInit): Promise<Blob> {
+  const { skipAuth, headers: initHeaders, ...rest } = init ?? {};
   const headers = new Headers(initHeaders);
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
+  applyAuthHeader(headers, skipAuth);
 
   const res = await fetch(`${API_BASE}${path}`, { ...rest, headers });
 
@@ -84,13 +97,11 @@ export async function apiFetchBlob(
 export async function apiUpload<T>(
   path: string,
   formData: FormData,
-  init?: { token?: string; method?: "POST" | "PUT" },
+  init?: { skipAuth?: boolean; method?: "POST" | "PUT" },
 ): Promise<T> {
-  const { token, method = "POST" } = init ?? {};
+  const { skipAuth, method = "POST" } = init ?? {};
   const headers = new Headers();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
+  applyAuthHeader(headers, skipAuth);
 
   const res = await fetch(`${API_BASE}${path}`, { method, headers, body: formData });
 

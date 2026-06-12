@@ -24,7 +24,6 @@ import {
 import { type Doc, courseLabel } from "@/shared/lib/mock-data";
 import {
   ACTIVE_FILTER_OPTIONS,
-  API_DEFAULT_COURSE,
   API_DOC_COLUMNS,
   activeStyles,
   documentTypeStyle,
@@ -47,6 +46,8 @@ import {
   fetchDocuments,
   mapDocumentResponse,
 } from "@/features/lecturer/api/document-api";
+import type { SubjectOption } from "@/features/lecturer/api/subject-api";
+import { fetchMySubjects } from "@/features/student/api/student-api";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import { DocumentsCardGrid } from "@/features/lecturer/components/documents-card-grid";
 import {
@@ -54,7 +55,6 @@ import {
   type DocumentsViewMode,
 } from "@/features/lecturer/components/documents-view-toggle";
 import type { DocumentViewMode } from "@/features/lecturer/components/document-modal";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
 import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";
 import {
@@ -86,6 +86,8 @@ export function StudentDocumentsPage() {
     doc: Doc;
     viewTab: DocumentViewMode;
   } | null>(null);
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
   const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [sortBy, setSortBy] = useState<DocumentSortField | null>(null);
@@ -115,16 +117,35 @@ export function StudentDocumentsPage() {
     return 3 + visibleOptional;
   }, [columnVisibility]);
 
-  const displayCourses = [API_DEFAULT_COURSE];
-  const allDocuments = apiDocuments;
+  const displayCourses = subjects;
+  const assignedCodes = useMemo(() => new Set(subjects.map((s) => s.code)), [subjects]);
+  const allDocuments = useMemo(
+    () => apiDocuments.filter((doc) => assignedCodes.has(doc.course)),
+    [apiDocuments, assignedCodes],
+  );
   const labelOf = (code: string) => courseLabel(code, displayCourses);
 
+  const loadSubjects = useCallback(async () => {
+    setSubjectsLoading(true);
+    try {
+      const rows = await fetchMySubjects();
+      setSubjects(rows);
+      setSelectedCourse((current) => {
+        if (current && rows.some((row) => row.code === current)) return current;
+        return rows[0]?.code ?? "";
+      });
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách môn học");
+      setSubjects([]);
+    } finally {
+      setSubjectsLoading(false);
+    }
+  }, []);
+
   const loadApiDocuments = useCallback(async () => {
-    const token = getApiToken();
-    if (!token) return;
     setDocsLoading(true);
     try {
-      const res = await fetchDocuments(token, {
+      const res = await fetchDocuments({
         keyword: searchKeyword,
         status: statusFilter === "all" ? undefined : statusFilter,
         documentType: documentTypeFilter === "all" ? undefined : documentTypeFilter,
@@ -140,7 +161,6 @@ export function StudentDocumentsPage() {
       setApiDocuments(res.content.map(mapDocumentResponse));
       setTotalPages(res.totalPages);
       setTotalElements(res.totalElements);
-      setSelectedCourse("SWD");
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách tài liệu");
     } finally {
@@ -167,6 +187,10 @@ export function StudentDocumentsPage() {
     setSortBy(null);
     setSortDir(null);
   };
+
+  useEffect(() => {
+    void loadSubjects();
+  }, [loadSubjects]);
 
   useEffect(() => {
     localStorage.setItem(API_COLUMNS_STORAGE, JSON.stringify(apiColumns));
@@ -230,10 +254,17 @@ export function StudentDocumentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayCourses.length === 0 && (
+              {subjectsLoading && (
                 <TableRow>
                   <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
-                    Chưa có môn học.
+                    Đang tải môn học...
+                  </TableCell>
+                </TableRow>
+              )}
+              {!subjectsLoading && displayCourses.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
+                    Bạn chưa được gán môn học nào.
                   </TableCell>
                 </TableRow>
               )}

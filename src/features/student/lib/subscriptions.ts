@@ -1,5 +1,12 @@
-export const SUBSCRIPTION_PLANS_KEY = "sdn-subscriptions";
-export const USER_SUBSCRIPTIONS_KEY = "sdn-user-subscriptions";
+import { migrateStorageKey, storageKey } from "@/shared/lib/storage-keys";
+
+export const SUBSCRIPTION_PLANS_KEY = storageKey("subscriptions");
+export const USER_SUBSCRIPTIONS_KEY = storageKey("user-subscriptions");
+
+export function migrateSubscriptionStorage() {
+  migrateStorageKey(SUBSCRIPTION_PLANS_KEY, "sdn-subscriptions");
+  migrateStorageKey(USER_SUBSCRIPTIONS_KEY, "sdn-user-subscriptions");
+}
 
 export type SubscriptionPlan = {
   id: string;
@@ -57,6 +64,7 @@ function readJson<T>(key: string): T | null {
 }
 
 export function loadPlans(): SubscriptionPlan[] {
+  migrateSubscriptionStorage();
   return readJson<SubscriptionPlan[]>(SUBSCRIPTION_PLANS_KEY) ?? DEFAULT_PLANS;
 }
 
@@ -65,6 +73,7 @@ export function savePlans(plans: SubscriptionPlan[]): void {
 }
 
 function loadAllUserSubscriptions(): Record<string, UserSubscription> {
+  migrateSubscriptionStorage();
   return readJson<Record<string, UserSubscription>>(USER_SUBSCRIPTIONS_KEY) ?? {};
 }
 

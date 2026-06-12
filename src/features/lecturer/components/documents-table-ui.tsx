@@ -12,7 +12,7 @@ import {
 } from "@/shared/components/ui/select";
 import { TableHead } from "@/shared/components/ui/table";
 import type { DocStatus } from "@/shared/lib/mock-data";
-import type { DocumentSortField, SortDirection } from "@/features/lecturer/api/document-api";
+import type { SortDirection } from "@/features/lecturer/api/document-api";
 import { cn } from "@/shared/lib/utils";
 
 export const documentTypeStyles: Record<string, { label: string; className: string }> = {
@@ -136,16 +136,16 @@ export const FILTER_COL_WIDTH = {
 
 export const FILTER_HEAD_ACTIVE = "border-primary/20 bg-primary/5";
 
-export function SortArrowButton({
+export function SortArrowButton<T extends string>({
   field,
   activeField,
   direction,
   onSort,
 }: {
-  field: DocumentSortField;
-  activeField: DocumentSortField | null;
+  field: T;
+  activeField: T | null;
   direction: SortDirection | null;
-  onSort: (field: DocumentSortField) => void;
+  onSort: (field: T) => void;
 }) {
   const isActive = activeField === field && direction != null;
   const SortIcon = isActive ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
@@ -165,7 +165,7 @@ export function SortArrowButton({
   );
 }
 
-export function SortableTableHead({
+export function SortableTableHead<T extends string>({
   label,
   field,
   activeField,
@@ -174,10 +174,10 @@ export function SortableTableHead({
   className,
 }: {
   label: string;
-  field: DocumentSortField;
-  activeField: DocumentSortField | null;
+  field: T;
+  activeField: T | null;
   direction: SortDirection | null;
-  onSort: (field: DocumentSortField) => void;
+  onSort: (field: T) => void;
   className?: string;
 }) {
   return (
@@ -195,7 +195,7 @@ export function SortableTableHead({
   );
 }
 
-export function FilterTableHead({
+export function FilterTableHead<T extends string = string>({
   label,
   filterValue,
   onFilterChange,
@@ -211,10 +211,10 @@ export function FilterTableHead({
   filterValue: string;
   onFilterChange: (value: string) => void;
   filterOptions: { value: string; label: string }[];
-  field?: DocumentSortField;
-  activeField?: DocumentSortField | null;
+  field?: T;
+  activeField?: T | null;
   direction?: SortDirection | null;
-  onSort?: (field: DocumentSortField) => void;
+  onSort?: (field: T) => void;
   className?: string;
   disabled?: boolean;
 }) {

@@ -13,6 +13,13 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { Switch } from "@/shared/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -41,9 +48,9 @@ import {
   type DocumentChunkResponse,
   type DocumentViewerResponse,
 } from "@/features/lecturer/api/document-api";
+import type { SubjectOption } from "@/features/lecturer/api/subject-api";
 import { DocxPreviewViewer } from "@/features/lecturer/components/docx-preview-viewer";
 import { DOCX_MIME, isPdfBytes, isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
 import { cn } from "@/shared/lib/utils";
 import type { Doc } from "@/shared/lib/mock-data";
@@ -77,6 +84,8 @@ export type DocumentModalProps = {
   onOpenChange: (open: boolean) => void;
   onDocumentsChange?: () => void | Promise<void>;
   courseLabel?: (code: string) => string;
+  subjects?: SubjectOption[];
+  defaultSubjectId?: string;
 };
 
 const MIN_ZOOM = 0.6;
@@ -243,6 +252,8 @@ export function DocumentModal({
   onOpenChange,
   onDocumentsChange,
   courseLabel,
+  subjects = [],
+  defaultSubjectId,
 }: DocumentModalProps) {
   const documentId = mode === "view" ? (document?.id ?? null) : null;
   const documentName = document?.name;
@@ -252,6 +263,7 @@ export function DocumentModal({
   const [description, setDescription] = useState("");
   const [active, setActive] = useState(true);
   const [uploadDrafts, setUploadDrafts] = useState<UploadFileDraft[]>([]);
+  const [uploadSubjectId, setUploadSubjectId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [meta, setMeta] = useState<DocumentViewerResponse | null>(null);
@@ -319,6 +331,7 @@ export function DocumentModal({
     setDescription("");
     setActive(true);
     setUploadDrafts([]);
+    setUploadSubjectId("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -345,6 +358,17 @@ export function DocumentModal({
   }, [open, mode, initialViewMode, documentId, document, resetFormState]);
 
   useEffect(() => {
+    if (!open || mode !== "create" || subjects.length === 0) return;
+
+    const preferred =
+      (defaultSubjectId && subjects.some((s) => s.id === defaultSubjectId)
+        ? defaultSubjectId
+        : null) ?? subjects[0]?.id ?? "";
+
+    setUploadSubjectId(preferred);
+  }, [open, mode, defaultSubjectId, subjects]);
+
+  useEffect(() => {
     if (!open || mode !== "view" || viewMode !== "index" || !documentId) return;
     if (chunksLoadedFor.current === documentId) return;
 
@@ -352,18 +376,12 @@ export function DocumentModal({
     let cancelled = false;
 
     async function loadChunks() {
-      const token = getApiToken();
-      if (!token) {
-        setChunksError("Phiên đăng nhập hết hạn");
-        return;
-      }
-
       setChunksLoading(true);
       setChunksError(null);
       setChunks([]);
 
       try {
-        const data = await fetchDocumentChunks(id, token);
+        const data = await fetchDocumentChunks(id);
         if (cancelled) return;
         setChunks(data.sort((a, b) => a.chunkIndex - b.chunkIndex));
         chunksLoadedFor.current = id;
@@ -389,12 +407,6 @@ export function DocumentModal({
     let cancelled = false;
 
     async function load() {
-      const token = getApiToken();
-      if (!token) {
-        setError("Phiên đăng nhập hết hạn");
-        return;
-      }
-
       setLoading(true);
       setError(null);
       setMeta(null);
@@ -414,11 +426,11 @@ export function DocumentModal({
       chunksLoadedFor.current = null;
 
       try {
-        const viewer = await fetchDocumentViewer(id, token);
+        const viewer = await fetchDocumentViewer(id);
         if (cancelled) return;
         setMeta(viewer);
 
-        const blob = await fetchDocumentFile(id, token);
+        const blob = await fetchDocumentFile(id);
         if (cancelled) return;
 
         if (viewer.mimeType === "text/plain" || viewer.documentType === "TXT") {
@@ -582,6 +594,11 @@ export function DocumentModal({
   };
 
   const handleCreate = async () => {
+    if (!uploadSubjectId) {
+      toast.error("Chọn môn học");
+      return;
+    }
+
     if (!uploadDrafts.length) {
       toast.error("Chọn file để tải lên");
       return;
@@ -598,21 +615,16 @@ export function DocumentModal({
       }
     }
 
-    const token = getApiToken();
-    if (!token) {
-      toast.error("Phiên đăng nhập hết hạn");
-      return;
-    }
-
     const items = uploadDrafts.map((draft) => ({
       file: draft.file,
+      subjectId: uploadSubjectId,
       title: draft.title.trim(),
       description: draft.description.trim() || undefined,
     }));
 
     setSubmitting(true);
     try {
-      await uploadDocuments(items, token);
+      await uploadDocuments(items);
       await onDocumentsChange?.();
       toast.success(
         items.length === 1 ? "Đã tải lên tài liệu" : `Đã tải lên ${items.length} tài liệu`,
@@ -634,15 +646,9 @@ export function DocumentModal({
       return;
     }
 
-    const token = getApiToken();
-    if (!token) {
-      toast.error("Phiên đăng nhập hết hạn");
-      return;
-    }
-
     setSubmitting(true);
     try {
-      await updateDocumentApi(document.id, token, {
+      await updateDocumentApi(document.id, {
         title: trimmedTitle,
         description: description.trim(),
         active,
@@ -768,6 +774,25 @@ export function DocumentModal({
     <div className="min-w-0 space-y-4 overflow-hidden">
       {mode === "create" ? (
         <div className="min-w-0 space-y-3 overflow-hidden">
+          <div className="space-y-1.5">
+            <Label htmlFor="doc-upload-subject">Môn học *</Label>
+            <Select
+              value={uploadSubjectId || undefined}
+              onValueChange={setUploadSubjectId}
+              disabled={submitting || subjects.length === 0}
+            >
+              <SelectTrigger id="doc-upload-subject" className="w-full">
+                <SelectValue placeholder="Chọn môn học" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((subject) => (
+                  <SelectItem key={subject.id} value={subject.id}>
+                    {subject.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1.5">
             <Label>File *</Label>
             <Button

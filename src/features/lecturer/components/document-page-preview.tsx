@@ -1,29 +1,17 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
-import { fetchDocumentFile, fetchDocumentViewer } from "@/features/lecturer/api/document-api";
-import { DocxPreviewViewer } from "@/features/lecturer/components/docx-preview-viewer";
+import {
+  documentPreviewImageSrc,
+  fetchDocumentPreview,
+} from "@/features/lecturer/api/document-api";
 import { documentTypeStyle } from "@/features/lecturer/components/documents-table-ui";
-import { DOCX_MIME, isPdfBytes, isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { cn } from "@/shared/lib/utils";
 import type { Doc } from "@/shared/lib/mock-data";
 
-const PdfPageThumbnail = lazy(() =>
-  import("./pdf-page-thumbnail").then((m) => ({ default: m.PdfPageThumbnail })),
-);
-
-type PreviewCacheEntry = {
-  kind: "pdf";
-  blob: Blob;
-} | {
-  kind: "text";
-  text: string;
-} | {
-  kind: "docx";
-  blob: Blob;
-} | {
-  kind: "placeholder";
-};
+type PreviewCacheEntry =
+  | { kind: "image"; src: string }
+  | { kind: "text"; text: string }
+  | { kind: "placeholder" };
 
 const previewCache = new Map<string, PreviewCacheEntry>();
 
@@ -71,55 +59,28 @@ export function DocumentPagePreview({ doc, className }: DocumentPagePreviewProps
     let cancelled = false;
 
     async function loadPreview() {
-      const token = getApiToken();
-      if (!token) return;
-
       setLoading(true);
       try {
-        const viewer = await fetchDocumentViewer(doc.id, token);
+        const preview = await fetchDocumentPreview(doc.id);
         if (cancelled) return;
 
-        const isText =
-          viewer.mimeType === "text/plain" || viewer.documentType === "TXT";
+        let next: PreviewCacheEntry;
 
-        const blob = await fetchDocumentFile(doc.id, token);
-        if (cancelled) return;
-
-        if (isText) {
-          const text = (await blob.text()).trim();
-          const next: PreviewCacheEntry = {
-            kind: "text",
-            text: text.slice(0, 600) || "Tài liệu trống",
-          };
-          previewCache.set(doc.id, next);
-          setEntry(next);
-          return;
+        if (preview.previewContentType === "IMAGE" || preview.contentBase64) {
+          const imageSrc = documentPreviewImageSrc(preview);
+          if (imageSrc) {
+            next = { kind: "image", src: imageSrc };
+          } else if (preview.textPreview?.trim()) {
+            next = { kind: "text", text: preview.textPreview.trim() };
+          } else {
+            next = { kind: "placeholder" };
+          }
+        } else if (preview.textPreview?.trim()) {
+          next = { kind: "text", text: preview.textPreview.trim() };
+        } else {
+          next = { kind: "placeholder" };
         }
 
-        const buffer = await blob.arrayBuffer();
-        if (cancelled) return;
-
-        if (isPdfBytes(buffer)) {
-          const next: PreviewCacheEntry = {
-            kind: "pdf",
-            blob: new Blob([buffer], { type: "application/pdf" }),
-          };
-          previewCache.set(doc.id, next);
-          setEntry(next);
-          return;
-        }
-
-        if (isZipBytes(buffer)) {
-          const next: PreviewCacheEntry = {
-            kind: "docx",
-            blob: toDocxBlob(buffer, blob.type || DOCX_MIME),
-          };
-          previewCache.set(doc.id, next);
-          setEntry(next);
-          return;
-        }
-
-        const next: PreviewCacheEntry = { kind: "placeholder" };
         previewCache.set(doc.id, next);
         setEntry(next);
       } catch (err) {
@@ -157,20 +118,19 @@ export function DocumentPagePreview({ doc, className }: DocumentPagePreviewProps
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       )}
 
-      {canPreview && entry?.kind === "pdf" && (
-        <Suspense fallback={<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}>
-          <PdfPageThumbnail blob={entry.blob} fallback={placeholder} />
-        </Suspense>
+      {canPreview && entry?.kind === "image" && (
+        <img
+          src={entry.src}
+          alt=""
+          className="h-full w-full object-contain object-top"
+          draggable={false}
+        />
       )}
 
       {canPreview && entry?.kind === "text" && (
         <pre className="h-full w-full overflow-hidden p-3 text-left font-sans text-[10px] leading-relaxed text-foreground/80">
           {entry.text}
         </pre>
-      )}
-
-      {canPreview && entry?.kind === "docx" && (
-        <DocxPreviewViewer data={entry.blob} compact className="h-full w-full" />
       )}
 
       {canPreview && entry?.kind === "placeholder" && placeholder}

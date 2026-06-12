@@ -8,11 +8,14 @@ import {
   type Session,
 } from "@/shared/lib/mock-data";
 import { normalizeSession } from "@/shared/lib/format-time";
+import { migrateStorageKey, storageKey } from "@/shared/lib/storage-keys";
 
-const DOCS_KEY = "sdn-documents";
-const COURSES_KEY = "sdn-courses";
-const USERS_KEY = "sdn-users";
-const DEMO_CHAT_KEY = "sdn-chat-demo";
+const DOCS_KEY = storageKey("documents");
+const COURSES_KEY = storageKey("courses");
+const USERS_KEY = storageKey("users");
+const DEMO_CHAT_KEY = storageKey("chat-demo");
+const COURSES_CHANGED_EVENT = storageKey("courses-changed");
+const DOCUMENTS_CHANGED_EVENT = storageKey("documents-changed");
 
 const DEMO_EMAILS = new Set([
   "admin@demo.edu",
@@ -23,7 +26,7 @@ const DEMO_EMAILS = new Set([
 const chatKey = (userId: string) => {
   const user = findUserById(userId);
   if (user && DEMO_EMAILS.has(user.email)) return DEMO_CHAT_KEY;
-  return `sdn-chat-${userId}`;
+  return storageKey(`chat-${userId}`);
 };
 
 const isDemoStudent = (userId: string) => {
@@ -116,6 +119,10 @@ function writeJson(key: string, value: unknown) {
 
 export function initMockStorage() {
   if (typeof window === "undefined") return;
+  migrateStorageKey(DOCS_KEY, "sdn-documents");
+  migrateStorageKey(COURSES_KEY, "sdn-courses");
+  migrateStorageKey(USERS_KEY, "sdn-users");
+  migrateStorageKey(DEMO_CHAT_KEY, "sdn-chat-demo");
   if (!readJson<Doc[]>(DOCS_KEY)) writeJson(DOCS_KEY, []);
   if (!readJson<Course[]>(COURSES_KEY)) writeJson(COURSES_KEY, seedCourses);
   if (!readJson<MockUser[]>(USERS_KEY)) writeJson(USERS_KEY, seedUsers);
@@ -140,7 +147,7 @@ export function loadCourses(): Course[] {
 
 export function saveCourses(courses: Course[]) {
   writeJson(COURSES_KEY, courses);
-  window.dispatchEvent(new CustomEvent("sdn-courses-changed"));
+  window.dispatchEvent(new CustomEvent(COURSES_CHANGED_EVENT));
 }
 
 const isLegacyMockDoc = (doc: Doc) =>
@@ -158,7 +165,7 @@ export function loadDocuments(): Doc[] {
 
 export function saveDocuments(docs: Doc[]) {
   writeJson(DOCS_KEY, docs);
-  window.dispatchEvent(new CustomEvent("sdn-documents-changed"));
+  window.dispatchEvent(new CustomEvent(DOCUMENTS_CHANGED_EVENT));
 }
 
 export function loadUsers(): MockUser[] {
@@ -202,11 +209,16 @@ export function newSessionId() {
 export function loadChatData(userId: string): ChatData {
   initMockStorage();
   const key = chatKey(userId);
+  migrateStorageKey(key, `sdn-chat-${userId}`);
   let saved = readJson<ChatData>(key);
 
   // Migrate dữ liệu cũ sang key dùng chung cho demo
   if (!saved && key === DEMO_CHAT_KEY) {
-    saved = readJson<ChatData>("sdn-chat-u-student") ?? readJson<ChatData>("sdn-chat-u-admin");
+    saved =
+      readJson<ChatData>(storageKey("chat-u-student")) ??
+      readJson<ChatData>("sdn-chat-u-student") ??
+      readJson<ChatData>(storageKey("chat-u-admin")) ??
+      readJson<ChatData>("sdn-chat-u-admin");
     if (saved) writeJson(key, saved);
   }
 

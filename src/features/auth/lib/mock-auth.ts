@@ -6,8 +6,10 @@ import {
   type MockUser,
 } from "@/shared/lib/mock-storage";
 import { resetViewModeForRole } from "@/features/student/lib/view-mode";
+import { migrateStorageKey, storageKey } from "@/shared/lib/storage-keys";
 
-const AUTH_KEY = "sdn-auth";
+const AUTH_KEY = storageKey("auth");
+const AUTH_CHANGED_EVENT = storageKey("auth-changed");
 
 export type AuthSession = {
   userId: string;
@@ -17,6 +19,7 @@ export type AuthSession = {
 export function getSession(): AuthSession | null {
   if (typeof window === "undefined") return null;
   initMockStorage();
+  migrateStorageKey(AUTH_KEY, "sdn-auth");
   try {
     const raw = localStorage.getItem(AUTH_KEY);
     if (!raw) return null;
@@ -35,7 +38,7 @@ export function setSession(session: AuthSession | null) {
   if (typeof window === "undefined") return;
   if (session) localStorage.setItem(AUTH_KEY, JSON.stringify(session));
   else localStorage.removeItem(AUTH_KEY);
-  window.dispatchEvent(new CustomEvent("sdn-auth-changed"));
+  window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
 }
 
 export function signIn(email: string, password: string): MockUser {

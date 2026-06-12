@@ -39,7 +39,6 @@ import {
 import { type Doc, courseLabel } from "@/shared/lib/mock-data";
 import {
   ACTIVE_FILTER_OPTIONS,
-  API_DEFAULT_COURSE,
   API_DOC_COLUMNS,
   activeStyles,
   documentTypeStyle,
@@ -63,6 +62,7 @@ import {
   fetchDocuments,
   mapDocumentResponse,
 } from "@/features/lecturer/api/document-api";
+import { fetchSubjects, type SubjectOption } from "@/features/lecturer/api/subject-api";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import { DocumentsCardGrid } from "@/features/lecturer/components/documents-card-grid";
 import {
@@ -70,7 +70,6 @@ import {
   type DocumentsViewMode,
 } from "@/features/lecturer/components/documents-view-toggle";
 import type { DocumentModalMode, DocumentViewMode } from "@/features/lecturer/components/document-modal";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
 import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";
 import {
@@ -102,6 +101,8 @@ export function LecturerDocumentsPage() {
     doc: Doc | null;
     viewTab?: DocumentViewMode;
   } | null>(null);
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
   const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [deleteDoc, setDeleteDoc] = useState<Doc | null>(null);
@@ -133,16 +134,43 @@ export function LecturerDocumentsPage() {
     return 3 + visibleOptional;
   }, [columnVisibility]);
 
-  const displayCourses = [API_DEFAULT_COURSE];
+  const displayCourses = subjects;
   const allDocuments = apiDocuments;
   const labelOf = (code: string) => courseLabel(code, displayCourses);
+  const selectedSubjectId =
+    subjects.find((subject) => subject.code === selectedCourse)?.id ?? "";
+
+  const loadSubjects = useCallback(async () => {
+    setSubjectsLoading(true);
+    try {
+      const res = await fetchSubjects({
+        active: true,
+        sortBy: "code",
+        sortDir: "asc",
+        size: 100,
+      });
+      const rows = res.content.map((subject) => ({
+        id: subject.id,
+        code: subject.code,
+        name: subject.name,
+      }));
+      setSubjects(rows);
+      setSelectedCourse((current) => {
+        if (current && rows.some((row) => row.code === current)) return current;
+        return rows[0]?.code ?? "";
+      });
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách môn học");
+      setSubjects([]);
+    } finally {
+      setSubjectsLoading(false);
+    }
+  }, []);
 
   const loadApiDocuments = useCallback(async () => {
-    const token = getApiToken();
-    if (!token) return;
     setDocsLoading(true);
     try {
-      const res = await fetchDocuments(token, {
+      const res = await fetchDocuments({
         keyword: searchKeyword,
         status: statusFilter === "all" ? undefined : statusFilter,
         documentType: documentTypeFilter === "all" ? undefined : documentTypeFilter,
@@ -159,7 +187,6 @@ export function LecturerDocumentsPage() {
       setApiDocuments(res.content.map(mapDocumentResponse));
       setTotalPages(res.totalPages);
       setTotalElements(res.totalElements);
-      setSelectedCourse("SWD");
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách tài liệu");
     } finally {
@@ -186,6 +213,10 @@ export function LecturerDocumentsPage() {
     setSortBy(null);
     setSortDir(null);
   };
+
+  useEffect(() => {
+    void loadSubjects();
+  }, [loadSubjects]);
 
   useEffect(() => {
     localStorage.setItem(API_COLUMNS_STORAGE, JSON.stringify(apiColumns));
@@ -219,14 +250,9 @@ export function LecturerDocumentsPage() {
   const confirmDeleteDoc = async () => {
     if (!deleteDoc) return;
 
-    const token = getApiToken();
-    if (!token) {
-      toast.error("Phiên đăng nhập hết hạn");
-      return;
-    }
     setDeleting(true);
     try {
-      await deleteDocumentApi(deleteDoc.id, token);
+      await deleteDocumentApi(deleteDoc.id);
       await loadApiDocuments();
       toast.success("Đã xóa tài liệu");
       setDeleteDoc(null);
@@ -255,7 +281,7 @@ export function LecturerDocumentsPage() {
               Quản lý môn học và tài liệu theo từng môn.
             </p>
           </div>
-          <Button className="gap-2" onClick={openUpload}>
+          <Button className="gap-2" onClick={openUpload} disabled={subjects.length === 0}>
             <Upload className="h-4 w-4" />
             Thêm tài liệu
           </Button>
@@ -274,7 +300,14 @@ export function LecturerDocumentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayCourses.length === 0 && (
+              {subjectsLoading && (
+                <TableRow>
+                  <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
+                    Đang tải môn học...
+                  </TableCell>
+                </TableRow>
+              )}
+              {!subjectsLoading && displayCourses.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
                     Chưa có môn học.
@@ -676,6 +709,8 @@ export function LecturerDocumentsPage() {
           onOpenChange={(open) => !open && setDocModal(null)}
           onDocumentsChange={loadApiDocuments}
           courseLabel={labelOf}
+          subjects={subjects}
+          defaultSubjectId={selectedSubjectId}
         />
       </Suspense>
 

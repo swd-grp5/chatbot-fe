@@ -13,6 +13,7 @@ import {
 import { generateMockReply, MOCK_REPLY_DELAY_MS, newMessageId } from "@/features/student/lib/mock-chat";
 import { toSessionTimestamp, groupFor } from "@/shared/lib/format-time";
 import { getApiSession } from "@/features/auth/lib/auth-session";
+import { storageKey } from "@/shared/lib/storage-keys";
 
 type Store = {
   userId: string | null;
@@ -107,11 +108,13 @@ export const useAppStore = create<Store>((set, get) => ({
 
     const reloadDocs = () => set({ documents: loadDocuments() });
     const reloadCourses = () => set({ courses: loadCourses() });
-    window.addEventListener("sdn-documents-changed", reloadDocs);
-    window.addEventListener("sdn-courses-changed", reloadCourses);
+    const documentsChangedEvent = storageKey("documents-changed");
+    const coursesChangedEvent = storageKey("courses-changed");
+    window.addEventListener(documentsChangedEvent, reloadDocs);
+    window.addEventListener(coursesChangedEvent, reloadCourses);
     window.addEventListener("storage", (e) => {
-      if (e.key === "sdn-documents") reloadDocs();
-      if (e.key === "sdn-courses") reloadCourses();
+      if (e.key === storageKey("documents")) reloadDocs();
+      if (e.key === storageKey("courses")) reloadCourses();
     });
   },
 

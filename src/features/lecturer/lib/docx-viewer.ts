@@ -1,15 +1,4 @@
-import type { DocumentViewerResponse } from "@/features/lecturer/api/document-api";
 import { isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
-
-export function isDocxViewer(
-  viewer: Pick<DocumentViewerResponse, "mimeType" | "documentType">,
-): boolean {
-  return (
-    viewer.documentType === "DOCX" ||
-    viewer.mimeType.includes("wordprocessingml") ||
-    viewer.mimeType === "application/msword"
-  );
-}
 
 type RenderOptions = {
   compact?: boolean;
