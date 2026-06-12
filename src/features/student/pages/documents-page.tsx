@@ -6,6 +6,13 @@ import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -125,14 +132,22 @@ export function StudentDocumentsPage() {
   );
   const labelOf = (code: string) => courseLabel(code, displayCourses);
 
+  const handleSubjectChange = (code: string) => {
+    setSelectedCourse(code);
+    setQueryInput("");
+    setSearchKeyword("");
+    setPage(0);
+  };
+
   const loadSubjects = useCallback(async () => {
     setSubjectsLoading(true);
     try {
       const rows = await fetchMySubjects();
-      setSubjects(rows);
+      const sorted = [...rows].sort((a, b) => a.code.localeCompare(b.code));
+      setSubjects(sorted);
       setSelectedCourse((current) => {
-        if (current && rows.some((row) => row.code === current)) return current;
-        return rows[0]?.code ?? "";
+        if (current && sorted.some((row) => row.code === current)) return current;
+        return sorted[0]?.code ?? "";
       });
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách môn học");
@@ -242,65 +257,39 @@ export function StudentDocumentsPage() {
         </div>
 
         <Card className="overflow-hidden p-0">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-            <h2 className="text-sm font-semibold">Môn học</h2>
-          </div>
-          <Table className="[&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3">
-            <TableHeader>
-              <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                <TableHead className="w-28">Mã</TableHead>
-                <TableHead>Tên môn</TableHead>
-                <TableHead className="text-right">Tài liệu</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {subjectsLoading && (
-                <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
-                    Đang tải môn học...
-                  </TableCell>
-                </TableRow>
-              )}
-              {!subjectsLoading && displayCourses.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
-                    Bạn chưa được gán môn học nào.
-                  </TableCell>
-                </TableRow>
-              )}
-              {displayCourses.map((c) => {
-                const count = allDocuments.filter((d) => d.course === c.code).length;
-                const active = selectedCourse === c.code;
-                return (
-                  <TableRow
-                    key={c.code}
-                    className={cn("cursor-pointer", active && "bg-primary/5")}
-                    onClick={() => {
-                      setSelectedCourse(c.code);
-                      setQueryInput("");
-                      setSearchKeyword("");
-                      setPage(0);
-                    }}
-                  >
-                    <TableCell className="font-mono text-sm font-medium">{c.code}</TableCell>
-                    <TableCell className="text-sm">{c.name}</TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">{count}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
-
-        <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-sm font-semibold">
-                {selectedCourse ? `Tài liệu — ${labelOf(selectedCourse)}` : "Tài liệu"}
-              </h2>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Select
+                value={selectedCourse || undefined}
+                onValueChange={handleSubjectChange}
+                disabled={subjectsLoading || subjects.length === 0}
+              >
+                <SelectTrigger className="h-8 w-52 text-xs">
+                  <SelectValue
+                    placeholder={
+                      subjectsLoading
+                        ? "Đang tải môn học..."
+                        : subjects.length === 0
+                          ? "Bạn chưa được gán môn học nào"
+                          : "Chọn môn học"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((subject) => {
+                    const count = allDocuments.filter((d) => d.course === subject.code).length;
+                    return (
+                      <SelectItem key={subject.id} value={subject.code} className="text-xs">
+                        {subject.code} — {subject.name}
+                        {count > 0 ? ` (${count})` : ""}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
               {selectedCourse && (
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  ({displayTotalElements})
+                  {displayTotalElements} tài liệu
                 </span>
               )}
             </div>
