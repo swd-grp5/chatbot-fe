@@ -20,11 +20,11 @@ import { toast } from "sonner";
 import { formatRelativeTime } from "@/shared/lib/format-time";
 import { type Citation, type ChatMessage, courseLabel, sessionGroupOrder } from "@/shared/lib/mock-data";
 import { fetchDocuments, mapDocumentResponse } from "@/features/lecturer/api/document-api";
+import { fetchMySubjects } from "@/features/student/api/student-api";
 import { useAppStore } from "@/features/student/lib/store";
 import type { Course, Doc } from "@/shared/lib/mock-data";
 
 const groupOrder = sessionGroupOrder;
-const API_DEFAULT_COURSE: Course = { code: "SWD", name: "SWD" };
 
 export function ChatPage() {
   const [input, setInput] = useState("");
@@ -46,23 +46,42 @@ export function ChatPage() {
   const isApiMode = user?.source === "api";
 
   const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
+  const [apiCourses, setApiCourses] = useState<Course[]>([]);
 
-  const displayCourses = isApiMode ? [API_DEFAULT_COURSE] : courses;
-  const displayDocuments = isApiMode ? apiDocuments : documents;
+  const displayCourses = isApiMode ? apiCourses : courses;
+  const assignedCodes = useMemo(
+    () => new Set(apiCourses.map((course) => course.code)),
+    [apiCourses],
+  );
+  const displayDocuments = isApiMode
+    ? apiDocuments.filter((doc) => assignedCodes.has(doc.course))
+    : documents;
 
-  const loadApiDocuments = useCallback(async () => {
+  const loadApiData = useCallback(async () => {
     try {
-      const res = await fetchDocuments({ active: true, status: "INDEXED", size: 100 });
-      setApiDocuments(res.content.map(mapDocumentResponse));
+      const [docsRes, subjects] = await Promise.all([
+        fetchDocuments({ active: true, status: "INDEXED", size: 100 }),
+        fetchMySubjects(),
+      ]);
+      const courses = subjects.map((subject) => ({
+        code: subject.code,
+        name: subject.name,
+      }));
+      const codes = new Set(courses.map((course) => course.code));
+      setApiCourses(courses);
+      setApiDocuments(
+        docsRes.content.map(mapDocumentResponse).filter((doc) => codes.has(doc.course)),
+      );
     } catch {
       setApiDocuments([]);
+      setApiCourses([]);
     }
   }, []);
 
   useEffect(() => {
     if (!isApiMode) return;
-    void loadApiDocuments();
-  }, [isApiMode, loadApiDocuments]);
+    void loadApiData();
+  }, [isApiMode, loadApiData]);
 
   const messages: ChatMessage[] = conversations[activeSession] ?? [];
 

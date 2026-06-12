@@ -16,7 +16,9 @@ import {
 } from "@/shared/components/ui/select";
 import { toast } from "sonner";
 
-const STORAGE_KEY = "sdn-ai-config";
+import { migrateStorageKey, storageKey } from "@/shared/lib/storage-keys";
+
+const STORAGE_KEY = storageKey("ai-config");
 
 type AIConfig = {
   model: string;
@@ -58,6 +60,7 @@ export function AdminAIConfigPage() {
   const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
 
   useEffect(() => {
+    migrateStorageKey(STORAGE_KEY, "sdn-ai-config");
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(raw) });

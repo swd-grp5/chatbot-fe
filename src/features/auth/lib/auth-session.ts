@@ -3,8 +3,10 @@ import {
   type ApiAuthSession,
   type ApiUserResponse,
 } from "@/features/auth/lib/auth-types";
+import { migrateStorageKey, storageKey } from "@/shared/lib/storage-keys";
 
-const API_AUTH_KEY = "sdn-api-auth";
+const API_AUTH_KEY = storageKey("api-auth");
+const AUTH_CHANGED_EVENT = storageKey("auth-changed");
 
 type ApiAuthSessionInput = {
   token: string;
@@ -20,6 +22,7 @@ function normalizeSession(session: ApiAuthSessionInput): ApiAuthSession {
 
 export function getApiSession(): ApiAuthSession | null {
   if (typeof window === "undefined") return null;
+  migrateStorageKey(API_AUTH_KEY, "sdn-api-auth");
   try {
     const raw = localStorage.getItem(API_AUTH_KEY);
     if (!raw) return null;
@@ -38,7 +41,7 @@ export function setApiSession(session: ApiAuthSessionInput | null) {
   } else {
     localStorage.removeItem(API_AUTH_KEY);
   }
-  window.dispatchEvent(new CustomEvent("sdn-auth-changed"));
+  window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
 }
 
 export function getApiToken(): string | null {

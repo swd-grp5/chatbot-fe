@@ -228,6 +228,8 @@ export type UploadDocumentItem = {
 
   file: File;
 
+  subjectId: string;
+
   title: string;
 
   description?: string;
@@ -238,7 +240,9 @@ export type UploadDocumentItem = {
 
 async function uploadDocumentsBatch(items: UploadDocumentItem[]) {
 
-  const metadata = items.map(({ title, description }) => ({
+  const metadata = items.map(({ subjectId, title, description }) => ({
+
+    subjectId,
 
     title,
 
@@ -266,7 +270,17 @@ async function uploadDocumentsBatch(items: UploadDocumentItem[]) {
 
 
 
-  return apiUpload<DocumentResponse | DocumentResponse[]>("/documents/upload", formData);
+  const subjectId = items[0]?.subjectId;
+
+  const path = subjectId
+
+    ? `/documents/upload?subjectId=${encodeURIComponent(subjectId)}`
+
+    : "/documents/upload";
+
+
+
+  return apiUpload<DocumentResponse | DocumentResponse[]>(path, formData);
 
 }
 
@@ -310,7 +324,7 @@ export async function uploadDocument(
 
   file: File,
 
-  meta: { title: string; description?: string },
+  meta: { subjectId: string; title: string; description?: string },
 
 ) {
 

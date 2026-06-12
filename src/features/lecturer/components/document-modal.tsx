@@ -13,6 +13,13 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { Switch } from "@/shared/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -41,6 +48,7 @@ import {
   type DocumentChunkResponse,
   type DocumentViewerResponse,
 } from "@/features/lecturer/api/document-api";
+import type { SubjectOption } from "@/features/lecturer/api/subject-api";
 import { DocxPreviewViewer } from "@/features/lecturer/components/docx-preview-viewer";
 import { DOCX_MIME, isPdfBytes, isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
 import { ApiError } from "@/shared/lib/api-client";
@@ -76,6 +84,8 @@ export type DocumentModalProps = {
   onOpenChange: (open: boolean) => void;
   onDocumentsChange?: () => void | Promise<void>;
   courseLabel?: (code: string) => string;
+  subjects?: SubjectOption[];
+  defaultSubjectId?: string;
 };
 
 const MIN_ZOOM = 0.6;
@@ -242,6 +252,8 @@ export function DocumentModal({
   onOpenChange,
   onDocumentsChange,
   courseLabel,
+  subjects = [],
+  defaultSubjectId,
 }: DocumentModalProps) {
   const documentId = mode === "view" ? (document?.id ?? null) : null;
   const documentName = document?.name;
@@ -251,6 +263,7 @@ export function DocumentModal({
   const [description, setDescription] = useState("");
   const [active, setActive] = useState(true);
   const [uploadDrafts, setUploadDrafts] = useState<UploadFileDraft[]>([]);
+  const [uploadSubjectId, setUploadSubjectId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [meta, setMeta] = useState<DocumentViewerResponse | null>(null);
@@ -318,6 +331,7 @@ export function DocumentModal({
     setDescription("");
     setActive(true);
     setUploadDrafts([]);
+    setUploadSubjectId("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -342,6 +356,17 @@ export function DocumentModal({
       setActive(document.active ?? true);
     }
   }, [open, mode, initialViewMode, documentId, document, resetFormState]);
+
+  useEffect(() => {
+    if (!open || mode !== "create" || subjects.length === 0) return;
+
+    const preferred =
+      (defaultSubjectId && subjects.some((s) => s.id === defaultSubjectId)
+        ? defaultSubjectId
+        : null) ?? subjects[0]?.id ?? "";
+
+    setUploadSubjectId(preferred);
+  }, [open, mode, defaultSubjectId, subjects]);
 
   useEffect(() => {
     if (!open || mode !== "view" || viewMode !== "index" || !documentId) return;
@@ -569,6 +594,11 @@ export function DocumentModal({
   };
 
   const handleCreate = async () => {
+    if (!uploadSubjectId) {
+      toast.error("Chọn môn học");
+      return;
+    }
+
     if (!uploadDrafts.length) {
       toast.error("Chọn file để tải lên");
       return;
@@ -587,6 +617,7 @@ export function DocumentModal({
 
     const items = uploadDrafts.map((draft) => ({
       file: draft.file,
+      subjectId: uploadSubjectId,
       title: draft.title.trim(),
       description: draft.description.trim() || undefined,
     }));
@@ -743,6 +774,25 @@ export function DocumentModal({
     <div className="min-w-0 space-y-4 overflow-hidden">
       {mode === "create" ? (
         <div className="min-w-0 space-y-3 overflow-hidden">
+          <div className="space-y-1.5">
+            <Label htmlFor="doc-upload-subject">Môn học *</Label>
+            <Select
+              value={uploadSubjectId || undefined}
+              onValueChange={setUploadSubjectId}
+              disabled={submitting || subjects.length === 0}
+            >
+              <SelectTrigger id="doc-upload-subject" className="w-full">
+                <SelectValue placeholder="Chọn môn học" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((subject) => (
+                  <SelectItem key={subject.id} value={subject.id}>
+                    {subject.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1.5">
             <Label>File *</Label>
             <Button

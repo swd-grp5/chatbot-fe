@@ -5,6 +5,7 @@ import { getApiSession, setApiSession } from "@/features/auth/lib/auth-session";
 import { apiRoleToAppRole, type AppRole } from "@/features/auth/lib/auth-types";
 import { clearViewMode, resetViewModeForRole } from "@/features/student/lib/view-mode";
 import { useAppStore } from "@/features/student/lib/store";
+import { storageKey } from "@/shared/lib/storage-keys";
 
 export type AuthUser = {
   id: string;
@@ -79,8 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     initStore();
     sync();
-    window.addEventListener("sdn-auth-changed", sync);
-    return () => window.removeEventListener("sdn-auth-changed", sync);
+    const authChangedEvent = storageKey("auth-changed");
+    window.addEventListener(authChangedEvent, sync);
+    return () => window.removeEventListener(authChangedEvent, sync);
   }, [initStore, loadUserData, clearStore]);
 
   const signOut = () => {
