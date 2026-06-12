@@ -13,18 +13,11 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
+import { DocumentsSubjectSelect } from "@/features/lecturer/components/documents-subject-select";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
@@ -49,9 +42,10 @@ import {
   API_DOC_COLUMNS,
   documentTypeStyle,
   FilterTableHead,
-  FILTER_COL_WIDTH,
   loadColumnVisibility,
+  ResizableTableHead,
   SortableTableHead,
+  useDocumentTableResize,
   statusStyles,
   TABLE_HEAD_LABEL,
   ToggleActiveBadge,
@@ -95,6 +89,7 @@ const DocumentModal = lazy(() =>
 );
 
 const API_COLUMNS_STORAGE = "lecturer-documents-api-columns";
+const WIDTHS_STORAGE = "lecturer-documents-column-widths";
 const VIEW_MODE_STORAGE = "lecturer-documents-view-mode";
 
 export function LecturerDocumentsPage() {
@@ -136,6 +131,7 @@ export function LecturerDocumentsPage() {
 
   const columnVisibility = apiColumns;
   const columnOptions = API_DOC_COLUMNS;
+  const { resize, cell, tableMinWidth } = useDocumentTableResize(WIDTHS_STORAGE);
 
   const tableColSpan = useMemo(() => {
     const visibleOptional = Object.values(columnVisibility).filter(Boolean).length;
@@ -143,7 +139,6 @@ export function LecturerDocumentsPage() {
   }, [columnVisibility]);
 
   const displayCourses = subjects;
-  const allDocuments = apiDocuments;
   const labelOf = (code: string) => courseLabel(code, displayCourses);
   const selectedSubjectId =
     subjects.find((subject) => subject.code === selectedCourse)?.id ?? "";
@@ -174,9 +169,17 @@ export function LecturerDocumentsPage() {
   }, []);
 
   const loadApiDocuments = useCallback(async () => {
+    if (!selectedSubjectId) {
+      setApiDocuments([]);
+      setTotalPages(0);
+      setTotalElements(0);
+      setDocsLoading(false);
+      return;
+    }
     setDocsLoading(true);
     try {
       const res = await fetchDocuments({
+        subjectId: selectedSubjectId,
         keyword: searchKeyword,
         status: statusFilter === "all" ? undefined : statusFilter,
         documentType: documentTypeFilter === "all" ? undefined : documentTypeFilter,
@@ -198,7 +201,16 @@ export function LecturerDocumentsPage() {
     } finally {
       setDocsLoading(false);
     }
-  }, [searchKeyword, statusFilter, documentTypeFilter, activeFilter, sortBy, sortDir, page]);
+  }, [
+    selectedSubjectId,
+    searchKeyword,
+    statusFilter,
+    documentTypeFilter,
+    activeFilter,
+    sortBy,
+    sortDir,
+    page,
+  ]);
 
   const handleSearch = () => {
     setPage(0);
@@ -237,13 +249,9 @@ export function LecturerDocumentsPage() {
     return () => clearTimeout(timer);
   }, [loadApiDocuments]);
 
-  const courseDocs = selectedCourse
-    ? allDocuments.filter((d) => d.course === selectedCourse)
-    : [];
-  const filtered = courseDocs;
   const displayTotalElements = totalElements;
   const displayTotalPages = totalPages;
-  const tableRows = filtered;
+  const tableRows = apiDocuments;
 
   const handleRefresh = () => {
     void loadApiDocuments();
@@ -313,34 +321,12 @@ export function LecturerDocumentsPage() {
         <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Select
-                value={selectedCourse || undefined}
+              <DocumentsSubjectSelect
+                subjects={subjects}
+                value={selectedCourse}
                 onValueChange={handleSubjectChange}
-                disabled={subjectsLoading || subjects.length === 0}
-              >
-                <SelectTrigger className="h-8 w-52 text-xs">
-                  <SelectValue
-                    placeholder={
-                      subjectsLoading
-                        ? "Đang tải môn học..."
-                        : subjects.length === 0
-                          ? "Chưa có môn được gán"
-                          : "Chọn môn học"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((subject) => {
-                    const count = allDocuments.filter((d) => d.course === subject.code).length;
-                    return (
-                      <SelectItem key={subject.id} value={subject.code} className="text-xs">
-                        {subject.code} — {subject.name}
-                        {count > 0 ? ` (${count})` : ""}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+                loading={subjectsLoading}
+              />
               {selectedCourse && (
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {displayTotalElements} tài liệu
@@ -445,17 +431,25 @@ export function LecturerDocumentsPage() {
             />
           ) : (
           <TooltipProvider delayDuration={0}>
-            <Table className="table-fixed">
+            <Table
+              className="table-fixed w-full [&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3"
+              style={{ minWidth: tableMinWidth }}
+            >
               <TableHeader>
                 <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                  <TableHead className={cn(TABLE_HEAD_LABEL, "w-12 text-center")}>STT</TableHead>
+                  <ResizableTableHead
+                    className={cn(TABLE_HEAD_LABEL, "text-center")}
+                    {...resize("stt")}
+                  >
+                    STT
+                  </ResizableTableHead>
                   <SortableTableHead
                     label="Tài liệu"
                     field="title"
                     activeField={sortBy}
                     direction={sortDir}
                     onSort={handleSort}
-                    className="w-[30%]"
+                    {...resize("title")}
                   />
                   {apiColumns.documentType && (
                     <FilterTableHead
@@ -470,12 +464,15 @@ export function LecturerDocumentsPage() {
                       activeField={sortBy}
                       direction={sortDir}
                       onSort={handleSort}
-                      className={FILTER_COL_WIDTH.documentType}
+                      className="text-center"
+                      {...resize("documentType")}
                       disabled={!selectedCourse}
                     />
                   )}
                   {apiColumns.description && (
-                    <TableHead className={cn(TABLE_HEAD_LABEL, "w-36 max-w-36")}>Mô tả</TableHead>
+                    <ResizableTableHead className={TABLE_HEAD_LABEL} {...resize("description")}>
+                      Mô tả
+                    </ResizableTableHead>
                   )}
                   {columnVisibility.status && (
                     <FilterTableHead
@@ -490,7 +487,8 @@ export function LecturerDocumentsPage() {
                       activeField={sortBy}
                       direction={sortDir}
                       onSort={handleSort}
-                      className={FILTER_COL_WIDTH.status}
+                      className="text-center"
+                      {...resize("status")}
                       disabled={!selectedCourse}
                     />
                   )}
@@ -503,12 +501,18 @@ export function LecturerDocumentsPage() {
                         setActiveFilter(v as ActiveFilter);
                       }}
                       filterOptions={ACTIVE_FILTER_OPTIONS}
-                      className={FILTER_COL_WIDTH.active}
+                      className="text-center"
+                      {...resize("active")}
                       disabled={!selectedCourse}
                     />
                   )}
                   {columnVisibility.size && (
-                    <TableHead className={cn(TABLE_HEAD_LABEL, "w-28 text-right")}>Kích thước</TableHead>
+                    <ResizableTableHead
+                      className={cn(TABLE_HEAD_LABEL, "text-right")}
+                      {...resize("size")}
+                    >
+                      Kích thước
+                    </ResizableTableHead>
                   )}
                   {apiColumns.createdAt && (
                     <SortableTableHead
@@ -517,7 +521,7 @@ export function LecturerDocumentsPage() {
                       activeField={sortBy}
                       direction={sortDir}
                       onSort={handleSort}
-                      className="w-36"
+                      {...resize("createdAt")}
                     />
                   )}
                   {apiColumns.updatedAt && (
@@ -527,10 +531,15 @@ export function LecturerDocumentsPage() {
                       activeField={sortBy}
                       direction={sortDir}
                       onSort={handleSort}
-                      className="w-36"
+                      {...resize("updatedAt")}
                     />
                   )}
-                  <TableHead className={cn(TABLE_HEAD_LABEL, "w-20 text-center")}>Thao tác</TableHead>
+                  <ResizableTableHead
+                    className={cn(TABLE_HEAD_LABEL, "text-center")}
+                    {...resize("actions")}
+                  >
+                    Thao tác
+                  </ResizableTableHead>
                 </TableRow>
               </TableHeader>
               <TableBody
@@ -555,7 +564,7 @@ export function LecturerDocumentsPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {selectedCourse && !docsLoading && filtered.length === 0 && (
+                {selectedCourse && !docsLoading && tableRows.length === 0 && (
                   <TableRow>
                     <TableCell
                       colSpan={tableColSpan}
@@ -575,14 +584,24 @@ export function LecturerDocumentsPage() {
                       key={d.id}
                       className={cn(isInactive && "opacity-50")}
                     >
-                      <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
+                      <TableCell
+                        className="text-center text-sm tabular-nums text-muted-foreground"
+                        style={cell("stt")}
+                      >
                         {rowNumber}
                       </TableCell>
-                      <TableCell>
-                        <div className="truncate text-sm font-medium">{d.name}</div>
+                      <TableCell style={cell("title")}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-default truncate text-sm font-medium">{d.name}</div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            {d.name}
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
                       {apiColumns.documentType && (
-                        <TableCell className="text-center">
+                        <TableCell className="text-center" style={cell("documentType")}>
                           <Badge
                             variant="outline"
                             className={cn(
@@ -595,7 +614,7 @@ export function LecturerDocumentsPage() {
                         </TableCell>
                       )}
                       {apiColumns.description && (
-                        <TableCell className="w-36 max-w-36 text-sm text-muted-foreground">
+                        <TableCell className="text-sm text-muted-foreground" style={cell("description")}>
                           {d.description?.trim() ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -613,14 +632,14 @@ export function LecturerDocumentsPage() {
                         </TableCell>
                       )}
                       {columnVisibility.status && (
-                        <TableCell className="text-center">
+                        <TableCell className="text-center" style={cell("status")}>
                           <Badge variant="outline" className={cn("gap-1.5 font-normal", s.className)}>
                             {s.label}
                           </Badge>
                         </TableCell>
                       )}
                       {apiColumns.active && (
-                        <TableCell className="text-center">
+                        <TableCell className="text-center" style={cell("active")}>
                           <ToggleActiveBadge
                             active={d.active !== false}
                             onToggle={() => void handleToggleActive(d)}
@@ -630,23 +649,32 @@ export function LecturerDocumentsPage() {
                         </TableCell>
                       )}
                       {columnVisibility.size && (
-                        <TableCell className="text-right text-sm text-muted-foreground">
+                        <TableCell
+                          className="text-right text-sm text-muted-foreground"
+                          style={cell("size")}
+                        >
                           {d.size}
                         </TableCell>
                       )}
                       {apiColumns.createdAt && (
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        <TableCell
+                          className="whitespace-nowrap text-sm text-muted-foreground"
+                          style={cell("createdAt")}
+                        >
                           {d.createdAt
                             ? formatDateTimeDMY(d.createdAt)
                             : formatDateDMY(d.uploadedAt)}
                         </TableCell>
                       )}
                       {apiColumns.updatedAt && (
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        <TableCell
+                          className="whitespace-nowrap text-sm text-muted-foreground"
+                          style={cell("updatedAt")}
+                        >
                           {d.updatedAt ? formatDateTimeDMY(d.updatedAt) : "—"}
                         </TableCell>
                       )}
-                      <TableCell>
+                      <TableCell style={cell("actions")}>
                         <div className="flex items-center justify-center gap-1">
                           <Button
                             variant="ghost"

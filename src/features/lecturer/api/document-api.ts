@@ -346,6 +346,10 @@ export const DEFAULT_DOCUMENT_PAGE_SIZE = 10;
 
 export type FetchDocumentsParams = {
 
+  subjectId?: string;
+
+  subjectCode?: string;
+
   keyword?: string;
 
   status?: ApiDocumentStatus;
@@ -375,6 +379,10 @@ export async function fetchDocuments(params?: FetchDocumentsParams) {
     size: String(params?.size ?? DEFAULT_DOCUMENT_PAGE_SIZE),
 
   });
+
+  if (params?.subjectId) search.set("subjectId", params.subjectId);
+
+  if (params?.subjectCode?.trim()) search.set("subjectCode", params.subjectCode.trim());
 
   if (params?.sortBy) search.set("sortBy", params.sortBy);
 

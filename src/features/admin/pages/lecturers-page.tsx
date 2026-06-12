@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Columns2,
   Eye,
@@ -11,11 +11,15 @@ import {
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { LecturerModal, type LecturerModalMode } from "@/features/admin/components/lecturer-modal";
 import {
+  useAdminTable,
+  userTableWidths,
+} from "@/features/admin/hooks/use-admin-table";
+import {
   ACTIVE_FILTER_OPTIONS,
   FilterTableHead,
+  ResizableTableHead,
   ToggleActiveBadge,
   TruncatedSubjectBadges,
-  loadColumnVisibility,
   SortableTableHead,
   TABLE_HEAD_LABEL,
   type ActiveFilter,
@@ -52,7 +56,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
@@ -67,8 +70,6 @@ import { ApiError } from "@/shared/lib/api-client";
 import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
-
-const COLUMNS_STORAGE = "admin-lecturers-columns";
 
 const LECTURER_COLUMNS = [
   { key: "subjects", label: "Môn học" },
@@ -99,17 +100,12 @@ export function AdminLecturersPage() {
   } | null>(null);
   const [deleteLecturerRow, setDeleteLecturerRow] = useState<LecturerResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [columnVisibility, setColumnVisibility] = useState(() =>
-    loadColumnVisibility(
-      COLUMNS_STORAGE,
-      LECTURER_COLUMNS.map((column) => column.key),
-    ),
-  );
-
-  const tableColSpan = useMemo(() => {
-    const optional = Object.values(columnVisibility).filter(Boolean).length;
-    return 4 + optional;
-  }, [columnVisibility]);
+  const table = useAdminTable({
+    storageKey: "admin-lecturers",
+    optionalColumns: LECTURER_COLUMNS,
+    fixedColumnCount: 5,
+    widthDefaults: userTableWidths(),
+  });
 
   useEffect(() => {
     void fetchSubjects({ active: true, size: 200, page: 0 })
@@ -141,10 +137,6 @@ export function AdminLecturersPage() {
       setLoading(false);
     }
   }, [searchKeyword, activeFilter, subjectFilter, sortBy, sortDir, page]);
-
-  useEffect(() => {
-    localStorage.setItem(COLUMNS_STORAGE, JSON.stringify(columnVisibility));
-  }, [columnVisibility]);
 
   useEffect(() => {
     const timer = setTimeout(() => void loadLecturers(), 300);
@@ -259,12 +251,12 @@ export function AdminLecturersPage() {
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {LECTURER_COLUMNS.map(({ key, label }) => (
+                    {table.optionalColumns.map(({ key, label }) => (
                       <DropdownMenuCheckboxItem
                         key={key}
-                        checked={Boolean(columnVisibility[key as LecturerColumnKey])}
+                        checked={Boolean(table.columnVisibility[key as LecturerColumnKey])}
                         onCheckedChange={(checked) => {
-                          setColumnVisibility((prev) => ({
+                          table.setColumnVisibility((prev) => ({
                             ...prev,
                             [key]: checked === true,
                           }));
@@ -297,13 +289,19 @@ export function AdminLecturersPage() {
             <Table className="table-fixed [&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3">
               <TableHeader>
                 <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                  <TableHead className={cn(TABLE_HEAD_LABEL, "w-12 text-center")}>STT</TableHead>
+                  <ResizableTableHead
+                    className={cn(TABLE_HEAD_LABEL, "text-center")}
+                    {...table.resize("stt")}
+                  >
+                    STT
+                  </ResizableTableHead>
                   <SortableTableHead
                     label="Họ tên"
                     field="fullName"
                     activeField={sortBy}
                     direction={sortDir}
                     onSort={handleSort}
+                    {...table.resize("fullName")}
                   />
                   <SortableTableHead
                     label="Email"
@@ -311,8 +309,9 @@ export function AdminLecturersPage() {
                     activeField={sortBy}
                     direction={sortDir}
                     onSort={handleSort}
+                    {...table.resize("email")}
                   />
-                  {columnVisibility.subjects && (
+                  {table.isVisible("subjects") && (
                     <FilterTableHead
                       label="Môn học"
                       filterValue={subjectFilter}
@@ -324,7 +323,7 @@ export function AdminLecturersPage() {
                         value: subject.id,
                         label: subject.code,
                       }))}
-                      className="w-36"
+                      {...table.resize("subjects")}
                     />
                   )}
                   <FilterTableHead
@@ -335,50 +334,61 @@ export function AdminLecturersPage() {
                       setActiveFilter(value as ActiveFilter);
                     }}
                     filterOptions={ACTIVE_FILTER_OPTIONS}
-                    className="w-32 min-w-32 max-w-32 text-center"
+                    className="text-center"
+                    {...table.resize("active")}
                   />
-                  {columnVisibility.emailVerified && (
-                    <TableHead className={cn(TABLE_HEAD_LABEL, "w-32 text-center")}>
+                  {table.isVisible("emailVerified") && (
+                    <ResizableTableHead
+                      className={cn(TABLE_HEAD_LABEL, "text-center")}
+                      {...table.resize("emailVerified")}
+                    >
                       Xác thực email
-                    </TableHead>
+                    </ResizableTableHead>
                   )}
-                  {columnVisibility.provider && (
-                    <TableHead className={cn(TABLE_HEAD_LABEL, "w-28")}>Nhà cung cấp</TableHead>
+                  {table.isVisible("provider") && (
+                    <ResizableTableHead className={TABLE_HEAD_LABEL} {...table.resize("provider")}>
+                      Nhà cung cấp
+                    </ResizableTableHead>
                   )}
-                  {columnVisibility.createdAt && (
+                  {table.isVisible("createdAt") && (
                     <SortableTableHead
                       label="Ngày tạo"
                       field="createdAt"
                       activeField={sortBy}
                       direction={sortDir}
                       onSort={handleSort}
-                      className="w-36"
+                      {...table.resize("createdAt")}
                     />
                   )}
-                  {columnVisibility.updatedAt && (
+                  {table.isVisible("updatedAt") && (
                     <SortableTableHead
                       label="Cập nhật"
                       field="updatedAt"
                       activeField={sortBy}
                       direction={sortDir}
                       onSort={handleSort}
-                      className="w-36"
+                      {...table.resize("updatedAt")}
                     />
                   )}
-                  <TableHead className={cn(TABLE_HEAD_LABEL, "w-32 text-center")}>Thao tác</TableHead>
+                  <ResizableTableHead
+                    className={cn(TABLE_HEAD_LABEL, "text-center")}
+                    {...table.resize("actions")}
+                  >
+                    Thao tác
+                  </ResizableTableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}>
                 {loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
                       Đang tải giảng viên...
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
                       Chưa có giảng viên — bấm Thêm giảng viên để tạo.
                     </TableCell>
                   </TableRow>
@@ -387,17 +397,38 @@ export function AdminLecturersPage() {
                   const rowNumber = page * DEFAULT_LECTURER_PAGE_SIZE + index + 1;
                   return (
                     <TableRow key={row.id} className={cn(!row.active && "opacity-60")}>
-                      <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
+                      <TableCell
+                        className="text-center text-sm tabular-nums text-muted-foreground"
+                        style={table.cell("stt")}
+                      >
                         {rowNumber}
                       </TableCell>
-                      <TableCell className="truncate text-sm font-medium">{row.fullName}</TableCell>
-                      <TableCell className="truncate text-sm text-muted-foreground">{row.email}</TableCell>
-                      {columnVisibility.subjects && (
-                        <TableCell className="text-center">
+                      <TableCell className="text-sm font-medium" style={table.cell("fullName")}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block cursor-default truncate">{row.fullName}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            {row.fullName}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground" style={table.cell("email")}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block cursor-default truncate">{row.email}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            {row.email}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      {table.isVisible("subjects") && (
+                        <TableCell className="text-center" style={table.cell("subjects")}>
                           <TruncatedSubjectBadges subjects={row.subjects} />
                         </TableCell>
                       )}
-                      <TableCell className="text-center">
+                      <TableCell className="text-center" style={table.cell("active")}>
                         <ToggleActiveBadge
                           active={row.active}
                           onToggle={() => void handleToggleActive(row)}
@@ -405,25 +436,36 @@ export function AdminLecturersPage() {
                           tooltipInactive="Bật giảng viên"
                         />
                       </TableCell>
-                      {columnVisibility.emailVerified && (
-                        <TableCell className="text-center text-sm text-muted-foreground">
+                      {table.isVisible("emailVerified") && (
+                        <TableCell
+                          className="text-center text-sm text-muted-foreground"
+                          style={table.cell("emailVerified")}
+                        >
                           {row.emailVerified ? "Đã xác thực" : "Chưa"}
                         </TableCell>
                       )}
-                      {columnVisibility.provider && (
-                        <TableCell className="text-sm text-muted-foreground">{row.provider}</TableCell>
+                      {table.isVisible("provider") && (
+                        <TableCell className="text-sm text-muted-foreground" style={table.cell("provider")}>
+                          {row.provider}
+                        </TableCell>
                       )}
-                      {columnVisibility.createdAt && (
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {table.isVisible("createdAt") && (
+                        <TableCell
+                          className="whitespace-nowrap text-sm text-muted-foreground"
+                          style={table.cell("createdAt")}
+                        >
                           {formatDateTimeDMY(row.createdAt)}
                         </TableCell>
                       )}
-                      {columnVisibility.updatedAt && (
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {table.isVisible("updatedAt") && (
+                        <TableCell
+                          className="whitespace-nowrap text-sm text-muted-foreground"
+                          style={table.cell("updatedAt")}
+                        >
                           {formatDateTimeDMY(row.updatedAt)}
                         </TableCell>
                       )}
-                      <TableCell>
+                      <TableCell style={table.cell("actions")}>
                         <div className="flex items-center justify-center gap-1">
                           <Button
                             variant="ghost"

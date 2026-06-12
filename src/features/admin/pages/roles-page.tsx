@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Columns2,
   Eye,
@@ -11,10 +11,14 @@ import {
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { RoleModal, type RoleModalMode } from "@/features/admin/components/role-modal";
 import {
+  entityTableWidths,
+  useAdminTable,
+} from "@/features/admin/hooks/use-admin-table";
+import {
   ACTIVE_FILTER_OPTIONS,
   FilterTableHead,
+  ResizableTableHead,
   ToggleActiveBadge,
-  loadColumnVisibility,
   SortableTableHead,
   TABLE_HEAD_LABEL,
   type ActiveFilter,
@@ -50,7 +54,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
@@ -65,8 +68,6 @@ import { ApiError } from "@/shared/lib/api-client";
 import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
-
-const COLUMNS_STORAGE = "admin-roles-columns";
 
 const ROLE_COLUMNS = [
   { key: "description", label: "Mô tả" },
@@ -93,17 +94,12 @@ export function AdminRolesPage() {
   } | null>(null);
   const [deleteRoleRow, setDeleteRoleRow] = useState<RoleResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [columnVisibility, setColumnVisibility] = useState(() =>
-    loadColumnVisibility(
-      COLUMNS_STORAGE,
-      ROLE_COLUMNS.map((column) => column.key),
-    ),
-  );
-
-  const tableColSpan = useMemo(() => {
-    const optional = Object.values(columnVisibility).filter(Boolean).length;
-    return 4 + optional;
-  }, [columnVisibility]);
+  const table = useAdminTable({
+    storageKey: "admin-roles",
+    optionalColumns: ROLE_COLUMNS,
+    fixedColumnCount: 5,
+    widthDefaults: entityTableWidths(),
+  });
 
   const loadRoles = useCallback(async () => {
     setLoading(true);
@@ -129,10 +125,6 @@ export function AdminRolesPage() {
       setLoading(false);
     }
   }, [searchKeyword, activeFilter, sortBy, sortDir, page]);
-
-  useEffect(() => {
-    localStorage.setItem(COLUMNS_STORAGE, JSON.stringify(columnVisibility));
-  }, [columnVisibility]);
 
   useEffect(() => {
     const timer = setTimeout(() => void loadRoles(), 300);
@@ -247,12 +239,12 @@ export function AdminRolesPage() {
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {ROLE_COLUMNS.map(({ key, label }) => (
+                    {table.optionalColumns.map(({ key, label }) => (
                       <DropdownMenuCheckboxItem
                         key={key}
-                        checked={Boolean(columnVisibility[key as RoleColumnKey])}
+                        checked={Boolean(table.columnVisibility[key as RoleColumnKey])}
                         onCheckedChange={(checked) => {
-                          setColumnVisibility((prev) => ({
+                          table.setColumnVisibility((prev) => ({
                             ...prev,
                             [key]: checked === true,
                           }));
@@ -285,14 +277,19 @@ export function AdminRolesPage() {
             <Table className="table-fixed [&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3">
               <TableHeader>
                 <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                  <TableHead className={cn(TABLE_HEAD_LABEL, "w-12 text-center")}>STT</TableHead>
+                  <ResizableTableHead
+                    className={cn(TABLE_HEAD_LABEL, "text-center")}
+                    {...table.resize("stt")}
+                  >
+                    STT
+                  </ResizableTableHead>
                   <SortableTableHead
                     label="Mã"
                     field="code"
                     activeField={sortBy}
                     direction={sortDir}
                     onSort={handleSort}
-                    className="w-28"
+                    {...table.resize("code")}
                   />
                   <SortableTableHead
                     label="Tên vai trò"
@@ -300,10 +297,12 @@ export function AdminRolesPage() {
                     activeField={sortBy}
                     direction={sortDir}
                     onSort={handleSort}
-                    className="w-32 min-w-32 max-w-32"
+                    {...table.resize("name")}
                   />
-                  {columnVisibility.description && (
-                    <TableHead className={cn(TABLE_HEAD_LABEL, "w-80 max-w-80")}>Mô tả</TableHead>
+                  {table.isVisible("description") && (
+                    <ResizableTableHead className={TABLE_HEAD_LABEL} {...table.resize("description")}>
+                      Mô tả
+                    </ResizableTableHead>
                   )}
                   <FilterTableHead
                     label="Kích hoạt"
@@ -313,42 +312,48 @@ export function AdminRolesPage() {
                       setActiveFilter(value as ActiveFilter);
                     }}
                     filterOptions={ACTIVE_FILTER_OPTIONS}
-                    className="w-32 min-w-32 max-w-32 text-center"
+                    className="text-center"
+                    {...table.resize("active")}
                   />
-                  {columnVisibility.createdAt && (
+                  {table.isVisible("createdAt") && (
                     <SortableTableHead
                       label="Ngày tạo"
                       field="createdAt"
                       activeField={sortBy}
                       direction={sortDir}
                       onSort={handleSort}
-                      className="w-36"
+                      {...table.resize("createdAt")}
                     />
                   )}
-                  {columnVisibility.updatedAt && (
+                  {table.isVisible("updatedAt") && (
                     <SortableTableHead
                       label="Cập nhật"
                       field="updatedAt"
                       activeField={sortBy}
                       direction={sortDir}
                       onSort={handleSort}
-                      className="w-36"
+                      {...table.resize("updatedAt")}
                     />
                   )}
-                  <TableHead className={cn(TABLE_HEAD_LABEL, "w-32 text-center")}>Thao tác</TableHead>
+                  <ResizableTableHead
+                    className={cn(TABLE_HEAD_LABEL, "text-center")}
+                    {...table.resize("actions")}
+                  >
+                    Thao tác
+                  </ResizableTableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}>
                 {loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
                       Đang tải vai trò...
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
                       Chưa có vai trò — bấm Thêm vai trò để tạo.
                     </TableCell>
                   </TableRow>
@@ -357,11 +362,16 @@ export function AdminRolesPage() {
                   const rowNumber = page * DEFAULT_ROLE_PAGE_SIZE + index + 1;
                   return (
                     <TableRow key={row.id} className={cn(!row.active && "opacity-60")}>
-                      <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
+                      <TableCell
+                        className="text-center text-sm tabular-nums text-muted-foreground"
+                        style={table.cell("stt")}
+                      >
                         {rowNumber}
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium">{row.code}</TableCell>
-                      <TableCell className="w-32 min-w-32 max-w-32 text-sm font-medium">
+                      <TableCell className="font-mono text-sm font-medium" style={table.cell("code")}>
+                        {row.code}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium" style={table.cell("name")}>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className="block cursor-default truncate">{row.name}</span>
@@ -371,8 +381,8 @@ export function AdminRolesPage() {
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      {columnVisibility.description && (
-                        <TableCell className="w-80 max-w-80 text-sm text-muted-foreground">
+                      {table.isVisible("description") && (
+                        <TableCell className="text-sm text-muted-foreground" style={table.cell("description")}>
                           {row.description?.trim() ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -389,7 +399,7 @@ export function AdminRolesPage() {
                           )}
                         </TableCell>
                       )}
-                      <TableCell className="text-center">
+                      <TableCell className="text-center" style={table.cell("active")}>
                         <ToggleActiveBadge
                           active={row.active}
                           onToggle={() => void handleToggleActive(row)}
@@ -397,17 +407,23 @@ export function AdminRolesPage() {
                           tooltipInactive="Bật vai trò"
                         />
                       </TableCell>
-                      {columnVisibility.createdAt && (
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {table.isVisible("createdAt") && (
+                        <TableCell
+                          className="whitespace-nowrap text-sm text-muted-foreground"
+                          style={table.cell("createdAt")}
+                        >
                           {formatDateTimeDMY(row.createdAt)}
                         </TableCell>
                       )}
-                      {columnVisibility.updatedAt && (
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {table.isVisible("updatedAt") && (
+                        <TableCell
+                          className="whitespace-nowrap text-sm text-muted-foreground"
+                          style={table.cell("updatedAt")}
+                        >
                           {formatDateTimeDMY(row.updatedAt)}
                         </TableCell>
                       )}
-                      <TableCell>
+                      <TableCell style={table.cell("actions")}>
                         <div className="flex items-center justify-center gap-1">
                           <Button
                             variant="ghost"
