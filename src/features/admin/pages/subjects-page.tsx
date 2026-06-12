@@ -63,7 +63,7 @@ import {
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
 import { ApiError } from "@/shared/lib/api-client";
-import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";
+import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "sonner";
 
@@ -394,12 +394,12 @@ export function AdminSubjectsPage() {
                         </button>
                       </TableCell>
                       {columnVisibility.createdAt && (
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDateDMY(row.createdAt)}
+                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                          {formatDateTimeDMY(row.createdAt)}
                         </TableCell>
                       )}
                       {columnVisibility.updatedAt && (
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                           {formatDateTimeDMY(row.updatedAt)}
                         </TableCell>
                       )}

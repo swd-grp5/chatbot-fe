@@ -22,7 +22,7 @@ import {
 import { fetchSubjects, type SubjectOption } from "@/features/lecturer/api/subject-api";
 import { activeStyles } from "@/features/lecturer/components/documents-table-ui";
 import { ApiError } from "@/shared/lib/api-client";
-import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";
+import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "sonner";
 
@@ -305,7 +305,7 @@ export function StudentModal({
               </div>
             </DetailField>
             <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
-              <DetailField label="Ngày tạo">{formatDateDMY(detail.createdAt)}</DetailField>
+              <DetailField label="Ngày tạo">{formatDateTimeDMY(detail.createdAt)}</DetailField>
               <DetailField label="Cập nhật">{formatDateTimeDMY(detail.updatedAt)}</DetailField>
             </div>
           </div>
