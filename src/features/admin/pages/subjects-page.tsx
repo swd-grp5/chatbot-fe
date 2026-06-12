@@ -12,8 +12,8 @@ import { AppShell } from "@/shared/components/layout/app-shell";
 import { SubjectModal, type SubjectModalMode } from "@/features/admin/components/subject-modal";
 import {
   ACTIVE_FILTER_OPTIONS,
-  activeStyles,
   FilterTableHead,
+  ToggleActiveBadge,
   loadColumnVisibility,
   SortableTableHead,
   TABLE_HEAD_LABEL,
@@ -65,7 +65,7 @@ import {
 import { ApiError } from "@/shared/lib/api-client";
 import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 
 const COLUMNS_STORAGE = "admin-subjects-columns";
 
@@ -354,7 +354,6 @@ export function AdminSubjectsPage() {
                   </TableRow>
                 )}
                 {rows.map((row, index) => {
-                  const status = row.active ? activeStyles.active : activeStyles.inactive;
                   const rowNumber = page * DEFAULT_SUBJECT_PAGE_SIZE + index + 1;
                   return (
                     <TableRow key={row.id} className={cn(!row.active && "opacity-60")}>
@@ -382,16 +381,12 @@ export function AdminSubjectsPage() {
                         </TableCell>
                       )}
                       <TableCell className="text-center">
-                        <button
-                          type="button"
-                          className="inline-flex"
-                          onClick={() => void handleToggleActive(row)}
-                          title={row.active ? "Tắt môn" : "Bật môn"}
-                        >
-                          <Badge variant="outline" className={cn("gap-1.5 font-normal", status.className)}>
-                            {status.label}
-                          </Badge>
-                        </button>
+                        <ToggleActiveBadge
+                          active={row.active}
+                          onToggle={() => void handleToggleActive(row)}
+                          tooltipActive="Tắt môn"
+                          tooltipInactive="Bật môn"
+                        />
                       </TableCell>
                       {columnVisibility.createdAt && (
                         <TableCell className="whitespace-nowrap text-sm text-muted-foreground">

@@ -436,10 +436,16 @@ export async function updateDocumentApi(id: string, payload: UpdateDocumentPaylo
 
 
 
-export async function toggleDocumentActive(id: string) {
-
-  return apiFetch<DocumentResponse>(`/documents/${id}/toggle-active`, { method: "PATCH" });
-
+export async function toggleDocumentActive(
+  id: string,
+  doc: { title?: string; name: string; description?: string; active?: boolean },
+) {
+  const wasActive = doc.active !== false;
+  return updateDocumentApi(id, {
+    title: (doc.title ?? doc.name).trim() || doc.name,
+    description: doc.description ?? "",
+    active: !wasActive,
+  });
 }
 
 

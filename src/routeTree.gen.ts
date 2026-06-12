@@ -19,6 +19,7 @@ import { Route as LecturerDocumentsRouteImport } from './features/lecturer/route
 import { Route as AdminUsersRouteImport } from './features/admin/routes/users'
 import { Route as AdminSubscriptionsRouteImport } from './features/admin/routes/subscriptions'
 import { Route as AdminSubjectsRouteImport } from './features/admin/routes/subjects'
+import { Route as AdminLecturersRouteImport } from './features/admin/routes/lecturers'
 import { Route as AdminAiConfigRouteImport } from './features/admin/routes/ai-config'
 
 const SubscriptionsRoute = SubscriptionsRouteImport.update({
@@ -71,6 +72,11 @@ const AdminSubjectsRoute = AdminSubjectsRouteImport.update({
   path: '/subjects',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminLecturersRoute = AdminLecturersRouteImport.update({
+  id: '/lecturers',
+  path: '/lecturers',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminAiConfigRoute = AdminAiConfigRouteImport.update({
   id: '/ai-config',
   path: '/ai-config',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/documents': typeof DocumentsRoute
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
+  '/admin/lecturers': typeof AdminLecturersRoute
   '/admin/subjects': typeof AdminSubjectsRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/documents': typeof DocumentsRoute
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
+  '/admin/lecturers': typeof AdminLecturersRoute
   '/admin/subjects': typeof AdminSubjectsRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/documents': typeof DocumentsRoute
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
+  '/admin/lecturers': typeof AdminLecturersRoute
   '/admin/subjects': typeof AdminSubjectsRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/documents'
     | '/subscriptions'
     | '/admin/ai-config'
+    | '/admin/lecturers'
     | '/admin/subjects'
     | '/admin/subscriptions'
     | '/admin/users'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/documents'
     | '/subscriptions'
     | '/admin/ai-config'
+    | '/admin/lecturers'
     | '/admin/subjects'
     | '/admin/subscriptions'
     | '/admin/users'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/documents'
     | '/subscriptions'
     | '/admin/ai-config'
+    | '/admin/lecturers'
     | '/admin/subjects'
     | '/admin/subscriptions'
     | '/admin/users'
@@ -240,6 +252,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSubjectsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/lecturers': {
+      id: '/admin/lecturers'
+      path: '/lecturers'
+      fullPath: '/admin/lecturers'
+      preLoaderRoute: typeof AdminLecturersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/ai-config': {
       id: '/admin/ai-config'
       path: '/ai-config'
@@ -252,6 +271,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminAiConfigRoute: typeof AdminAiConfigRoute
+  AdminLecturersRoute: typeof AdminLecturersRoute
   AdminSubjectsRoute: typeof AdminSubjectsRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -259,6 +279,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAiConfigRoute: AdminAiConfigRoute,
+  AdminLecturersRoute: AdminLecturersRoute,
   AdminSubjectsRoute: AdminSubjectsRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRoute,
   AdminUsersRoute: AdminUsersRoute,

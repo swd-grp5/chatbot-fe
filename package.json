@@ -39,7 +39,6 @@
     "react-markdown": "^10.1.0",
     "react-pdf": "^10.4.1",
     "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
     "tw-animate-css": "^1.3.4",

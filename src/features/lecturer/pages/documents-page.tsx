@@ -14,6 +14,13 @@ import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -40,7 +47,6 @@ import { type Doc, courseLabel } from "@/shared/lib/mock-data";
 import {
   ACTIVE_FILTER_OPTIONS,
   API_DOC_COLUMNS,
-  activeStyles,
   documentTypeStyle,
   FilterTableHead,
   FILTER_COL_WIDTH,
@@ -48,6 +54,7 @@ import {
   SortableTableHead,
   statusStyles,
   TABLE_HEAD_LABEL,
+  ToggleActiveBadge,
   type ActiveFilter,
 } from "@/features/lecturer/components/documents-table-ui";
 import {
@@ -61,8 +68,9 @@ import {
   DOCUMENT_TYPE_OPTIONS,
   fetchDocuments,
   mapDocumentResponse,
+  toggleDocumentActive,
 } from "@/features/lecturer/api/document-api";
-import { fetchSubjects, type SubjectOption } from "@/features/lecturer/api/subject-api";
+import { fetchLecturerMySubjects, type SubjectOption } from "@/features/lecturer/api/subject-api";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import { DocumentsCardGrid } from "@/features/lecturer/components/documents-card-grid";
 import {
@@ -79,7 +87,7 @@ import {
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 const DocumentModal = lazy(() =>
   import("@/features/lecturer/components/document-modal").then((m) => ({
     default: m.DocumentModal,
@@ -140,24 +148,22 @@ export function LecturerDocumentsPage() {
   const selectedSubjectId =
     subjects.find((subject) => subject.code === selectedCourse)?.id ?? "";
 
+  const handleSubjectChange = (code: string) => {
+    setSelectedCourse(code);
+    setQueryInput("");
+    setSearchKeyword("");
+    setPage(0);
+  };
+
   const loadSubjects = useCallback(async () => {
     setSubjectsLoading(true);
     try {
-      const res = await fetchSubjects({
-        active: true,
-        sortBy: "code",
-        sortDir: "asc",
-        size: 100,
-      });
-      const rows = res.content.map((subject) => ({
-        id: subject.id,
-        code: subject.code,
-        name: subject.name,
-      }));
-      setSubjects(rows);
+      const rows = await fetchLecturerMySubjects();
+      const sorted = [...rows].sort((a, b) => a.code.localeCompare(b.code));
+      setSubjects(sorted);
       setSelectedCourse((current) => {
-        if (current && rows.some((row) => row.code === current)) return current;
-        return rows[0]?.code ?? "";
+        if (current && sorted.some((row) => row.code === current)) return current;
+        return sorted[0]?.code ?? "";
       });
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách môn học");
@@ -271,6 +277,23 @@ export function LecturerDocumentsPage() {
     setDocModal({ mode: "edit", doc });
   };
 
+  const handleToggleActive = async (doc: Doc) => {
+    const wasActive = doc.active !== false;
+    try {
+      await toggleDocumentActive(doc.id, doc);
+      await loadApiDocuments();
+      toast.success(wasActive ? "Đã tắt tài liệu" : "Đã bật tài liệu");
+    } catch (e) {
+      const message =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Cập nhật thất bại";
+      toast.error(message || "Cập nhật thất bại");
+    }
+  };
+
   return (
     <AppShell mainClassName="px-32 py-10">
       <div className="w-full space-y-4">
@@ -288,70 +311,39 @@ export function LecturerDocumentsPage() {
         </div>
 
         <Card className="overflow-hidden p-0">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-            <h2 className="text-sm font-semibold">Môn học</h2>
-          </div>
-          <Table className="[&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3">
-            <TableHeader>
-              <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                <TableHead className="w-28">Mã</TableHead>
-                <TableHead>Tên môn</TableHead>
-                <TableHead className="text-right">Tài liệu</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {subjectsLoading && (
-                <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
-                    Đang tải môn học...
-                  </TableCell>
-                </TableRow>
-              )}
-              {!subjectsLoading && displayCourses.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
-                    Chưa có môn học.
-                  </TableCell>
-                </TableRow>
-              )}
-              {displayCourses.map((c) => {
-                const count = allDocuments.filter((d) => d.course === c.code).length;
-                const active = selectedCourse === c.code;
-                return (
-                  <TableRow
-                    key={c.code}
-                    className={cn(
-                      "cursor-pointer",
-                      active && "bg-primary/5",
-                    )}
-                    onClick={() => {
-                      setSelectedCourse(c.code);
-                      setQueryInput("");
-                      setSearchKeyword("");
-                      setPage(0);
-                    }}
-                  >
-                    <TableCell className="font-mono text-sm font-medium">{c.code}</TableCell>
-                    <TableCell className="text-sm">{c.name}</TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">{count}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
-
-        <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-sm font-semibold">
-                {selectedCourse
-                  ? `Tài liệu — ${labelOf(selectedCourse)}`
-                  : "Tài liệu"}
-              </h2>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Select
+                value={selectedCourse || undefined}
+                onValueChange={handleSubjectChange}
+                disabled={subjectsLoading || subjects.length === 0}
+              >
+                <SelectTrigger className="h-8 w-52 text-xs">
+                  <SelectValue
+                    placeholder={
+                      subjectsLoading
+                        ? "Đang tải môn học..."
+                        : subjects.length === 0
+                          ? "Chưa có môn được gán"
+                          : "Chọn môn học"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((subject) => {
+                    const count = allDocuments.filter((d) => d.course === subject.code).length;
+                    return (
+                      <SelectItem key={subject.id} value={subject.code} className="text-xs">
+                        {subject.code} — {subject.name}
+                        {count > 0 ? ` (${count})` : ""}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
               {selectedCourse && (
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  ({displayTotalElements})
+                  {displayTotalElements} tài liệu
                 </span>
               )}
             </div>
@@ -448,6 +440,7 @@ export function LecturerDocumentsPage() {
               onView={(doc) => openDocumentViewer(doc, "file")}
               onEdit={openEdit}
               onDelete={setDeleteDoc}
+              onToggleActive={(doc) => void handleToggleActive(doc)}
               emptyMessage="Chưa có tài liệu — bấm Thêm tài liệu để upload."
             />
           ) : (
@@ -575,7 +568,6 @@ export function LecturerDocumentsPage() {
                 {!(docsLoading && tableRows.length === 0) && tableRows.map((d, index) => {
                   const s = statusStyles[d.status];
                   const docType = documentTypeStyle(d.type);
-                  const a = d.active === false ? activeStyles.inactive : activeStyles.active;
                   const isInactive = d.active === false;
                   const rowNumber = page * DEFAULT_DOCUMENT_PAGE_SIZE + index + 1;
                   return (
@@ -629,9 +621,12 @@ export function LecturerDocumentsPage() {
                       )}
                       {apiColumns.active && (
                         <TableCell className="text-center">
-                          <Badge variant="outline" className={cn("gap-1.5 font-normal", a.className)}>
-                            {a.label}
-                          </Badge>
+                          <ToggleActiveBadge
+                            active={d.active !== false}
+                            onToggle={() => void handleToggleActive(d)}
+                            tooltipActive="Tắt tài liệu"
+                            tooltipInactive="Bật tài liệu"
+                          />
                         </TableCell>
                       )}
                       {columnVisibility.size && (

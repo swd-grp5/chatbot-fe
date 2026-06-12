@@ -8,7 +8,7 @@ import { Input } from "@/shared/components/ui/input";
 import { PasswordInput } from "@/shared/components/ui/password-input";
 import { Card } from "@/shared/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { findUserById, type MockUser } from "@/shared/lib/mock-storage";
 import { useAuth } from "@/features/auth/lib/auth-context";
 import { DEMO_ACCOUNTS, loginWithEmail, loginWithGoogle, registerWithEmail, resendVerificationEmail } from "@/features/auth/api/auth-api";

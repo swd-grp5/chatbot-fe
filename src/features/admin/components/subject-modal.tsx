@@ -23,7 +23,7 @@ import { activeStyles } from "@/features/lecturer/components/documents-table-ui"
 import { ApiError } from "@/shared/lib/api-client";
 import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 
 export type SubjectModalMode = "create" | "edit" | "view";
 

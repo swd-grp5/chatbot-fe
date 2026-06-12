@@ -16,7 +16,7 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { Badge } from "@/shared/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/shared/components/ui/dropdown-menu";
 import { cn } from "@/shared/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { formatRelativeTime } from "@/shared/lib/format-time";
 import { type Citation, type ChatMessage, courseLabel, sessionGroupOrder } from "@/shared/lib/mock-data";
 import { fetchDocuments, mapDocumentResponse } from "@/features/lecturer/api/document-api";

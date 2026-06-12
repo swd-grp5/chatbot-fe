@@ -6,12 +6,16 @@ import {
   activeStyles,
   documentTypeStyle,
   statusStyles,
+  ToggleActiveBadge,
 } from "@/features/lecturer/components/documents-table-ui";
 import { DEFAULT_DOCUMENT_PAGE_SIZE } from "@/features/lecturer/api/document-api";
 import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import type { Doc } from "@/shared/lib/mock-data";
 import type { ReactNode } from "react";
+import {
+  TooltipProvider,
+} from "@/shared/components/ui/tooltip";
 
 type DocumentsCardGridProps = {
   rows: Doc[];
@@ -22,6 +26,7 @@ type DocumentsCardGridProps = {
   onView: (doc: Doc) => void;
   onEdit?: (doc: Doc) => void;
   onDelete?: (doc: Doc) => void;
+  onToggleActive?: (doc: Doc) => void;
   emptyMessage?: string;
   noCourseMessage?: string;
 };
@@ -35,6 +40,7 @@ export function DocumentsCardGrid({
   onView,
   onEdit,
   onDelete,
+  onToggleActive,
   emptyMessage = "Chưa có tài liệu.",
   noCourseMessage = "Chọn một môn ở bảng trên để xem tài liệu.",
 }: DocumentsCardGridProps) {
@@ -63,6 +69,7 @@ export function DocumentsCardGrid({
   }
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div
       className={cn(
         "grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
@@ -73,7 +80,6 @@ export function DocumentsCardGrid({
         const rowNumber = page * DEFAULT_DOCUMENT_PAGE_SIZE + index + 1;
         const s = statusStyles[doc.status];
         const docType = documentTypeStyle(doc.type);
-        const a = doc.active === false ? activeStyles.inactive : activeStyles.active;
         const canView = doc.status === "indexed";
         const isInactive = doc.active === false;
 
@@ -127,9 +133,25 @@ export function DocumentsCardGrid({
                 <Badge variant="outline" className={cn("text-[10px] font-normal", s.className)}>
                   {s.label}
                 </Badge>
-                {!readOnly && (
-                  <Badge variant="outline" className={cn("text-[10px] font-normal", a.className)}>
-                    {a.label}
+                {!readOnly && onToggleActive && (
+                  <ToggleActiveBadge
+                    active={doc.active !== false}
+                    onToggle={() => onToggleActive(doc)}
+                    tooltipActive="Tắt tài liệu"
+                    tooltipInactive="Bật tài liệu"
+                  />
+                )}
+                {!readOnly && !onToggleActive && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px] font-normal",
+                      doc.active === false
+                        ? activeStyles.inactive.className
+                        : activeStyles.active.className,
+                    )}
+                  >
+                    {doc.active === false ? activeStyles.inactive.label : activeStyles.active.label}
                   </Badge>
                 )}
               </div>
@@ -158,6 +180,7 @@ export function DocumentsCardGrid({
         );
       })}
     </div>
+    </TooltipProvider>
   );
 }
 

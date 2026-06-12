@@ -9,7 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
-import { StudentModal, type StudentModalMode } from "@/features/admin/components/student-modal";
+import { LecturerModal, type LecturerModalMode } from "@/features/admin/components/lecturer-modal";
 import {
   ACTIVE_FILTER_OPTIONS,
   FilterTableHead,
@@ -21,14 +21,14 @@ import {
   type ActiveFilter,
 } from "@/features/lecturer/components/documents-table-ui";
 import {
-  DEFAULT_STUDENT_PAGE_SIZE,
-  deleteStudent,
-  fetchStudents,
-  toggleStudentActive,
-  type StudentResponse,
-  type StudentSortField,
+  DEFAULT_LECTURER_PAGE_SIZE,
+  deleteLecturer,
+  fetchLecturers,
+  toggleLecturerActive,
+  type LecturerResponse,
+  type LecturerSortField,
   type SortDirection,
-} from "@/features/admin/api/student-api";
+} from "@/features/admin/api/lecturer-api";
 import { fetchSubjects, type SubjectOption } from "@/features/lecturer/api/subject-api";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
@@ -68,9 +68,9 @@ import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 
-const COLUMNS_STORAGE = "admin-students-columns";
+const COLUMNS_STORAGE = "admin-lecturers-columns";
 
-const STUDENT_COLUMNS = [
+const LECTURER_COLUMNS = [
   { key: "subjects", label: "Môn học" },
   { key: "emailVerified", label: "Xác thực email" },
   { key: "provider", label: "Nhà cung cấp" },
@@ -78,31 +78,31 @@ const STUDENT_COLUMNS = [
   { key: "updatedAt", label: "Cập nhật" },
 ] as const;
 
-type StudentColumnKey = (typeof STUDENT_COLUMNS)[number]["key"];
+type LecturerColumnKey = (typeof LECTURER_COLUMNS)[number]["key"];
 
-export function AdminStudentsPage() {
+export function AdminLecturersPage() {
   const [queryInput, setQueryInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
-  const [sortBy, setSortBy] = useState<StudentSortField | null>(null);
+  const [sortBy, setSortBy] = useState<LecturerSortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection | null>(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [rows, setRows] = useState<StudentResponse[]>([]);
+  const [rows, setRows] = useState<LecturerResponse[]>([]);
   const [loading, setLoading] = useState(false);
-  const [studentModal, setStudentModal] = useState<{
-    mode: StudentModalMode;
-    studentId: string | null;
+  const [lecturerModal, setLecturerModal] = useState<{
+    mode: LecturerModalMode;
+    lecturerId: string | null;
   } | null>(null);
-  const [deleteStudentRow, setDeleteStudentRow] = useState<StudentResponse | null>(null);
+  const [deleteLecturerRow, setDeleteLecturerRow] = useState<LecturerResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [columnVisibility, setColumnVisibility] = useState(() =>
     loadColumnVisibility(
       COLUMNS_STORAGE,
-      STUDENT_COLUMNS.map((column) => column.key),
+      LECTURER_COLUMNS.map((column) => column.key),
     ),
   );
 
@@ -117,16 +117,16 @@ export function AdminStudentsPage() {
       .catch(() => setSubjects([]));
   }, []);
 
-  const loadStudents = useCallback(async () => {
+  const loadLecturers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchStudents({
+      const res = await fetchLecturers({
         keyword: searchKeyword,
         active: activeFilter === "all" ? undefined : activeFilter === "true",
         subjectId: subjectFilter === "all" ? undefined : subjectFilter,
         ...(sortBy && sortDir ? { sortBy, sortDir } : {}),
         page,
-        size: DEFAULT_STUDENT_PAGE_SIZE,
+        size: DEFAULT_LECTURER_PAGE_SIZE,
       });
       if (res.totalPages > 0 && page >= res.totalPages) {
         setPage(res.totalPages - 1);
@@ -136,7 +136,7 @@ export function AdminStudentsPage() {
       setTotalPages(res.totalPages);
       setTotalElements(res.totalElements);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách sinh viên");
+      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách giảng viên");
     } finally {
       setLoading(false);
     }
@@ -147,16 +147,16 @@ export function AdminStudentsPage() {
   }, [columnVisibility]);
 
   useEffect(() => {
-    const timer = setTimeout(() => void loadStudents(), 300);
+    const timer = setTimeout(() => void loadLecturers(), 300);
     return () => clearTimeout(timer);
-  }, [loadStudents]);
+  }, [loadLecturers]);
 
   const handleSearch = () => {
     setPage(0);
     setSearchKeyword(queryInput.trim());
   };
 
-  const handleSort = (field: StudentSortField) => {
+  const handleSort = (field: LecturerSortField) => {
     setPage(0);
     if (sortBy !== field) {
       setSortBy(field);
@@ -171,24 +171,24 @@ export function AdminStudentsPage() {
     setSortDir(null);
   };
 
-  const handleToggleActive = async (row: StudentResponse) => {
+  const handleToggleActive = async (row: LecturerResponse) => {
     try {
-      await toggleStudentActive(row.id);
-      await loadStudents();
-      toast.success(row.active ? "Đã tắt sinh viên" : "Đã bật sinh viên");
+      await toggleLecturerActive(row.id);
+      await loadLecturers();
+      toast.success(row.active ? "Đã tắt giảng viên" : "Đã bật giảng viên");
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Cập nhật thất bại");
     }
   };
 
   const confirmDelete = async () => {
-    if (!deleteStudentRow) return;
+    if (!deleteLecturerRow) return;
     setDeleting(true);
     try {
-      await deleteStudent(deleteStudentRow.id);
-      await loadStudents();
-      toast.success("Đã xóa sinh viên");
-      setDeleteStudentRow(null);
+      await deleteLecturer(deleteLecturerRow.id);
+      await loadLecturers();
+      toast.success("Đã xóa giảng viên");
+      setDeleteLecturerRow(null);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Xóa thất bại");
     } finally {
@@ -201,24 +201,24 @@ export function AdminStudentsPage() {
       <div className="w-full space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Quản lý sinh viên</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Quản lý giảng viên</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tạo và quản lý tài khoản sinh viên, gán môn học.
+              Tạo và quản lý tài khoản giảng viên, gán môn được phép upload.
             </p>
           </div>
           <Button
             className="gap-2"
-            onClick={() => setStudentModal({ mode: "create", studentId: null })}
+            onClick={() => setLecturerModal({ mode: "create", lecturerId: null })}
           >
             <Plus className="h-4 w-4" />
-            Thêm sinh viên
+            Thêm giảng viên
           </Button>
         </div>
 
         <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
             <h2 className="text-sm font-semibold">
-              Danh sách sinh viên
+              Danh sách giảng viên
               <span className="ml-2 text-xs font-normal text-muted-foreground">
                 ({totalElements})
               </span>
@@ -259,10 +259,10 @@ export function AdminStudentsPage() {
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {STUDENT_COLUMNS.map(({ key, label }) => (
+                    {LECTURER_COLUMNS.map(({ key, label }) => (
                       <DropdownMenuCheckboxItem
                         key={key}
-                        checked={Boolean(columnVisibility[key as StudentColumnKey])}
+                        checked={Boolean(columnVisibility[key as LecturerColumnKey])}
                         onCheckedChange={(checked) => {
                           setColumnVisibility((prev) => ({
                             ...prev,
@@ -281,7 +281,7 @@ export function AdminStudentsPage() {
                       size="sm"
                       variant="outline"
                       className="h-8 gap-1.5 text-xs"
-                      onClick={() => void loadStudents()}
+                      onClick={() => void loadLecturers()}
                       disabled={loading}
                     >
                       <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
@@ -372,19 +372,19 @@ export function AdminStudentsPage() {
                 {loading && rows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
-                      Đang tải sinh viên...
+                      Đang tải giảng viên...
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
-                      Chưa có sinh viên — bấm Thêm sinh viên để tạo.
+                      Chưa có giảng viên — bấm Thêm giảng viên để tạo.
                     </TableCell>
                   </TableRow>
                 )}
                 {rows.map((row, index) => {
-                  const rowNumber = page * DEFAULT_STUDENT_PAGE_SIZE + index + 1;
+                  const rowNumber = page * DEFAULT_LECTURER_PAGE_SIZE + index + 1;
                   return (
                     <TableRow key={row.id} className={cn(!row.active && "opacity-60")}>
                       <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
@@ -401,8 +401,8 @@ export function AdminStudentsPage() {
                         <ToggleActiveBadge
                           active={row.active}
                           onToggle={() => void handleToggleActive(row)}
-                          tooltipActive="Tắt sinh viên"
-                          tooltipInactive="Bật sinh viên"
+                          tooltipActive="Tắt giảng viên"
+                          tooltipInactive="Bật giảng viên"
                         />
                       </TableCell>
                       {columnVisibility.emailVerified && (
@@ -430,7 +430,7 @@ export function AdminStudentsPage() {
                             size="icon"
                             className="h-8 w-8"
                             title="Xem chi tiết"
-                            onClick={() => setStudentModal({ mode: "view", studentId: row.id })}
+                            onClick={() => setLecturerModal({ mode: "view", lecturerId: row.id })}
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
@@ -439,7 +439,7 @@ export function AdminStudentsPage() {
                             size="icon"
                             className="h-8 w-8"
                             title="Sửa"
-                            onClick={() => setStudentModal({ mode: "edit", studentId: row.id })}
+                            onClick={() => setLecturerModal({ mode: "edit", lecturerId: row.id })}
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -448,7 +448,7 @@ export function AdminStudentsPage() {
                             size="icon"
                             className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
                             title="Xóa"
-                            onClick={() => setDeleteStudentRow(row)}
+                            onClick={() => setDeleteLecturerRow(row)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -472,32 +472,32 @@ export function AdminStudentsPage() {
         </Card>
       </div>
 
-      <StudentModal
-        mode={studentModal?.mode ?? null}
-        studentId={studentModal?.studentId ?? null}
-        open={!!studentModal}
-        onOpenChange={(open) => !open && setStudentModal(null)}
-        onSaved={loadStudents}
-        onEditRequest={(id) => setStudentModal({ mode: "edit", studentId: id })}
+      <LecturerModal
+        mode={lecturerModal?.mode ?? null}
+        lecturerId={lecturerModal?.lecturerId ?? null}
+        open={!!lecturerModal}
+        onOpenChange={(open) => !open && setLecturerModal(null)}
+        onSaved={loadLecturers}
+        onEditRequest={(id) => setLecturerModal({ mode: "edit", lecturerId: id })}
       />
 
       <Modal
-        open={!!deleteStudentRow}
-        onOpenChange={(open) => !open && !deleting && setDeleteStudentRow(null)}
+        open={!!deleteLecturerRow}
+        onOpenChange={(open) => !open && !deleting && setDeleteLecturerRow(null)}
       >
         <ModalContent className="sm:max-w-md">
           <ModalHeader>
-            <ModalTitle>Xóa sinh viên</ModalTitle>
+            <ModalTitle>Xóa giảng viên</ModalTitle>
           </ModalHeader>
           <p className="text-sm text-muted-foreground">
-            Bạn có chắc muốn xóa sinh viên{" "}
+            Bạn có chắc muốn xóa giảng viên{" "}
             <span className="font-medium text-foreground">
-              {deleteStudentRow?.fullName} ({deleteStudentRow?.email})
+              {deleteLecturerRow?.fullName} ({deleteLecturerRow?.email})
             </span>
             ? Hành động này không thể hoàn tác.
           </p>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setDeleteStudentRow(null)} disabled={deleting}>
+            <Button variant="outline" onClick={() => setDeleteLecturerRow(null)} disabled={deleting}>
               Huỷ
             </Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>

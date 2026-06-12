@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { Download, ExternalLink, FileText, Loader2, Trash2, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";

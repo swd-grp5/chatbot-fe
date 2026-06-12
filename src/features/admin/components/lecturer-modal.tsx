@@ -14,11 +14,11 @@ import {
   ModalTitle,
 } from "@/shared/components/ui/modal";
 import {
-  createStudent,
-  fetchStudentById,
-  updateStudent,
-  type StudentResponse,
-} from "@/features/admin/api/student-api";
+  createLecturer,
+  fetchLecturerById,
+  updateLecturer,
+  type LecturerResponse,
+} from "@/features/admin/api/lecturer-api";
 import { fetchSubjects, type SubjectOption } from "@/features/lecturer/api/subject-api";
 import { activeStyles } from "@/features/lecturer/components/documents-table-ui";
 import { ApiError } from "@/shared/lib/api-client";
@@ -26,15 +26,15 @@ import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 
-export type StudentModalMode = "create" | "edit" | "view";
+export type LecturerModalMode = "create" | "edit" | "view";
 
-type StudentModalProps = {
-  mode: StudentModalMode | null;
-  studentId?: string | null;
+type LecturerModalProps = {
+  mode: LecturerModalMode | null;
+  lecturerId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void | Promise<void>;
-  onEditRequest?: (studentId: string) => void;
+  onEditRequest?: (lecturerId: string) => void;
 };
 
 function DetailField({
@@ -104,15 +104,15 @@ function SubjectPicker({
   );
 }
 
-export function StudentModal({
+export function LecturerModal({
   mode,
-  studentId = null,
+  lecturerId = null,
   open,
   onOpenChange,
   onSaved,
   onEditRequest,
-}: StudentModalProps) {
-  const [detail, setDetail] = useState<StudentResponse | null>(null);
+}: LecturerModalProps) {
+  const [detail, setDetail] = useState<LecturerResponse | null>(null);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -155,24 +155,24 @@ export function StudentModal({
       };
     }
 
-    if ((mode === "edit" || mode === "view") && studentId) {
+    if ((mode === "edit" || mode === "view") && lecturerId) {
       setLoadingDetail(true);
       setDetail(null);
 
-      void fetchStudentById(studentId)
-        .then((student) => {
+      void fetchLecturerById(lecturerId)
+        .then((lecturer) => {
           if (cancelled) return;
-          setDetail(student);
-          setFullName(student.fullName);
-          setEmail(student.email);
+          setDetail(lecturer);
+          setFullName(lecturer.fullName);
+          setEmail(lecturer.email);
           setPassword("");
-          setActive(student.active);
-          setEmailVerified(student.emailVerified);
-          setSubjectIds(student.subjects.map((s) => s.id));
+          setActive(lecturer.active);
+          setEmailVerified(lecturer.emailVerified);
+          setSubjectIds(lecturer.subjects.map((s) => s.id));
         })
         .catch((e) => {
           if (cancelled) return;
-          toast.error(e instanceof ApiError ? e.message : "Không tải được chi tiết sinh viên");
+          toast.error(e instanceof ApiError ? e.message : "Không tải được chi tiết giảng viên");
           onOpenChange(false);
         })
         .finally(() => {
@@ -185,7 +185,7 @@ export function StudentModal({
     return () => {
       cancelled = true;
     };
-  }, [open, mode, studentId, onOpenChange]);
+  }, [open, mode, lecturerId, onOpenChange]);
 
   const validateForm = (requirePassword: boolean) => {
     if (!fullName.trim()) {
@@ -212,7 +212,7 @@ export function StudentModal({
 
     setSubmitting(true);
     try {
-      await updateStudent(detail.id, {
+      await updateLecturer(detail.id, {
         fullName,
         email,
         password: password.trim() || undefined,
@@ -220,7 +220,7 @@ export function StudentModal({
         emailVerified,
         subjectIds,
       });
-      toast.success("Đã cập nhật sinh viên");
+      toast.success("Đã cập nhật giảng viên");
       await onSaved?.();
       onOpenChange(false);
     } catch (e) {
@@ -235,7 +235,7 @@ export function StudentModal({
 
     setSubmitting(true);
     try {
-      await createStudent({
+      await createLecturer({
         fullName,
         email,
         password,
@@ -243,7 +243,7 @@ export function StudentModal({
         emailVerified,
         subjectIds,
       });
-      toast.success("Đã thêm sinh viên");
+      toast.success("Đã thêm giảng viên");
       await onSaved?.();
       onOpenChange(false);
     } catch (e) {
@@ -254,7 +254,7 @@ export function StudentModal({
   };
 
   const title =
-    mode === "view" ? "Chi tiết sinh viên" : mode === "edit" ? "Sửa sinh viên" : "Thêm sinh viên";
+    mode === "view" ? "Chi tiết giảng viên" : mode === "edit" ? "Sửa giảng viên" : "Thêm giảng viên";
 
   const status = detail
     ? detail.active
@@ -295,7 +295,7 @@ export function StudentModal({
               {detail.emailVerified ? "Đã xác thực" : "Chưa xác thực"}
             </DetailField>
             <DetailField label="Nhà cung cấp">{detail.provider}</DetailField>
-            <DetailField label="Môn học">
+            <DetailField label="Môn được phép upload">
               <div className="flex flex-wrap gap-1.5">
                 {detail.subjects.map((subject) => (
                   <Badge key={subject.id} variant="secondary" className="font-normal">
@@ -314,9 +314,9 @@ export function StudentModal({
         {!loadingDetail && mode !== "view" && (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="student-full-name">Họ tên *</Label>
+              <Label htmlFor="lecturer-full-name">Họ tên *</Label>
               <Input
-                id="student-full-name"
+                id="lecturer-full-name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Nguyễn Văn A"
@@ -324,22 +324,22 @@ export function StudentModal({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="student-email">Email *</Label>
+              <Label htmlFor="lecturer-email">Email *</Label>
               <Input
-                id="student-email"
+                id="lecturer-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="student@example.com"
+                placeholder="lecturer@example.com"
                 disabled={submitting}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="student-password">
+              <Label htmlFor="lecturer-password">
                 Mật khẩu {mode === "create" ? "*" : "(để trống nếu không đổi)"}
               </Label>
               <PasswordInput
-                id="student-password"
+                id="lecturer-password"
                 value={password}
                 onChange={setPassword}
                 placeholder={mode === "create" ? "Mật khẩu" : "••••••••"}
@@ -349,7 +349,7 @@ export function StudentModal({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Môn học *</Label>
+              <Label>Môn được phép upload *</Label>
               <SubjectPicker
                 subjects={subjects}
                 selectedIds={subjectIds}
@@ -359,13 +359,13 @@ export function StudentModal({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
               <div>
-                <Label htmlFor="student-active" className="text-sm">
+                <Label htmlFor="lecturer-active" className="text-sm">
                   Kích hoạt
                 </Label>
-                <p className="text-xs text-muted-foreground">Cho phép sinh viên đăng nhập</p>
+                <p className="text-xs text-muted-foreground">Cho phép giảng viên đăng nhập</p>
               </div>
               <Switch
-                id="student-active"
+                id="lecturer-active"
                 checked={active}
                 onCheckedChange={setActive}
                 disabled={submitting}
@@ -373,12 +373,12 @@ export function StudentModal({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
               <div>
-                <Label htmlFor="student-email-verified" className="text-sm">
+                <Label htmlFor="lecturer-email-verified" className="text-sm">
                   Email đã xác thực
                 </Label>
               </div>
               <Switch
-                id="student-email-verified"
+                id="lecturer-email-verified"
                 checked={emailVerified}
                 onCheckedChange={setEmailVerified}
                 disabled={submitting}

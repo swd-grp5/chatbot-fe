@@ -50,6 +50,11 @@ export async function fetchSubjects(params?: FetchSubjectsParams) {
   return apiFetch<PageResponse<SubjectResponse>>(`/subjects?${search}`);
 }
 
+/** Môn giảng viên được phép upload — GET /lecturers/my-subjects */
+export async function fetchLecturerMySubjects() {
+  return apiFetch<SubjectOption[]>("/lecturers/my-subjects");
+}
+
 export async function createSubject(payload: SubjectPayload) {
   return apiFetch<SubjectResponse>("/subjects", {
     method: "POST",

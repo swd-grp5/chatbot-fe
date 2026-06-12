@@ -6,7 +6,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { loadUsers, updateUser, type MockUser } from "@/shared/lib/mock-storage";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 
 export function AdminUsersPage() {
   const [rows, setRows] = useState<MockUser[]>([]);

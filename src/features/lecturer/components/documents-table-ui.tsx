@@ -10,7 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { Badge } from "@/shared/components/ui/badge";
 import { TableHead } from "@/shared/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip";
 import type { DocStatus } from "@/shared/lib/mock-data";
 import type { SortDirection } from "@/features/lecturer/api/document-api";
 import { cn } from "@/shared/lib/utils";
@@ -106,6 +112,83 @@ export const ACTIVE_FILTER_OPTIONS: { value: ActiveFilter; label: string }[] = [
   { value: "true", label: activeStyles.active.label },
   { value: "false", label: activeStyles.inactive.label },
 ];
+
+export function ToggleActiveBadge({
+  active,
+  onToggle,
+  tooltipActive,
+  tooltipInactive,
+}: {
+  active: boolean;
+  onToggle: () => void;
+  tooltipActive: string;
+  tooltipInactive: string;
+}) {
+  const status = active ? activeStyles.active : activeStyles.inactive;
+  const tooltip = active ? tooltipActive : tooltipInactive;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex cursor-pointer"
+          onClick={() => void onToggle()}
+        >
+          <Badge variant="outline" className={cn("gap-1.5 font-normal", status.className)}>
+            {status.label}
+          </Badge>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export type SubjectBadgeItem = { id: string; code: string; name?: string };
+
+export function TruncatedSubjectBadges({
+  subjects,
+  limit = 2,
+}: {
+  subjects: SubjectBadgeItem[];
+  limit?: number;
+}) {
+  if (subjects.length === 0) {
+    return <span className="block w-full text-center text-sm text-muted-foreground">—</span>;
+  }
+
+  const visible = subjects.slice(0, limit);
+  const remaining = subjects.length - limit;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex w-full flex-wrap items-center justify-center gap-1">
+          {visible.map((subject) => (
+            <Badge key={subject.id} variant="secondary" className="font-normal">
+              {subject.code}
+            </Badge>
+          ))}
+          {remaining > 0 && (
+            <Badge variant="outline" className="font-normal text-muted-foreground">
+              +{remaining}
+            </Badge>
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="w-max max-w-none px-2 py-1.5">
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {subjects.map((subject) => (
+            <Badge key={subject.id} variant="secondary" className="font-normal">
+              {subject.code}
+            </Badge>
+          ))}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function loadColumnVisibility<T extends string>(
   storageKey: string,

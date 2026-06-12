@@ -64,7 +64,7 @@ import {
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 
 const DocumentModal = lazy(() =>
   import("@/features/lecturer/components/document-modal").then((m) => ({
