@@ -25,6 +25,7 @@ export type RegisterRequest = {
 export async function registerWithEmail(payload: RegisterRequest) {
   return apiFetch<AuthApiResponse>("/auth/register", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify(payload),
   });
 }
@@ -32,6 +33,7 @@ export async function registerWithEmail(payload: RegisterRequest) {
 export async function resendVerificationEmail(email: string) {
   return apiFetch<void>("/auth/resend-verification", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify({ email }),
   });
 }
@@ -39,6 +41,7 @@ export async function resendVerificationEmail(email: string) {
 export async function loginWithEmail(email: string, password: string, rememberMe = true) {
   return apiFetch<AuthApiResponse>("/auth/login", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify({ email, password, rememberMe }),
   });
 }
@@ -46,6 +49,7 @@ export async function loginWithEmail(email: string, password: string, rememberMe
 export async function loginWithGoogle(idToken: string, rememberMe = false) {
   return apiFetch<AuthApiResponse>("/auth/google", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify({ idToken, rememberMe }),
   });
 }

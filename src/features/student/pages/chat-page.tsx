@@ -20,7 +20,6 @@ import { toast } from "sonner";
 import { formatRelativeTime } from "@/shared/lib/format-time";
 import { type Citation, type ChatMessage, courseLabel, sessionGroupOrder } from "@/shared/lib/mock-data";
 import { fetchDocuments, mapDocumentResponse } from "@/features/lecturer/api/document-api";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { useAppStore } from "@/features/student/lib/store";
 import type { Course, Doc } from "@/shared/lib/mock-data";
 
@@ -52,10 +51,8 @@ export function ChatPage() {
   const displayDocuments = isApiMode ? apiDocuments : documents;
 
   const loadApiDocuments = useCallback(async () => {
-    const token = getApiToken();
-    if (!token) return;
     try {
-      const res = await fetchDocuments(token, { active: true, status: "INDEXED", size: 100 });
+      const res = await fetchDocuments({ active: true, status: "INDEXED", size: 100 });
       setApiDocuments(res.content.map(mapDocumentResponse));
     } catch {
       setApiDocuments([]);

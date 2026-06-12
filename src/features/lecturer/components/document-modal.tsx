@@ -43,7 +43,6 @@ import {
 } from "@/features/lecturer/api/document-api";
 import { DocxPreviewViewer } from "@/features/lecturer/components/docx-preview-viewer";
 import { DOCX_MIME, isPdfBytes, isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
 import { cn } from "@/shared/lib/utils";
 import type { Doc } from "@/shared/lib/mock-data";
@@ -352,18 +351,12 @@ export function DocumentModal({
     let cancelled = false;
 
     async function loadChunks() {
-      const token = getApiToken();
-      if (!token) {
-        setChunksError("Phiên đăng nhập hết hạn");
-        return;
-      }
-
       setChunksLoading(true);
       setChunksError(null);
       setChunks([]);
 
       try {
-        const data = await fetchDocumentChunks(id, token);
+        const data = await fetchDocumentChunks(id);
         if (cancelled) return;
         setChunks(data.sort((a, b) => a.chunkIndex - b.chunkIndex));
         chunksLoadedFor.current = id;
@@ -389,12 +382,6 @@ export function DocumentModal({
     let cancelled = false;
 
     async function load() {
-      const token = getApiToken();
-      if (!token) {
-        setError("Phiên đăng nhập hết hạn");
-        return;
-      }
-
       setLoading(true);
       setError(null);
       setMeta(null);
@@ -414,11 +401,11 @@ export function DocumentModal({
       chunksLoadedFor.current = null;
 
       try {
-        const viewer = await fetchDocumentViewer(id, token);
+        const viewer = await fetchDocumentViewer(id);
         if (cancelled) return;
         setMeta(viewer);
 
-        const blob = await fetchDocumentFile(id, token);
+        const blob = await fetchDocumentFile(id);
         if (cancelled) return;
 
         if (viewer.mimeType === "text/plain" || viewer.documentType === "TXT") {
@@ -598,12 +585,6 @@ export function DocumentModal({
       }
     }
 
-    const token = getApiToken();
-    if (!token) {
-      toast.error("Phiên đăng nhập hết hạn");
-      return;
-    }
-
     const items = uploadDrafts.map((draft) => ({
       file: draft.file,
       title: draft.title.trim(),
@@ -612,7 +593,7 @@ export function DocumentModal({
 
     setSubmitting(true);
     try {
-      await uploadDocuments(items, token);
+      await uploadDocuments(items);
       await onDocumentsChange?.();
       toast.success(
         items.length === 1 ? "Đã tải lên tài liệu" : `Đã tải lên ${items.length} tài liệu`,
@@ -634,15 +615,9 @@ export function DocumentModal({
       return;
     }
 
-    const token = getApiToken();
-    if (!token) {
-      toast.error("Phiên đăng nhập hết hạn");
-      return;
-    }
-
     setSubmitting(true);
     try {
-      await updateDocumentApi(document.id, token, {
+      await updateDocumentApi(document.id, {
         title: trimmedTitle,
         description: description.trim(),
         active,

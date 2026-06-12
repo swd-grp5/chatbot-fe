@@ -70,7 +70,6 @@ import {
   type DocumentsViewMode,
 } from "@/features/lecturer/components/documents-view-toggle";
 import type { DocumentModalMode, DocumentViewMode } from "@/features/lecturer/components/document-modal";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
 import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";
 import {
@@ -138,11 +137,9 @@ export function LecturerDocumentsPage() {
   const labelOf = (code: string) => courseLabel(code, displayCourses);
 
   const loadApiDocuments = useCallback(async () => {
-    const token = getApiToken();
-    if (!token) return;
     setDocsLoading(true);
     try {
-      const res = await fetchDocuments(token, {
+      const res = await fetchDocuments({
         keyword: searchKeyword,
         status: statusFilter === "all" ? undefined : statusFilter,
         documentType: documentTypeFilter === "all" ? undefined : documentTypeFilter,
@@ -219,14 +216,9 @@ export function LecturerDocumentsPage() {
   const confirmDeleteDoc = async () => {
     if (!deleteDoc) return;
 
-    const token = getApiToken();
-    if (!token) {
-      toast.error("Phiên đăng nhập hết hạn");
-      return;
-    }
     setDeleting(true);
     try {
-      await deleteDocumentApi(deleteDoc.id, token);
+      await deleteDocumentApi(deleteDoc.id);
       await loadApiDocuments();
       toast.success("Đã xóa tài liệu");
       setDeleteDoc(null);

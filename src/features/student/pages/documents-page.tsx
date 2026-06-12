@@ -54,7 +54,6 @@ import {
   type DocumentsViewMode,
 } from "@/features/lecturer/components/documents-view-toggle";
 import type { DocumentViewMode } from "@/features/lecturer/components/document-modal";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
 import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";
 import {
@@ -120,11 +119,9 @@ export function StudentDocumentsPage() {
   const labelOf = (code: string) => courseLabel(code, displayCourses);
 
   const loadApiDocuments = useCallback(async () => {
-    const token = getApiToken();
-    if (!token) return;
     setDocsLoading(true);
     try {
-      const res = await fetchDocuments(token, {
+      const res = await fetchDocuments({
         keyword: searchKeyword,
         status: statusFilter === "all" ? undefined : statusFilter,
         documentType: documentTypeFilter === "all" ? undefined : documentTypeFilter,
