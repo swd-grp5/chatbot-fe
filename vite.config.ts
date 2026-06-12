@@ -1,6 +1,7 @@
 // @lovable.dev/vite-tanstack-config already includes tanstackStart, viteReact, tailwindcss, etc.
 // Do not add those plugins manually or the app will break with duplicate plugins.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { copyPdfWorkerPlugin } from "./src/shared/lib/copy-pdf-worker-plugin";
 
 export default defineConfig({
   tanstackStart: {
@@ -16,6 +17,7 @@ export default defineConfig({
     },
   },
   vite: {
+    plugins: [copyPdfWorkerPlugin()],
     optimizeDeps: {
       include: [
         "react-pdf",

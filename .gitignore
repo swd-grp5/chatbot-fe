@@ -8,6 +8,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+public/pdf.worker.min.js
+public/pdf.worker.min.mjs
 dist
 dist-ssr
 .output
