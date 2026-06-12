@@ -11,6 +11,8 @@ type DocxPreviewViewerProps = {
   scale?: number;
   onZoomWheel?: (direction: number) => void;
   onPageChange?: (page: number, totalPages: number) => void;
+  scrollToPage?: number;
+  scrollToPageKey?: number;
 };
 
 function applyDocxScale(body: HTMLElement | null, scale: number) {
@@ -56,6 +58,17 @@ function trackDocxPages(
   return () => host.removeEventListener("scroll", reportPage);
 }
 
+function scrollDocxHostToPage(host: HTMLElement, body: HTMLElement, page: number) {
+  const sections = body.querySelectorAll(".docx-wrapper > section");
+  const section = sections[page - 1] as HTMLElement | undefined;
+  if (!section) return sections.length;
+
+  const hostTop = host.getBoundingClientRect().top;
+  const sectionTop = section.getBoundingClientRect().top;
+  host.scrollTop += sectionTop - hostTop;
+  return sections.length;
+}
+
 export function DocxPreviewViewer({
   data,
   compact,
@@ -63,6 +76,8 @@ export function DocxPreviewViewer({
   scale = 1,
   onZoomWheel,
   onPageChange,
+  scrollToPage,
+  scrollToPageKey,
 }: DocxPreviewViewerProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -119,6 +134,17 @@ export function DocxPreviewViewer({
       onPageChangeRef.current?.(page, totalPages);
     });
   }, [compact, loading, data]);
+
+  useEffect(() => {
+    if (scrollToPageKey == null || scrollToPage == null || compact || loading) return;
+
+    const host = hostRef.current;
+    const body = bodyRef.current;
+    if (!host || !body) return;
+
+    const total = scrollDocxHostToPage(host, body, scrollToPage);
+    onPageChangeRef.current?.(scrollToPage, Math.max(total, 1));
+  }, [scrollToPageKey, scrollToPage, compact, loading]);
 
   useEffect(() => {
     if (compact || !onZoomWheel) return;

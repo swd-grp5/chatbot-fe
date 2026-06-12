@@ -14,26 +14,26 @@ import {
   ModalTitle,
 } from "@/shared/components/ui/modal";
 import {
-  createSubject,
-  fetchSubjectById,
-  updateSubject,
-  type SubjectResponse,
-} from "@/features/lecturer/api/subject-api";
+  createRole,
+  fetchRoleById,
+  updateRole,
+  type RoleResponse,
+} from "@/features/admin/api/role-api";
 import { activeStyles } from "@/features/lecturer/components/documents-table-ui";
 import { ApiError } from "@/shared/lib/api-client";
 import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 
-export type SubjectModalMode = "create" | "edit" | "view";
+export type RoleModalMode = "create" | "edit" | "view";
 
-type SubjectModalProps = {
-  mode: SubjectModalMode | null;
-  subjectId?: string | null;
+type RoleModalProps = {
+  mode: RoleModalMode | null;
+  roleId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void | Promise<void>;
-  onEditRequest?: (subjectId: string) => void;
+  onEditRequest?: (roleId: string) => void;
 };
 
 function DetailField({
@@ -53,15 +53,15 @@ function DetailField({
   );
 }
 
-export function SubjectModal({
+export function RoleModal({
   mode,
-  subjectId = null,
+  roleId = null,
   open,
   onOpenChange,
   onSaved,
   onEditRequest,
-}: SubjectModalProps) {
-  const [detail, setDetail] = useState<SubjectResponse | null>(null);
+}: RoleModalProps) {
+  const [detail, setDetail] = useState<RoleResponse | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -86,23 +86,23 @@ export function SubjectModal({
       return;
     }
 
-    if ((mode === "edit" || mode === "view") && subjectId) {
+    if ((mode === "edit" || mode === "view") && roleId) {
       let cancelled = false;
       setLoadingDetail(true);
       setDetail(null);
 
-      void fetchSubjectById(subjectId)
-        .then((subject) => {
+      void fetchRoleById(roleId)
+        .then((role) => {
           if (cancelled) return;
-          setDetail(subject);
-          setCode(subject.code);
-          setName(subject.name);
-          setDescription(subject.description ?? "");
-          setActive(subject.active);
+          setDetail(role);
+          setCode(role.code);
+          setName(role.name);
+          setDescription(role.description ?? "");
+          setActive(role.active);
         })
         .catch((e) => {
           if (cancelled) return;
-          toast.error(e instanceof ApiError ? e.message : "Không tải được chi tiết môn học");
+          toast.error(e instanceof ApiError ? e.message : "Không tải được chi tiết vai trò");
           onOpenChange(false);
         })
         .finally(() => {
@@ -115,33 +115,31 @@ export function SubjectModal({
     }
 
     setLoadingDetail(false);
-  }, [open, mode, subjectId, onOpenChange]);
+  }, [open, mode, roleId, onOpenChange]);
 
   const handleSubmit = async () => {
     const trimmedCode = code.trim();
     const trimmedName = name.trim();
 
     if (!trimmedCode) {
-      toast.error("Mã môn không được để trống");
+      toast.error("Mã vai trò không được để trống");
       return;
     }
     if (!trimmedName) {
-      toast.error("Tên môn không được để trống");
+      toast.error("Tên vai trò không được để trống");
       return;
     }
     if (!detail) return;
 
     setSubmitting(true);
     try {
-      const payload = {
+      await updateRole(detail.id, {
         code: trimmedCode,
         name: trimmedName,
         description: description.trim(),
         active,
-      };
-
-      await updateSubject(detail.id, payload);
-      toast.success("Đã cập nhật môn học");
+      });
+      toast.success("Đã cập nhật vai trò");
 
       await onSaved?.();
       onOpenChange(false);
@@ -157,23 +155,23 @@ export function SubjectModal({
     const trimmedName = name.trim();
 
     if (!trimmedCode) {
-      toast.error("Mã môn không được để trống");
+      toast.error("Mã vai trò không được để trống");
       return;
     }
     if (!trimmedName) {
-      toast.error("Tên môn không được để trống");
+      toast.error("Tên vai trò không được để trống");
       return;
     }
 
     setSubmitting(true);
     try {
-      await createSubject({
+      await createRole({
         code: trimmedCode,
         name: trimmedName,
         description: description.trim(),
         active,
       });
-      toast.success("Đã thêm môn học");
+      toast.success("Đã thêm vai trò");
 
       await onSaved?.();
       onOpenChange(false);
@@ -185,7 +183,7 @@ export function SubjectModal({
   };
 
   const title =
-    mode === "view" ? "Chi tiết môn học" : mode === "edit" ? "Sửa môn học" : "Thêm môn học";
+    mode === "view" ? "Chi tiết vai trò" : mode === "edit" ? "Sửa vai trò" : "Thêm vai trò";
 
   const status = detail
     ? detail.active
@@ -210,7 +208,7 @@ export function SubjectModal({
         {!loadingDetail && mode === "view" && detail && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <DetailField label="Mã môn">
+              <DetailField label="Mã vai trò">
                 <span className="font-mono font-medium">{detail.code}</span>
               </DetailField>
               <DetailField label="Kích hoạt">
@@ -221,7 +219,7 @@ export function SubjectModal({
                 )}
               </DetailField>
             </div>
-            <DetailField label="Tên môn">
+            <DetailField label="Tên vai trò">
               <span className="font-medium">{detail.name}</span>
             </DetailField>
             <DetailField label="Mô tả">
@@ -241,30 +239,30 @@ export function SubjectModal({
         {!loadingDetail && mode !== "view" && (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="subject-code">Mã môn *</Label>
+              <Label htmlFor="role-code">Mã vai trò *</Label>
               <Input
-                id="subject-code"
+                id="role-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="VD: SWD"
+                placeholder="VD: ADMIN"
                 disabled={submitting}
-                className="font-mono"
+                className="font-mono uppercase"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="subject-name">Tên môn *</Label>
+              <Label htmlFor="role-name">Tên vai trò *</Label>
               <Input
-                id="subject-name"
+                id="role-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Tên môn học"
+                placeholder="Tên hiển thị"
                 disabled={submitting}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="subject-description">Mô tả</Label>
+              <Label htmlFor="role-description">Mô tả</Label>
               <Textarea
-                id="subject-description"
+                id="role-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Mô tả ngắn"
@@ -274,15 +272,15 @@ export function SubjectModal({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
               <div>
-                <Label htmlFor="subject-active" className="text-sm">
+                <Label htmlFor="role-active" className="text-sm">
                   Kích hoạt
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Môn hiển thị cho giảng viên upload tài liệu
+                  Vai trò có thể gán cho người dùng
                 </p>
               </div>
               <Switch
-                id="subject-active"
+                id="role-active"
                 checked={active}
                 onCheckedChange={setActive}
                 disabled={submitting}

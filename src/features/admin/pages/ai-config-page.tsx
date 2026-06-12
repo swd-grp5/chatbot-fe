@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 
 import { migrateStorageKey, storageKey } from "@/shared/lib/storage-keys";
 

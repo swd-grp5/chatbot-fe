@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { Toaster } from "@/shared/components/ui/sonner";
+import { ToastProvider } from "@/shared/components/ui/toast-provider";
 import { AuthProvider } from "@/features/auth/lib/auth-context";
 import { GoogleAuthProvider } from "@/features/auth/components/google-auth-provider";
 
@@ -123,8 +123,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <GoogleAuthProvider>
         <AuthProvider>
-          <Outlet />
-          <Toaster richColors position="top-right" />
+          <ToastProvider>
+            <Outlet />
+          </ToastProvider>
         </AuthProvider>
       </GoogleAuthProvider>
     </QueryClientProvider>

@@ -13,7 +13,7 @@ import {
   saveUserSubscription,
   type SubscriptionPlan,
 } from "@/features/student/lib/subscriptions";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 
 export function StudentSubscriptionsPage() {

@@ -49,6 +49,8 @@ type PdfViewerProps = {
   scale: number;
   onZoomWheel?: (delta: number) => void;
   onVisiblePageChange?: (page: number) => void;
+  scrollToPage?: number;
+  scrollToPageKey?: number;
 };
 
 export function PdfViewer({
@@ -56,6 +58,8 @@ export function PdfViewer({
   scale,
   onZoomWheel,
   onVisiblePageChange,
+  scrollToPage,
+  scrollToPageKey,
 }: PdfViewerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [numPages, setNumPages] = useState(0);
@@ -126,6 +130,28 @@ export function PdfViewer({
       );
     });
   }, [scale, pageHeights, numPages]);
+
+  useEffect(() => {
+    if (scrollToPageKey == null || scrollToPage == null) return;
+    if (scrollToPage < 1 || scrollToPage > numPages) return;
+
+    virtualizer.scrollToIndex(scrollToPage - 1, { align: "start" });
+
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      onVisiblePageChangeRef.current?.(
+        getVisiblePage(
+          el.scrollTop,
+          el.clientHeight,
+          el.scrollHeight,
+          numPages,
+          pageHeights,
+          scale,
+        ),
+      );
+    });
+  }, [scrollToPageKey, scrollToPage, numPages, pageHeights, scale, virtualizer]);
 
   useEffect(() => {
     const el = scrollRef.current;

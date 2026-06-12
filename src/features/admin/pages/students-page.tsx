@@ -9,30 +9,31 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
-import { SubjectModal, type SubjectModalMode } from "@/features/admin/components/subject-modal";
+import { StudentModal, type StudentModalMode } from "@/features/admin/components/student-modal";
 import {
-  entityTableWidths,
   useAdminTable,
+  userTableWidths,
 } from "@/features/admin/hooks/use-admin-table";
 import {
   ACTIVE_FILTER_OPTIONS,
   FilterTableHead,
   ResizableTableHead,
   ToggleActiveBadge,
+  TruncatedSubjectBadges,
   SortableTableHead,
   TABLE_HEAD_LABEL,
   type ActiveFilter,
 } from "@/features/lecturer/components/documents-table-ui";
 import {
-  DEFAULT_SUBJECT_PAGE_SIZE,
-  deleteSubject,
-  fetchSubjects,
-  toggleSubjectActive,
-  type SubjectResponse,
-  type SubjectSortField,
+  DEFAULT_STUDENT_PAGE_SIZE,
+  deleteStudent,
+  fetchStudents,
+  toggleStudentActive,
+  type StudentResponse,
+  type StudentSortField,
   type SortDirection,
-} from "@/features/lecturer/api/subject-api";
-import { Badge } from "@/shared/components/ui/badge";
+} from "@/features/admin/api/student-api";
+import { fetchSubjects, type SubjectOption } from "@/features/lecturer/api/subject-api";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
 import {
@@ -70,48 +71,58 @@ import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 
-const SUBJECT_COLUMNS = [
-  { key: "description", label: "Mô tả" },
+const STUDENT_COLUMNS = [
+  { key: "subjects", label: "Môn học" },
+  { key: "emailVerified", label: "Xác thực email" },
+  { key: "provider", label: "Nhà cung cấp" },
   { key: "createdAt", label: "Ngày tạo" },
   { key: "updatedAt", label: "Cập nhật" },
 ] as const;
 
-type SubjectColumnKey = (typeof SUBJECT_COLUMNS)[number]["key"];
+type StudentColumnKey = (typeof STUDENT_COLUMNS)[number]["key"];
 
-export function AdminSubjectsPage() {
+export function AdminStudentsPage() {
   const [queryInput, setQueryInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
-  const [sortBy, setSortBy] = useState<SubjectSortField | null>(null);
+  const [subjectFilter, setSubjectFilter] = useState("all");
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [sortBy, setSortBy] = useState<StudentSortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection | null>(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [rows, setRows] = useState<SubjectResponse[]>([]);
+  const [rows, setRows] = useState<StudentResponse[]>([]);
   const [loading, setLoading] = useState(false);
-  const [subjectModal, setSubjectModal] = useState<{
-    mode: SubjectModalMode;
-    subjectId: string | null;
+  const [studentModal, setStudentModal] = useState<{
+    mode: StudentModalMode;
+    studentId: string | null;
   } | null>(null);
-  const [deleteSubjectRow, setDeleteSubjectRow] = useState<SubjectResponse | null>(null);
+  const [deleteStudentRow, setDeleteStudentRow] = useState<StudentResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
   const table = useAdminTable({
-    storageKey: "admin-subjects",
-    optionalColumns: SUBJECT_COLUMNS,
+    storageKey: "admin-students",
+    optionalColumns: STUDENT_COLUMNS,
     fixedColumnCount: 5,
-    widthDefaults: entityTableWidths(),
+    widthDefaults: userTableWidths(),
   });
 
-  const loadSubjects = useCallback(async () => {
+  useEffect(() => {
+    void fetchSubjects({ active: true, size: 200, page: 0 })
+      .then((res) => setSubjects(res.content.map(({ id, code, name }) => ({ id, code, name }))))
+      .catch(() => setSubjects([]));
+  }, []);
+
+  const loadStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchSubjects({
+      const res = await fetchStudents({
         keyword: searchKeyword,
-        active:
-          activeFilter === "all" ? undefined : activeFilter === "true",
+        active: activeFilter === "all" ? undefined : activeFilter === "true",
+        subjectId: subjectFilter === "all" ? undefined : subjectFilter,
         ...(sortBy && sortDir ? { sortBy, sortDir } : {}),
         page,
-        size: DEFAULT_SUBJECT_PAGE_SIZE,
+        size: DEFAULT_STUDENT_PAGE_SIZE,
       });
       if (res.totalPages > 0 && page >= res.totalPages) {
         setPage(res.totalPages - 1);
@@ -121,23 +132,23 @@ export function AdminSubjectsPage() {
       setTotalPages(res.totalPages);
       setTotalElements(res.totalElements);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách môn học");
+      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách sinh viên");
     } finally {
       setLoading(false);
     }
-  }, [searchKeyword, activeFilter, sortBy, sortDir, page]);
+  }, [searchKeyword, activeFilter, subjectFilter, sortBy, sortDir, page]);
 
   useEffect(() => {
-    const timer = setTimeout(() => void loadSubjects(), 300);
+    const timer = setTimeout(() => void loadStudents(), 300);
     return () => clearTimeout(timer);
-  }, [loadSubjects]);
+  }, [loadStudents]);
 
   const handleSearch = () => {
     setPage(0);
     setSearchKeyword(queryInput.trim());
   };
 
-  const handleSort = (field: SubjectSortField) => {
+  const handleSort = (field: StudentSortField) => {
     setPage(0);
     if (sortBy !== field) {
       setSortBy(field);
@@ -152,24 +163,24 @@ export function AdminSubjectsPage() {
     setSortDir(null);
   };
 
-  const handleToggleActive = async (row: SubjectResponse) => {
+  const handleToggleActive = async (row: StudentResponse) => {
     try {
-      await toggleSubjectActive(row.id);
-      await loadSubjects();
-      toast.success(row.active ? "Đã tắt môn học" : "Đã bật môn học");
+      await toggleStudentActive(row.id);
+      await loadStudents();
+      toast.success(row.active ? "Đã tắt sinh viên" : "Đã bật sinh viên");
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Cập nhật thất bại");
     }
   };
 
   const confirmDelete = async () => {
-    if (!deleteSubjectRow) return;
+    if (!deleteStudentRow) return;
     setDeleting(true);
     try {
-      await deleteSubject(deleteSubjectRow.id);
-      await loadSubjects();
-      toast.success("Đã xóa môn học");
-      setDeleteSubjectRow(null);
+      await deleteStudent(deleteStudentRow.id);
+      await loadStudents();
+      toast.success("Đã xóa sinh viên");
+      setDeleteStudentRow(null);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Xóa thất bại");
     } finally {
@@ -182,24 +193,24 @@ export function AdminSubjectsPage() {
       <div className="w-full space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Quản lý môn học</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Quản lý sinh viên</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tạo và quản lý môn học cho giảng viên upload tài liệu.
+              Tạo và quản lý tài khoản sinh viên, gán môn học.
             </p>
           </div>
           <Button
             className="gap-2"
-            onClick={() => setSubjectModal({ mode: "create", subjectId: null })}
+            onClick={() => setStudentModal({ mode: "create", studentId: null })}
           >
             <Plus className="h-4 w-4" />
-            Thêm môn học
+            Thêm sinh viên
           </Button>
         </div>
 
         <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
             <h2 className="text-sm font-semibold">
-              Danh sách môn học
+              Danh sách sinh viên
               <span className="ml-2 text-xs font-normal text-muted-foreground">
                 ({totalElements})
               </span>
@@ -213,7 +224,7 @@ export function AdminSubjectsPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSearch();
                   }}
-                  placeholder="Tìm theo mã, tên, mô tả"
+                  placeholder="Tìm theo họ tên, email"
                   className="h-8 pl-8 text-xs"
                 />
               </div>
@@ -243,7 +254,7 @@ export function AdminSubjectsPage() {
                     {table.optionalColumns.map(({ key, label }) => (
                       <DropdownMenuCheckboxItem
                         key={key}
-                        checked={Boolean(table.columnVisibility[key as SubjectColumnKey])}
+                        checked={Boolean(table.columnVisibility[key as StudentColumnKey])}
                         onCheckedChange={(checked) => {
                           table.setColumnVisibility((prev) => ({
                             ...prev,
@@ -262,7 +273,7 @@ export function AdminSubjectsPage() {
                       size="sm"
                       variant="outline"
                       className="h-8 gap-1.5 text-xs"
-                      onClick={() => void loadSubjects()}
+                      onClick={() => void loadStudents()}
                       disabled={loading}
                     >
                       <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
@@ -285,25 +296,35 @@ export function AdminSubjectsPage() {
                     STT
                   </ResizableTableHead>
                   <SortableTableHead
-                    label="Mã"
-                    field="code"
+                    label="Họ tên"
+                    field="fullName"
                     activeField={sortBy}
                     direction={sortDir}
                     onSort={handleSort}
-                    {...table.resize("code")}
+                    {...table.resize("fullName")}
                   />
                   <SortableTableHead
-                    label="Tên môn"
-                    field="name"
+                    label="Email"
+                    field="email"
                     activeField={sortBy}
                     direction={sortDir}
                     onSort={handleSort}
-                    {...table.resize("name")}
+                    {...table.resize("email")}
                   />
-                  {table.isVisible("description") && (
-                    <ResizableTableHead className={TABLE_HEAD_LABEL} {...table.resize("description")}>
-                      Mô tả
-                    </ResizableTableHead>
+                  {table.isVisible("subjects") && (
+                    <FilterTableHead
+                      label="Môn học"
+                      filterValue={subjectFilter}
+                      onFilterChange={(value) => {
+                        setPage(0);
+                        setSubjectFilter(value);
+                      }}
+                      filterOptions={subjects.map((subject) => ({
+                        value: subject.id,
+                        label: subject.code,
+                      }))}
+                      {...table.resize("subjects")}
+                    />
                   )}
                   <FilterTableHead
                     label="Kích hoạt"
@@ -316,6 +337,19 @@ export function AdminSubjectsPage() {
                     className="text-center"
                     {...table.resize("active")}
                   />
+                  {table.isVisible("emailVerified") && (
+                    <ResizableTableHead
+                      className={cn(TABLE_HEAD_LABEL, "text-center")}
+                      {...table.resize("emailVerified")}
+                    >
+                      Xác thực email
+                    </ResizableTableHead>
+                  )}
+                  {table.isVisible("provider") && (
+                    <ResizableTableHead className={TABLE_HEAD_LABEL} {...table.resize("provider")}>
+                      Nhà cung cấp
+                    </ResizableTableHead>
+                  )}
                   {table.isVisible("createdAt") && (
                     <SortableTableHead
                       label="Ngày tạo"
@@ -348,19 +382,19 @@ export function AdminSubjectsPage() {
                 {loading && rows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
-                      Đang tải môn học...
+                      Đang tải sinh viên...
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
-                      Chưa có môn học — bấm Thêm môn học để tạo.
+                      Chưa có sinh viên — bấm Thêm sinh viên để tạo.
                     </TableCell>
                   </TableRow>
                 )}
                 {rows.map((row, index) => {
-                  const rowNumber = page * DEFAULT_SUBJECT_PAGE_SIZE + index + 1;
+                  const rowNumber = page * DEFAULT_STUDENT_PAGE_SIZE + index + 1;
                   return (
                     <TableRow key={row.id} className={cn(!row.active && "opacity-60")}>
                       <TableCell
@@ -369,45 +403,52 @@ export function AdminSubjectsPage() {
                       >
                         {rowNumber}
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium" style={table.cell("code")}>
-                        {row.code}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium" style={table.cell("name")}>
+                      <TableCell className="text-sm font-medium" style={table.cell("fullName")}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="block cursor-default truncate">{row.name}</span>
+                            <span className="block cursor-default truncate">{row.fullName}</span>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="max-w-sm">
-                            {row.name}
+                            {row.fullName}
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      {table.isVisible("description") && (
-                        <TableCell className="text-sm text-muted-foreground" style={table.cell("description")}>
-                          {row.description?.trim() ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="block cursor-default truncate">
-                                  {row.description.trim()}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap">
-                                {row.description.trim()}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            "—"
-                          )}
+                      <TableCell className="text-sm text-muted-foreground" style={table.cell("email")}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block cursor-default truncate">{row.email}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            {row.email}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      {table.isVisible("subjects") && (
+                        <TableCell className="text-center" style={table.cell("subjects")}>
+                          <TruncatedSubjectBadges subjects={row.subjects} />
                         </TableCell>
                       )}
                       <TableCell className="text-center" style={table.cell("active")}>
                         <ToggleActiveBadge
                           active={row.active}
                           onToggle={() => void handleToggleActive(row)}
-                          tooltipActive="Tắt môn"
-                          tooltipInactive="Bật môn"
+                          tooltipActive="Tắt sinh viên"
+                          tooltipInactive="Bật sinh viên"
                         />
                       </TableCell>
+                      {table.isVisible("emailVerified") && (
+                        <TableCell
+                          className="text-center text-sm text-muted-foreground"
+                          style={table.cell("emailVerified")}
+                        >
+                          {row.emailVerified ? "Đã xác thực" : "Chưa"}
+                        </TableCell>
+                      )}
+                      {table.isVisible("provider") && (
+                        <TableCell className="text-sm text-muted-foreground" style={table.cell("provider")}>
+                          {row.provider}
+                        </TableCell>
+                      )}
                       {table.isVisible("createdAt") && (
                         <TableCell
                           className="whitespace-nowrap text-sm text-muted-foreground"
@@ -431,7 +472,7 @@ export function AdminSubjectsPage() {
                             size="icon"
                             className="h-8 w-8"
                             title="Xem chi tiết"
-                            onClick={() => setSubjectModal({ mode: "view", subjectId: row.id })}
+                            onClick={() => setStudentModal({ mode: "view", studentId: row.id })}
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
@@ -440,7 +481,7 @@ export function AdminSubjectsPage() {
                             size="icon"
                             className="h-8 w-8"
                             title="Sửa"
-                            onClick={() => setSubjectModal({ mode: "edit", subjectId: row.id })}
+                            onClick={() => setStudentModal({ mode: "edit", studentId: row.id })}
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -449,7 +490,7 @@ export function AdminSubjectsPage() {
                             size="icon"
                             className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
                             title="Xóa"
-                            onClick={() => setDeleteSubjectRow(row)}
+                            onClick={() => setDeleteStudentRow(row)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -473,32 +514,32 @@ export function AdminSubjectsPage() {
         </Card>
       </div>
 
-      <SubjectModal
-        mode={subjectModal?.mode ?? null}
-        subjectId={subjectModal?.subjectId ?? null}
-        open={!!subjectModal}
-        onOpenChange={(open) => !open && setSubjectModal(null)}
-        onSaved={loadSubjects}
-        onEditRequest={(id) => setSubjectModal({ mode: "edit", subjectId: id })}
+      <StudentModal
+        mode={studentModal?.mode ?? null}
+        studentId={studentModal?.studentId ?? null}
+        open={!!studentModal}
+        onOpenChange={(open) => !open && setStudentModal(null)}
+        onSaved={loadStudents}
+        onEditRequest={(id) => setStudentModal({ mode: "edit", studentId: id })}
       />
 
       <Modal
-        open={!!deleteSubjectRow}
-        onOpenChange={(open) => !open && !deleting && setDeleteSubjectRow(null)}
+        open={!!deleteStudentRow}
+        onOpenChange={(open) => !open && !deleting && setDeleteStudentRow(null)}
       >
         <ModalContent className="sm:max-w-md">
           <ModalHeader>
-            <ModalTitle>Xóa môn học</ModalTitle>
+            <ModalTitle>Xóa sinh viên</ModalTitle>
           </ModalHeader>
           <p className="text-sm text-muted-foreground">
-            Bạn có chắc muốn xóa môn{" "}
+            Bạn có chắc muốn xóa sinh viên{" "}
             <span className="font-medium text-foreground">
-              {deleteSubjectRow?.code} — {deleteSubjectRow?.name}
+              {deleteStudentRow?.fullName} ({deleteStudentRow?.email})
             </span>
             ? Hành động này không thể hoàn tác.
           </p>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setDeleteSubjectRow(null)} disabled={deleting}>
+            <Button variant="outline" onClick={() => setDeleteStudentRow(null)} disabled={deleting}>
               Huỷ
             </Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>

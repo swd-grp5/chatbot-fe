@@ -1,7 +1,9 @@
 import { apiFetch } from "@/shared/lib/api-client";
 import type { PageResponse } from "@/features/lecturer/api/document-api";
 
-export type SubjectOption = Pick<SubjectResponse, "id" | "code" | "name">;
+export type SubjectOption = Pick<SubjectResponse, "id" | "code" | "name"> & {
+  totalDocuments?: number;
+};
 
 export type SubjectResponse = {
   id: string;
@@ -48,6 +50,11 @@ export async function fetchSubjects(params?: FetchSubjectsParams) {
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
   return apiFetch<PageResponse<SubjectResponse>>(`/subjects?${search}`);
+}
+
+/** Môn giảng viên được phép upload — GET /lecturers/my-subjects */
+export async function fetchLecturerMySubjects() {
+  return apiFetch<SubjectOption[]>("/lecturers/my-subjects");
 }
 
 export async function createSubject(payload: SubjectPayload) {

@@ -16,7 +16,7 @@ import {
   ModalTitle,
   ModalTrigger,
 } from "@/shared/components/ui/modal";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import {
   DEFAULT_PLANS,
   formatPlanPrice,
