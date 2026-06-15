@@ -9,12 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WalletRouteImport } from './features/student/routes/wallet'
 import { Route as SubscriptionsRouteImport } from './features/student/routes/subscriptions'
 import { Route as DocumentsRouteImport } from './features/student/routes/documents'
 import { Route as AuthRouteImport } from './features/auth/routes/auth'
 import { Route as LecturerRouteRouteImport } from './features/lecturer/routes/route'
 import { Route as AdminRouteRouteImport } from './features/admin/routes/route'
 import { Route as IndexRouteImport } from './features/student/routes/index'
+import { Route as WalletDotcheckoutRouteImport } from './features/student/routes/wallet.checkout'
 import { Route as LecturerDocumentsRouteImport } from './features/lecturer/routes/documents'
 import { Route as AdminUsersRouteImport } from './features/admin/routes/users'
 import { Route as AdminSubscriptionsRouteImport } from './features/admin/routes/subscriptions'
@@ -23,6 +25,11 @@ import { Route as AdminRolesRouteImport } from './features/admin/routes/roles'
 import { Route as AdminLecturersRouteImport } from './features/admin/routes/lecturers'
 import { Route as AdminAiConfigRouteImport } from './features/admin/routes/ai-config'
 
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubscriptionsRoute = SubscriptionsRouteImport.update({
   id: '/subscriptions',
   path: '/subscriptions',
@@ -52,6 +59,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const WalletDotcheckoutRoute = WalletDotcheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => WalletRoute,
 } as any)
 const LecturerDocumentsRoute = LecturerDocumentsRouteImport.update({
   id: '/documents',
@@ -96,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
   '/subscriptions': typeof SubscriptionsRoute
+  '/wallet': typeof WalletRouteWithChildren
   '/admin/ai-config': typeof AdminAiConfigRoute
   '/admin/lecturers': typeof AdminLecturersRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -103,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
+  '/wallet/checkout': typeof WalletDotcheckoutRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -111,6 +125,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
   '/subscriptions': typeof SubscriptionsRoute
+  '/wallet': typeof WalletRouteWithChildren
   '/admin/ai-config': typeof AdminAiConfigRoute
   '/admin/lecturers': typeof AdminLecturersRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -118,6 +133,7 @@ export interface FileRoutesByTo {
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
+  '/wallet/checkout': typeof WalletDotcheckoutRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -127,6 +143,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
   '/subscriptions': typeof SubscriptionsRoute
+  '/wallet': typeof WalletRouteWithChildren
   '/admin/ai-config': typeof AdminAiConfigRoute
   '/admin/lecturers': typeof AdminLecturersRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -134,6 +151,7 @@ export interface FileRoutesById {
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
+  '/wallet/checkout': typeof WalletDotcheckoutRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -144,6 +162,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/documents'
     | '/subscriptions'
+    | '/wallet'
     | '/admin/ai-config'
     | '/admin/lecturers'
     | '/admin/roles'
@@ -151,6 +170,7 @@ export interface FileRouteTypes {
     | '/admin/subscriptions'
     | '/admin/users'
     | '/lecturer/documents'
+    | '/wallet/checkout'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -159,6 +179,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/documents'
     | '/subscriptions'
+    | '/wallet'
     | '/admin/ai-config'
     | '/admin/lecturers'
     | '/admin/roles'
@@ -166,6 +187,7 @@ export interface FileRouteTypes {
     | '/admin/subscriptions'
     | '/admin/users'
     | '/lecturer/documents'
+    | '/wallet/checkout'
   id:
     | '__root__'
     | '/'
@@ -174,6 +196,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/documents'
     | '/subscriptions'
+    | '/wallet'
     | '/admin/ai-config'
     | '/admin/lecturers'
     | '/admin/roles'
@@ -181,6 +204,7 @@ export interface FileRouteTypes {
     | '/admin/subscriptions'
     | '/admin/users'
     | '/lecturer/documents'
+    | '/wallet/checkout'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -190,10 +214,18 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DocumentsRoute: typeof DocumentsRoute
   SubscriptionsRoute: typeof SubscriptionsRoute
+  WalletRoute: typeof WalletRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/subscriptions': {
       id: '/subscriptions'
       path: '/subscriptions'
@@ -235,6 +267,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/wallet/checkout': {
+      id: '/wallet/checkout'
+      path: '/checkout'
+      fullPath: '/wallet/checkout'
+      preLoaderRoute: typeof WalletDotcheckoutRouteImport
+      parentRoute: typeof WalletRoute
     }
     '/lecturer/documents': {
       id: '/lecturer/documents'
@@ -322,6 +361,17 @@ const LecturerRouteRouteWithChildren = LecturerRouteRoute._addFileChildren(
   LecturerRouteRouteChildren,
 )
 
+interface WalletRouteChildren {
+  WalletDotcheckoutRoute: typeof WalletDotcheckoutRoute
+}
+
+const WalletRouteChildren: WalletRouteChildren = {
+  WalletDotcheckoutRoute: WalletDotcheckoutRoute,
+}
+
+const WalletRouteWithChildren =
+  WalletRoute._addFileChildren(WalletRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
@@ -329,6 +379,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DocumentsRoute: DocumentsRoute,
   SubscriptionsRoute: SubscriptionsRoute,
+  WalletRoute: WalletRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
