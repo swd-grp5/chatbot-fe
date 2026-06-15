@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { FileText, Users, LogOut, ShieldCheck, GraduationCap, BookOpen, Loader2, Bot, CreditCard, MessageSquare } from "lucide-react";
+import { FileText, Users, LogOut, ShieldCheck, GraduationCap, BookOpen, Loader2, Bot, CreditCard, MessageSquare, Wallet } from "lucide-react";
 import { Logo } from "@/shared/components/layout/logo";
 import { cn } from "@/shared/lib/utils";
 import { useAuth } from "@/features/auth/lib/auth-context";
@@ -82,6 +82,7 @@ export function AppShell({
       : [
           { to: "/", label: "Chat", icon: MessageSquare },
           { to: "/documents", label: "Tài liệu", icon: FileText },
+          { to: "/wallet", label: "Ví", icon: Wallet },
           { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
         ];
 
