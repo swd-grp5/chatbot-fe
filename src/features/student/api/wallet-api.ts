@@ -1,11 +1,11 @@
 import { apiFetch } from "@/shared/lib/api-client";
+import type { PageResponse } from "@/features/lecturer/api/document-api";
 
 /** Khớp `swdchatbox.system.wallet.enums.WalletTransactionType` */
 export const WALLET_TRANSACTION_TYPE = {
   TOP_UP: "TOP_UP",
   SUBSCRIPTION_PAYMENT: "SUBSCRIPTION_PAYMENT",
   REFUND: "REFUND",
-  ADJUSTMENT: "ADJUSTMENT",
 } as const;
 
 export type WalletTransactionType =
@@ -26,22 +26,26 @@ export const WALLET_MIN_TOP_UP_AMOUNT = 1000;
 
 export const WALLET_TRANSACTION_PAGE_SIZE = 10;
 
-export type WalletTransactionColumnKey = "transactionType" | "description" | "status";
+export type WalletTransactionColumnKey =
+  | "transactionType"
+  | "referenceId"
+  | "description"
+  | "status";
 
 export const WALLET_TRANSACTION_OPTIONAL_COLUMNS: {
   key: WalletTransactionColumnKey;
   label: string;
 }[] = [
-  { key: "transactionType", label: "Loại" },
-  { key: "description", label: "Mô tả" },
-  { key: "status", label: "Trạng thái" },
-];
+    { key: "transactionType", label: "Loại" },
+    { key: "referenceId", label: "Mã GD" },
+    { key: "description", label: "Mô tả" },
+    { key: "status", label: "Trạng thái" },
+  ];
 
 export const WALLET_TRANSACTION_TYPE_OPTIONS: { value: WalletTransactionType; label: string }[] = [
   { value: WALLET_TRANSACTION_TYPE.TOP_UP, label: "Nạp tiền" },
   { value: WALLET_TRANSACTION_TYPE.SUBSCRIPTION_PAYMENT, label: "Thanh toán gói" },
   { value: WALLET_TRANSACTION_TYPE.REFUND, label: "Hoàn tiền" },
-  { value: WALLET_TRANSACTION_TYPE.ADJUSTMENT, label: "Điều chỉnh" },
 ];
 
 export const WALLET_TRANSACTION_STATUS_OPTIONS: { value: WalletTransactionStatus; label: string }[] = [
@@ -105,12 +109,113 @@ export type WalletTopUpRequest = {
   bankCode?: string;
 };
 
+export type WalletTransactionsResult = {
+  transactions: WalletTransactionResponse[];
+  totalPages: number;
+  totalElements: number;
+};
+
+export type WalletTransactionSortField =
+  | "id"
+  | "walletId"
+  | "transactionType"
+  | "status"
+  | "amount"
+  | "referenceId"
+  | "description"
+  | "createdAt";
+
+export type WalletTransactionSortDirection = "asc" | "desc";
+
+export type FetchWalletTransactionsParams = {
+  page?: number;
+  size?: number;
+  transactionType?: WalletTransactionType;
+  status?: WalletTransactionStatus;
+  keyword?: string;
+  amountMin?: number;
+  amountMax?: number;
+  createdFrom?: string;
+  createdTo?: string;
+  sortBy?: WalletTransactionSortField;
+  sortDir?: WalletTransactionSortDirection;
+};
+
+export const WALLET_AMOUNT_FILTER_MAX = 500_000;
+
+export function toWalletCreatedFrom(date: string) {
+  return date ? `${date}T00:00:00` : undefined;
+}
+
+export function toWalletCreatedTo(date: string) {
+  return date ? `${date}T23:59:59` : undefined;
+}
+
+function isWalletTransactionPage(
+  data: unknown,
+): data is PageResponse<WalletTransactionResponse> {
+  return (
+    typeof data === "object" &&
+    data != null &&
+    "content" in data &&
+    Array.isArray((data as PageResponse<WalletTransactionResponse>).content)
+  );
+}
+
+export function normalizeWalletTransactions(
+  data: WalletTransactionResponse[] | PageResponse<WalletTransactionResponse> | null | undefined,
+): WalletTransactionsResult {
+  if (isWalletTransactionPage(data)) {
+    return {
+      transactions: data.content,
+      totalPages: Math.max(data.totalPages, 1),
+      totalElements: data.totalElements,
+    };
+  }
+
+  const transactions = sortWalletTransactions(Array.isArray(data) ? data : []);
+  return {
+    transactions,
+    totalPages: Math.max(Math.ceil(transactions.length / WALLET_TRANSACTION_PAGE_SIZE), 1),
+    totalElements: transactions.length,
+  };
+}
+
 export async function fetchMyWallet() {
   return apiFetch<WalletResponse>("/wallet/me");
 }
 
-export async function fetchMyWalletTransactions() {
-  return apiFetch<WalletTransactionResponse[]>("/wallet/me/transactions");
+export async function fetchMyWalletTransactions(
+  params: FetchWalletTransactionsParams = {},
+): Promise<WalletTransactionsResult> {
+  const search = new URLSearchParams({
+    page: String(params.page ?? 0),
+    size: String(params.size ?? WALLET_TRANSACTION_PAGE_SIZE),
+  });
+
+  if (params.transactionType) search.set("transactionType", params.transactionType);
+  if (params.status) search.set("status", params.status);
+  if (params.keyword) search.set("keyword", params.keyword);
+  if (params.amountMin != null) search.set("amountMin", String(params.amountMin));
+  if (params.amountMax != null) search.set("amountMax", String(params.amountMax));
+  if (params.createdFrom) search.set("createdFrom", params.createdFrom);
+  if (params.createdTo) search.set("createdTo", params.createdTo);
+  if (params.sortBy) search.set("sortBy", params.sortBy);
+  if (params.sortDir) search.set("sortDir", params.sortDir);
+
+  const data = await apiFetch<
+    WalletTransactionResponse[] | PageResponse<WalletTransactionResponse>
+  >(`/wallet/me/transactions?${search}`);
+  return normalizeWalletTransactions(data);
+}
+
+export function sortWalletTransactions(
+  data: WalletTransactionResponse[] | null | undefined,
+): WalletTransactionResponse[] {
+  const rows = Array.isArray(data) ? data : [];
+  return [...rows].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 }
 
 export async function topUpWallet(amount: number, bankCode?: string) {

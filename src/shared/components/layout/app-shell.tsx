@@ -70,21 +70,21 @@ export function AppShell({
 
   const navItems = isAdmin
     ? [
-        { to: "/admin/users", label: "Sinh viên", icon: Users },
-        { to: "/admin/lecturers", label: "Giảng viên", icon: GraduationCap },
-        { to: "/admin/roles", label: "Vai trò", icon: ShieldCheck },
-        { to: "/admin/subjects", label: "Môn học", icon: BookOpen },
-        { to: "/admin/subscriptions", label: "Gói tháng", icon: CreditCard },
-        { to: "/admin/ai-config", label: "Cấu hình AI", icon: Bot },
-      ]
+      { to: "/admin/users", label: "Sinh viên", icon: Users },
+      { to: "/admin/lecturers", label: "Giảng viên", icon: GraduationCap },
+      { to: "/admin/roles", label: "Vai trò", icon: ShieldCheck },
+      { to: "/admin/subjects", label: "Môn học", icon: BookOpen },
+      { to: "/admin/subscriptions", label: "Gói tháng", icon: CreditCard },
+      { to: "/admin/ai-config", label: "Cấu hình AI", icon: Bot },
+    ]
     : isLecturer
       ? [{ to: "/lecturer/documents", label: "Tài liệu", icon: FileText }]
       : [
-          { to: "/", label: "Chat", icon: MessageSquare },
-          { to: "/documents", label: "Tài liệu", icon: FileText },
-          { to: "/wallet", label: "Ví", icon: Wallet },
-          { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
-        ];
+        { to: "/", label: "Chat", icon: MessageSquare },
+        { to: "/documents", label: "Tài liệu", icon: FileText },
+        { to: "/wallet", label: "Ví", icon: Wallet },
+        { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
+      ];
 
   const initial = (user.email ?? "?")[0].toUpperCase();
   const isDemo = DEMO_EMAILS.has(user.email);
@@ -142,7 +142,7 @@ export function AppShell({
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
                     {initial}
                   </span>
-                  <span className="max-w-[160px] truncate font-medium">{user.email}</span>
+                  <span className="max-w-40 truncate font-medium">{user.email}</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">

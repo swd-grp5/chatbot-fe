@@ -1,6 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { StudentWalletPage } from "@/features/student/pages/wallet-page";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/wallet")({
-  component: StudentWalletPage,
+  component: WalletLayout,
 });
+
+function WalletLayout() {
+  return <Outlet />;
+}

@@ -3,4 +3,5 @@ import { WalletCheckoutPage } from "@/features/student/pages/wallet-checkout-pag
 
 export const Route = createFileRoute("/wallet/checkout")({
   component: WalletCheckoutPage,
+  validateSearch: (search) => search as Record<string, string>,
 });
