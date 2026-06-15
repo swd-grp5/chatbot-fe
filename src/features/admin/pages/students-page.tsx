@@ -23,7 +23,7 @@ import {
   SortableTableHead,
   TABLE_HEAD_LABEL,
   type ActiveFilter,
-} from "@/features/lecturer/components/documents-table-ui";
+} from "@/shared/components/ui/table-head";
 import {
   DEFAULT_STUDENT_PAGE_SIZE,
   deleteStudent,

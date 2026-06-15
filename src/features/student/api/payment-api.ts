@@ -21,9 +21,9 @@ export type PaymentReturnResponse = {
   message: string | null;
 };
 
-export async function verifyVnpayReturn(params: Record<string, string>) {
-  const query = new URLSearchParams(params).toString();
-  return apiFetch<PaymentReturnResponse>(`/payments/vnpay/return?${query}`, {
+export async function verifyVnpayReturn(search: string) {
+  const qs = search.startsWith("?") ? search.slice(1) : search;
+  return apiFetch<PaymentReturnResponse>(`/payments/vnpay/return?${qs}`, {
     skipAuth: true,
   });
 }

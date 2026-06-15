@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   loadColumnVisibility,
   useResizableColumns,
-} from "@/features/lecturer/components/documents-table-ui";
+} from "@/shared/components/ui/table-head";
 
 export const ADMIN_COLUMN_WIDTHS = {
   stt: 48,

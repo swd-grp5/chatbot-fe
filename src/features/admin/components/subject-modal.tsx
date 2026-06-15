@@ -19,7 +19,7 @@ import {
   updateSubject,
   type SubjectResponse,
 } from "@/features/lecturer/api/subject-api";
-import { activeStyles } from "@/features/lecturer/components/documents-table-ui";
+import { activeStyles } from "@/shared/components/ui/table-head";
 import { ApiError } from "@/shared/lib/api-client";
 import { formatDateTimeDMY } from "@/shared/lib/format-time";
 import { cn } from "@/shared/lib/utils";

@@ -4,9 +4,11 @@ import { Button } from "@/shared/components/ui/button";
 import { DocumentPagePreview } from "@/features/lecturer/components/document-page-preview";
 import {
   activeStyles,
+  ToggleActiveBadge,
+} from "@/shared/components/ui/table-head";
+import {
   documentTypeStyle,
   statusStyles,
-  ToggleActiveBadge,
 } from "@/features/lecturer/components/documents-table-ui";
 import { DEFAULT_DOCUMENT_PAGE_SIZE } from "@/features/lecturer/api/document-api";
 import { formatDateDMY, formatDateTimeDMY } from "@/shared/lib/format-time";

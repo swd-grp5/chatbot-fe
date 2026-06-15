@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Button } from "@/shared/components/ui/button";
@@ -7,88 +7,103 @@ import { Card } from "@/shared/components/ui/card";
 import { verifyVnpayReturn, type PaymentReturnResponse } from "@/features/student/api/payment-api";
 import { formatWalletAmount } from "@/features/student/api/wallet-api";
 import { ApiError } from "@/shared/lib/api-client";
+import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 
-function parseVnpaySearchParams(search: string): Record<string, string> {
-  const params: Record<string, string> = {};
-  new URLSearchParams(search).forEach((value, key) => {
-    params[key] = value;
-  });
-  return params;
+function hasTxnRef(search: string) {
+  return new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).has("vnp_TxnRef");
 }
 
 export function WalletCheckoutPage() {
-  const search = useRouterState({ select: (state) => state.location.search });
-  const vnpParams = useMemo(() => parseVnpaySearchParams(search), [search]);
-
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<PaymentReturnResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const verifiedRef = useRef(false);
 
   useEffect(() => {
-    if (!vnpParams.vnp_TxnRef) {
-      setError("Không có thông tin giao dịch từ VNPAY.");
+    if (verifiedRef.current) return;
+    verifiedRef.current = true;
+
+    const search = window.location.search;
+
+    if (!hasTxnRef(search)) {
+      const message = "Không có thông tin giao dịch từ VNPAY.";
+      setError(message);
       setLoading(false);
+      toast.error(message);
       return;
     }
 
-    let cancelled = false;
     setLoading(true);
     setError(null);
+    setResult(null);
 
-    void verifyVnpayReturn(vnpParams)
+    void verifyVnpayReturn(search)
       .then((data) => {
-        if (!cancelled) setResult(data);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : "Không xác minh được giao dịch");
+        setResult(data);
+        if (data.success) {
+          toast.success(data.message ?? "Thanh toán thành công");
+        } else {
+          toast.error(data.message ?? "Thanh toán không thành công");
         }
       })
+      .catch((err) => {
+        const message = err instanceof ApiError ? err.message : "Không xác minh được giao dịch";
+        setError(message);
+        toast.error(message);
+      })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [vnpParams]);
+  }, []);
 
   const success = result?.success === true;
+  const showResult = !loading && (error != null || result != null);
 
   return (
     <AppShell>
       <div className="mx-auto max-w-lg space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Kết quả thanh toán</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            VNPAY đã chuyển hướng bạn về EduBuddy sau khi thanh toán.
-          </p>
         </div>
 
-        <Card className="p-8">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-6">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Đang xác minh giao dịch...</p>
+        <Card className="relative overflow-hidden p-8">
+          {loading && (
+            <div className="flex min-h-55 flex-col items-center justify-center gap-4 py-6">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <div className="text-center">
+                <p className="font-medium">Đang xác minh giao dịch</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Vui lòng đợi trong giây lát...
+                </p>
+              </div>
             </div>
-          ) : error ? (
-            <div className="flex flex-col items-center gap-4 text-center">
+          )}
+
+          {showResult && error && (
+            <div className="flex min-h-55 flex-col items-center justify-center gap-4 text-center">
               <XCircle className="h-12 w-12 text-destructive" />
               <div>
                 <p className="font-medium">Không xác minh được giao dịch</p>
                 <p className="mt-1 text-sm text-muted-foreground">{error}</p>
               </div>
             </div>
-          ) : result ? (
-            <div className="flex flex-col items-center gap-4 text-center">
+          )}
+
+          {showResult && result && (
+            <div className="flex min-h-55 flex-col items-center justify-center gap-4 text-center">
               {success ? (
                 <CheckCircle2 className="h-12 w-12 text-success" />
               ) : (
                 <XCircle className="h-12 w-12 text-destructive" />
               )}
               <div>
-                <p className={cn("text-lg font-semibold", success ? "text-success" : "text-destructive")}>
+                <p
+                  className={cn(
+                    "text-lg font-semibold",
+                    success ? "text-success" : "text-destructive",
+                  )}
+                >
                   {result.message ?? (success ? "Giao dịch thành công" : "Giao dịch không thành công")}
                 </p>
                 {result.amount != null && (
@@ -106,13 +121,15 @@ export function WalletCheckoutPage() {
                 )}
               </div>
             </div>
-          ) : null}
+          )}
 
-          <div className="mt-8 flex justify-center">
-            <Button asChild>
-              <Link to="/wallet">Về ví của tôi</Link>
-            </Button>
-          </div>
+          {!loading && (
+            <div className="mt-8 flex justify-center">
+              <Button asChild>
+                <Link to="/wallet">Về ví của tôi</Link>
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </AppShell>

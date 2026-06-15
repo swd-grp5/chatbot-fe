@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './features/auth/routes/auth'
 import { Route as LecturerRouteRouteImport } from './features/lecturer/routes/route'
 import { Route as AdminRouteRouteImport } from './features/admin/routes/route'
 import { Route as IndexRouteImport } from './features/student/routes/index'
+import { Route as WalletDotindexRouteImport } from './features/student/routes/wallet.index'
 import { Route as WalletDotcheckoutRouteImport } from './features/student/routes/wallet.checkout'
 import { Route as LecturerDocumentsRouteImport } from './features/lecturer/routes/documents'
 import { Route as AdminUsersRouteImport } from './features/admin/routes/users'
@@ -59,6 +60,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const WalletDotindexRoute = WalletDotindexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WalletRoute,
 } as any)
 const WalletDotcheckoutRoute = WalletDotcheckoutRouteImport.update({
   id: '/checkout',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
   '/wallet/checkout': typeof WalletDotcheckoutRoute
+  '/wallet/': typeof WalletDotindexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,7 +132,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
   '/subscriptions': typeof SubscriptionsRoute
-  '/wallet': typeof WalletRouteWithChildren
   '/admin/ai-config': typeof AdminAiConfigRoute
   '/admin/lecturers': typeof AdminLecturersRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -134,6 +140,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
   '/wallet/checkout': typeof WalletDotcheckoutRoute
+  '/wallet': typeof WalletDotindexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,6 +159,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
   '/wallet/checkout': typeof WalletDotcheckoutRoute
+  '/wallet/': typeof WalletDotindexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -171,6 +179,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/lecturer/documents'
     | '/wallet/checkout'
+    | '/wallet/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -179,7 +188,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/documents'
     | '/subscriptions'
-    | '/wallet'
     | '/admin/ai-config'
     | '/admin/lecturers'
     | '/admin/roles'
@@ -188,6 +196,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/lecturer/documents'
     | '/wallet/checkout'
+    | '/wallet'
   id:
     | '__root__'
     | '/'
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/lecturer/documents'
     | '/wallet/checkout'
+    | '/wallet/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -267,6 +277,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/wallet/': {
+      id: '/wallet/'
+      path: '/'
+      fullPath: '/wallet/'
+      preLoaderRoute: typeof WalletDotindexRouteImport
+      parentRoute: typeof WalletRoute
     }
     '/wallet/checkout': {
       id: '/wallet/checkout'
@@ -363,10 +380,12 @@ const LecturerRouteRouteWithChildren = LecturerRouteRoute._addFileChildren(
 
 interface WalletRouteChildren {
   WalletDotcheckoutRoute: typeof WalletDotcheckoutRoute
+  WalletDotindexRoute: typeof WalletDotindexRoute
 }
 
 const WalletRouteChildren: WalletRouteChildren = {
   WalletDotcheckoutRoute: WalletDotcheckoutRoute,
+  WalletDotindexRoute: WalletDotindexRoute,
 }
 
 const WalletRouteWithChildren =

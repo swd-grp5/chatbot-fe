@@ -24,17 +24,19 @@ import {
 import { type Doc, courseLabel } from "@/shared/lib/mock-data";
 import {
   ACTIVE_FILTER_OPTIONS,
-  API_DOC_COLUMNS,
   activeStyles,
-  documentTypeStyle,
   FilterTableHead,
   loadColumnVisibility,
   ResizableTableHead,
   SortableTableHead,
-  useDocumentTableResize,
-  statusStyles,
   TABLE_HEAD_LABEL,
   type ActiveFilter,
+} from "@/shared/components/ui/table-head";
+import {
+  API_DOC_COLUMNS,
+  documentTypeStyle,
+  useDocumentTableResize,
+  statusStyles,
 } from "@/features/lecturer/components/documents-table-ui";
 import {
   type ApiDocumentStatus,
