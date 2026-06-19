@@ -187,7 +187,7 @@ export function LecturerModal({
     };
   }, [open, mode, lecturerId, onOpenChange]);
 
-  const validateForm = (requirePassword: boolean) => {
+  const validateForm = (options: { requirePassword: boolean; requireSubjects: boolean }) => {
     if (!fullName.trim()) {
       toast.error("Họ tên không được để trống");
       return false;
@@ -196,11 +196,16 @@ export function LecturerModal({
       toast.error("Email không được để trống");
       return false;
     }
-    if (requirePassword && !password.trim()) {
+    const trimmedPassword = password.trim();
+    if (options.requirePassword && !trimmedPassword) {
       toast.error("Mật khẩu không được để trống");
       return false;
     }
-    if (subjectIds.length === 0) {
+    if (trimmedPassword && trimmedPassword.length <= 8) {
+      toast.error("Mật khẩu phải nhiều hơn 8 ký tự");
+      return false;
+    }
+    if (options.requireSubjects && subjectIds.length === 0) {
       toast.error("Chọn ít nhất một môn học");
       return false;
     }
@@ -208,7 +213,7 @@ export function LecturerModal({
   };
 
   const handleSubmit = async () => {
-    if (!detail || !validateForm(false)) return;
+    if (!detail || !validateForm({ requirePassword: false, requireSubjects: false })) return;
 
     setSubmitting(true);
     try {
@@ -231,7 +236,7 @@ export function LecturerModal({
   };
 
   const handleCreate = async () => {
-    if (!validateForm(true)) return;
+    if (!validateForm({ requirePassword: true, requireSubjects: true })) return;
 
     setSubmitting(true);
     try {
@@ -349,7 +354,7 @@ export function LecturerModal({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Môn được phép upload *</Label>
+              <Label>Môn được phép upload {mode === "create" ? "*" : ""}</Label>
               <SubjectPicker
                 subjects={subjects}
                 selectedIds={subjectIds}

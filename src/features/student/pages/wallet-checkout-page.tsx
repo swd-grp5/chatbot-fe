@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, ShieldCheck, XCircle } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
@@ -10,8 +10,44 @@ import { ApiError } from "@/shared/lib/api-client";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 
+const MIN_VERIFY_MS = 1000;
+
 function hasTxnRef(search: string) {
   return new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).has("vnp_TxnRef");
+}
+
+function minDelay(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function PaymentVerifyingLoader() {
+  return (
+    <div className="flex min-h-55 flex-col items-center justify-center gap-6 py-8">
+      <div className="relative flex h-24 w-24 items-center justify-center">
+        <span
+          className="absolute inset-0 rounded-full border-2 border-primary/30 animate-payment-ring"
+          aria-hidden
+        />
+        <span
+          className="absolute inset-2 rounded-full border-2 border-primary/20 animate-payment-ring [animation-delay:600ms]"
+          aria-hidden
+        />
+        <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 shadow-sm ring-1 ring-primary/15">
+          <ShieldCheck className="h-8 w-8 text-primary" strokeWidth={1.75} />
+        </div>
+      </div>
+
+      <div className="w-full max-w-xs space-y-3 text-center">
+        <p className="font-medium tracking-tight">Đang xác minh giao dịch</p>
+        <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+          <div className="h-full w-1/3 rounded-full bg-primary animate-payment-progress" />
+        </div>
+        <p className="text-sm text-muted-foreground">Vui lòng đợi trong giây lát...</p>
+      </div>
+    </div>
+  );
 }
 
 export function WalletCheckoutPage() {
@@ -38,8 +74,8 @@ export function WalletCheckoutPage() {
     setError(null);
     setResult(null);
 
-    void verifyVnpayReturn(search)
-      .then((data) => {
+    void Promise.all([verifyVnpayReturn(search), minDelay(MIN_VERIFY_MS)])
+      .then(([data]) => {
         setResult(data);
         if (data.success) {
           toast.success(data.message ?? "Thanh toán thành công");
@@ -68,20 +104,10 @@ export function WalletCheckoutPage() {
         </div>
 
         <Card className="relative overflow-hidden p-8">
-          {loading && (
-            <div className="flex min-h-55 flex-col items-center justify-center gap-4 py-6">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <div className="text-center">
-                <p className="font-medium">Đang xác minh giao dịch</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Vui lòng đợi trong giây lát...
-                </p>
-              </div>
-            </div>
-          )}
+          {loading && <PaymentVerifyingLoader />}
 
           {showResult && error && (
-            <div className="flex min-h-55 flex-col items-center justify-center gap-4 text-center">
+            <div className="flex min-h-55 animate-in fade-in zoom-in-95 flex-col items-center justify-center gap-4 py-4 text-center duration-500">
               <XCircle className="h-12 w-12 text-destructive" />
               <div>
                 <p className="font-medium">Không xác minh được giao dịch</p>
@@ -91,7 +117,7 @@ export function WalletCheckoutPage() {
           )}
 
           {showResult && result && (
-            <div className="flex min-h-55 flex-col items-center justify-center gap-4 text-center">
+            <div className="flex min-h-55 animate-in fade-in zoom-in-95 flex-col items-center justify-center gap-4 py-4 text-center duration-500">
               {success ? (
                 <CheckCircle2 className="h-12 w-12 text-success" />
               ) : (
@@ -124,7 +150,7 @@ export function WalletCheckoutPage() {
           )}
 
           {!loading && (
-            <div className="mt-8 flex justify-center">
+            <div className="mt-8 flex animate-in fade-in justify-center duration-500">
               <Button asChild>
                 <Link to="/wallet">Về ví của tôi</Link>
               </Button>

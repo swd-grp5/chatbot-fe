@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { ActiveLockSwitch } from "@/shared/components/ui/switch";
 import { TableHead } from "@/shared/components/ui/table";
 import {
   DropdownMenu,
@@ -61,27 +62,27 @@ export function ToggleActiveBadge({
   onToggle,
   tooltipActive,
   tooltipInactive,
+  disabled,
 }: {
   active: boolean;
   onToggle: () => void;
   tooltipActive: string;
   tooltipInactive: string;
+  disabled?: boolean;
 }) {
-  const status = active ? activeStyles.active : activeStyles.inactive;
   const tooltip = active ? tooltipActive : tooltipInactive;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex cursor-pointer"
-          onClick={() => void onToggle()}
-        >
-          <Badge variant="outline" className={cn("gap-1.5 font-normal", status.className)}>
-            {status.label}
-          </Badge>
-        </button>
+        <span className="inline-flex items-center justify-center">
+          <ActiveLockSwitch
+            checked={active}
+            onCheckedChange={() => onToggle()}
+            disabled={disabled}
+            aria-label={tooltip}
+          />
+        </span>
       </TooltipTrigger>
       <TooltipContent side="top">{tooltip}</TooltipContent>
     </Tooltip>
@@ -432,7 +433,12 @@ export function FilterTableHead<T extends string = string>({
 
   return (
     <TableHead className={filterHeadCellClass(className, width)} style={columnWidthStyle(width)}>
-      <div className={filterHeadBoxClass({ className, isFiltered, width })}>
+      <div
+        className={cn(
+          filterHeadBoxClass({ className, isFiltered, width }),
+          "gap-0 p-0",
+        )}
+      >
         {field && onSort && (
           <SortArrowButton
             field={field}
@@ -441,11 +447,17 @@ export function FilterTableHead<T extends string = string>({
             onSort={onSort}
           />
         )}
-        <Select value={filterValue} onValueChange={onFilterChange} disabled={disabled}>
+        <Select
+          value={filterValue}
+          onValueChange={onFilterChange}
+          disabled={disabled}
+          className="flex min-w-0 flex-1"
+        >
           <SelectTrigger
             title={selectedLabel}
             className={cn(
-              "h-auto w-auto min-w-0 shrink justify-center gap-1 overflow-hidden border-0 bg-transparent p-0 text-center text-sm shadow-none focus:ring-0 [&>span]:block [&>span]:truncate [&>svg]:hidden",
+              "h-auto min-h-0 w-full min-w-0 flex-1 cursor-pointer justify-center gap-1 overflow-hidden border-0 bg-transparent px-2.5 py-1.5 text-center text-sm shadow-none focus:ring-0 [&>span]:block [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>svg]:hidden",
+              field && onSort && "pl-1",
               isFiltered
                 ? "font-medium text-foreground"
                 : "font-medium text-muted-foreground",

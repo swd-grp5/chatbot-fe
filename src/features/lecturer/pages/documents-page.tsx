@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
+  ArrowLeft,
   Columns2,
   Search,
   Upload,
@@ -14,6 +16,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
 import { DocumentsSubjectSelect } from "@/features/lecturer/components/documents-subject-select";
+import { DocumentsSubjectGrid } from "@/features/lecturer/components/documents-subject-grid";
 import {
   Table,
   TableBody,
@@ -66,7 +69,10 @@ import {
   mapDocumentResponse,
   toggleDocumentActive,
 } from "@/features/lecturer/api/document-api";
-import { fetchLecturerMySubjects, type SubjectOption } from "@/features/lecturer/api/subject-api";
+import {
+  useInvalidateLecturerMySubjects,
+  useLecturerMySubjects,
+} from "@/features/lecturer/hooks/use-lecturer-my-subjects";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import { DocumentsCardGrid } from "@/features/lecturer/components/documents-card-grid";
 import {
@@ -95,6 +101,20 @@ const WIDTHS_STORAGE = "lecturer-documents-column-widths";
 const VIEW_MODE_STORAGE = "lecturer-documents-view-mode";
 
 export function LecturerDocumentsPage() {
+  const navigate = useNavigate();
+  const { subject: subjectFromUrl } = useSearch({ from: "/lecturer/documents" });
+  const isDetailView = Boolean(subjectFromUrl);
+  const invalidateSubjects = useInvalidateLecturerMySubjects();
+  const {
+    data: subjectRows,
+    isLoading: subjectsLoading,
+    isError: subjectsError,
+    error: subjectsLoadError,
+  } = useLecturerMySubjects();
+  const subjects = useMemo(
+    () => [...(subjectRows ?? [])].sort((a, b) => a.code.localeCompare(b.code)),
+    [subjectRows],
+  );
   const [selectedCourse, setSelectedCourse] = useState("");
   const [queryInput, setQueryInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -106,8 +126,6 @@ export function LecturerDocumentsPage() {
     doc: Doc | null;
     viewTab?: DocumentViewMode;
   } | null>(null);
-  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
-  const [subjectsLoading, setSubjectsLoading] = useState(true);
   const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [deleteDoc, setDeleteDoc] = useState<Doc | null>(null);
@@ -145,29 +163,40 @@ export function LecturerDocumentsPage() {
     subjects.find((subject) => subject.code === selectedCourse)?.id ?? "";
 
   const handleSubjectChange = (code: string) => {
-    setSelectedCourse(code);
     setQueryInput("");
     setSearchKeyword("");
     setPage(0);
+    void navigate({ to: "/lecturer/documents", search: { subject: code } });
   };
 
-  const loadSubjects = useCallback(async () => {
-    setSubjectsLoading(true);
-    try {
-      const rows = await fetchLecturerMySubjects();
-      const sorted = [...rows].sort((a, b) => a.code.localeCompare(b.code));
-      setSubjects(sorted);
-      setSelectedCourse((current) => {
-        if (current && sorted.some((row) => row.code === current)) return current;
-        return sorted[0]?.code ?? "";
-      });
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách môn học");
-      setSubjects([]);
-    } finally {
-      setSubjectsLoading(false);
+  const backToSubjectPicker = () => {
+    void navigate({ to: "/lecturer/documents", search: {} });
+  };
+
+  useEffect(() => {
+    if (subjectsError) {
+      toast.error(
+        subjectsLoadError instanceof ApiError
+          ? subjectsLoadError.message
+          : "Không tải được danh sách môn học",
+      );
     }
-  }, []);
+  }, [subjectsError, subjectsLoadError]);
+
+  useEffect(() => {
+    if (!subjectFromUrl) {
+      setSelectedCourse("");
+      return;
+    }
+    const match = subjects.find((subject) => subject.code === subjectFromUrl);
+    if (match) {
+      setSelectedCourse(match.code);
+      return;
+    }
+    if (!subjectsLoading && subjects.length > 0) {
+      void navigate({ to: "/lecturer/documents", search: {}, replace: true });
+    }
+  }, [subjectFromUrl, subjects, subjectsLoading, navigate]);
 
   const loadApiDocuments = useCallback(async () => {
     if (!selectedSubjectId) {
@@ -232,10 +261,6 @@ export function LecturerDocumentsPage() {
   };
 
   useEffect(() => {
-    void loadSubjects();
-  }, [loadSubjects]);
-
-  useEffect(() => {
     localStorage.setItem(API_COLUMNS_STORAGE, JSON.stringify(apiColumns));
   }, [apiColumns]);
 
@@ -244,9 +269,10 @@ export function LecturerDocumentsPage() {
   }, [viewMode]);
 
   useEffect(() => {
+    if (!isDetailView) return;
     const timer = setTimeout(() => loadApiDocuments(), 300);
     return () => clearTimeout(timer);
-  }, [loadApiDocuments]);
+  }, [isDetailView, loadApiDocuments]);
 
   const displayTotalPages = totalPages;
   const tableRows = apiDocuments;
@@ -305,17 +331,40 @@ export function LecturerDocumentsPage() {
       <div className="w-full space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
+            {isDetailView && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-2 mb-2 h-8 gap-1.5 px-2 text-xs text-muted-foreground"
+                onClick={backToSubjectPicker}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Tất cả môn
+              </Button>
+            )}
             <h1 className="text-2xl font-semibold tracking-tight">Quản lý tài liệu</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Quản lý môn học và tài liệu theo từng môn.
+              {isDetailView
+                ? `Tài liệu môn ${labelOf(selectedCourse) || selectedCourse}.`
+                : "Chọn môn học để xem và quản lý tài liệu."}
             </p>
           </div>
-          <Button className="gap-2" onClick={openUpload} disabled={subjects.length === 0}>
-            <Upload className="h-4 w-4" />
-            Thêm tài liệu
-          </Button>
+          {isDetailView && (
+            <Button className="gap-2" onClick={openUpload} disabled={subjects.length === 0}>
+              <Upload className="h-4 w-4" />
+              Thêm tài liệu
+            </Button>
+          )}
         </div>
 
+        {!isDetailView ? (
+          <DocumentsSubjectGrid
+            subjects={subjects}
+            loading={subjectsLoading}
+            onSelect={handleSubjectChange}
+          />
+        ) : (
         <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -714,6 +763,7 @@ export function LecturerDocumentsPage() {
             />
           )}
         </Card>
+        )}
       </div>
 
       <Suspense fallback={null}>
@@ -725,7 +775,7 @@ export function LecturerDocumentsPage() {
           onOpenChange={(open) => !open && setDocModal(null)}
           onDocumentsChange={() => {
             void loadApiDocuments();
-            void loadSubjects();
+            invalidateSubjects();
           }}
           courseLabel={labelOf}
           subjects={subjects}
