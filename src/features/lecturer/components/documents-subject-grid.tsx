@@ -8,6 +8,8 @@ type DocumentsSubjectGridProps = {
   subjects: SubjectOption[];
   loading?: boolean;
   onSelect: (code: string) => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
 };
 
 function documentCountLabel(count?: number) {
@@ -20,6 +22,8 @@ export function DocumentsSubjectGrid({
   subjects,
   loading = false,
   onSelect,
+  emptyTitle = "Chưa có môn học được gán",
+  emptyDescription = "Liên hệ quản trị viên để được phép upload tài liệu cho môn học.",
 }: DocumentsSubjectGridProps) {
   if (loading) {
     return (
@@ -33,10 +37,8 @@ export function DocumentsSubjectGrid({
     return (
       <Card className="flex flex-col items-center justify-center px-6 py-16 text-center">
         <BookOpen className="mb-3 h-10 w-10 text-muted-foreground/50" />
-        <p className="text-sm font-medium text-foreground">Chưa có môn học được gán</p>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Liên hệ quản trị viên để được phép upload tài liệu cho môn học.
-        </p>
+        <p className="text-sm font-medium text-foreground">{emptyTitle}</p>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">{emptyDescription}</p>
       </Card>
     );
   }

@@ -1,11 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { Columns2, Eye, Lock, RefreshCw, Search } from "lucide-react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { ArrowLeft, Columns2, Eye, Lock, RefreshCw, Search } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
 import { DocumentsSubjectSelect } from "@/features/lecturer/components/documents-subject-select";
+import { DocumentsSubjectGrid } from "@/features/lecturer/components/documents-subject-grid";
 import {
   Table,
   TableBody,
@@ -79,6 +81,9 @@ const WIDTHS_STORAGE = "student-documents-column-widths";
 const VIEW_MODE_STORAGE = "student-documents-view-mode";
 
 export function StudentDocumentsPage() {
+  const navigate = useNavigate();
+  const { subject: subjectFromUrl } = useSearch({ from: "/documents" });
+  const isDetailView = Boolean(subjectFromUrl);
   const {
     data: subjectRows,
     isLoading: subjectsLoading,
@@ -134,10 +139,14 @@ export function StudentDocumentsPage() {
     subjects.find((subject) => subject.code === selectedCourse)?.id ?? "";
 
   const handleSubjectChange = (code: string) => {
-    setSelectedCourse(code);
     setQueryInput("");
     setSearchKeyword("");
     setPage(0);
+    void navigate({ to: "/documents", search: { subject: code } });
+  };
+
+  const backToSubjectPicker = () => {
+    void navigate({ to: "/documents", search: {} });
   };
 
   useEffect(() => {
@@ -151,12 +160,19 @@ export function StudentDocumentsPage() {
   }, [subjectsError, subjectsLoadError]);
 
   useEffect(() => {
-    if (subjects.length === 0) return;
-    setSelectedCourse((current) => {
-      if (current && subjects.some((row) => row.code === current)) return current;
-      return subjects[0]?.code ?? "";
-    });
-  }, [subjects]);
+    if (!subjectFromUrl) {
+      setSelectedCourse("");
+      return;
+    }
+    const match = subjects.find((subject) => subject.code === subjectFromUrl);
+    if (match) {
+      setSelectedCourse(match.code);
+      return;
+    }
+    if (!subjectsLoading && subjects.length > 0) {
+      void navigate({ to: "/documents", search: {}, replace: true });
+    }
+  }, [subjectFromUrl, subjects, subjectsLoading, navigate]);
 
   const loadApiDocuments = useCallback(async () => {
     if (!selectedSubjectId) {
@@ -219,9 +235,10 @@ export function StudentDocumentsPage() {
   }, [viewMode]);
 
   useEffect(() => {
+    if (!isDetailView) return;
     const timer = setTimeout(() => loadApiDocuments(), 300);
     return () => clearTimeout(timer);
-  }, [loadApiDocuments]);
+  }, [isDetailView, loadApiDocuments]);
 
   const displayTotalPages = totalPages;
   const tableRows = apiDocuments;
@@ -243,17 +260,42 @@ export function StudentDocumentsPage() {
       <div className="w-full space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
+            {isDetailView && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-2 mb-2 h-8 gap-1.5 px-2 text-xs text-muted-foreground"
+                onClick={backToSubjectPicker}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Tất cả môn
+              </Button>
+            )}
             <h1 className="text-2xl font-semibold tracking-tight">Tài liệu học tập</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Xem tài liệu theo từng môn — chỉ đọc, không thể thêm, sửa hay xóa.
+              {isDetailView
+                ? `Tài liệu môn ${labelOf(selectedCourse) || selectedCourse} — chỉ đọc.`
+                : "Chọn môn học để xem tài liệu — chỉ đọc, không thể thêm, sửa hay xóa."}
             </p>
           </div>
-          <span className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5" />
-            Chế độ chỉ xem
-          </span>
+          {isDetailView && (
+            <span className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+              <Lock className="h-3.5 w-3.5" />
+              Chế độ chỉ xem
+            </span>
+          )}
         </div>
 
+        {!isDetailView ? (
+          <DocumentsSubjectGrid
+            subjects={subjects}
+            loading={subjectsLoading}
+            onSelect={handleSubjectChange}
+            emptyTitle="Bạn chưa được gán môn học nào"
+            emptyDescription="Liên hệ quản trị viên để được gán môn học."
+          />
+        ) : (
         <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -627,6 +669,7 @@ export function StudentDocumentsPage() {
             />
           )}
         </Card>
+        )}
       </div>
 
       <Suspense fallback={null}>
