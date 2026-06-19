@@ -3,6 +3,7 @@ import {
   type ApiAuthSession,
   type ApiUserResponse,
 } from "@/features/auth/lib/auth-types";
+import { resetMySubjectsQueries } from "@/shared/lib/query-client";
 import { migrateStorageKey, storageKey } from "@/shared/lib/storage-keys";
 
 const API_AUTH_KEY = storageKey("api-auth");
@@ -41,6 +42,7 @@ export function setApiSession(session: ApiAuthSessionInput | null) {
   } else {
     localStorage.removeItem(API_AUTH_KEY);
   }
+  resetMySubjectsQueries();
   window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
 }
 

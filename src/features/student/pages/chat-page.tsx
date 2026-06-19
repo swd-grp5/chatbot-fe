@@ -20,7 +20,7 @@ import { toast } from "@/shared/lib/toast";
 import { formatRelativeTime } from "@/shared/lib/format-time";
 import { type Citation, type ChatMessage, courseLabel, sessionGroupOrder } from "@/shared/lib/mock-data";
 import { fetchDocuments, mapDocumentResponse } from "@/features/lecturer/api/document-api";
-import { fetchMySubjects } from "@/features/student/api/student-api";
+import { useStudentMySubjects } from "@/features/student/hooks/use-my-subjects";
 import { useAppStore } from "@/features/student/lib/store";
 import type { Course, Doc } from "@/shared/lib/mock-data";
 
@@ -43,45 +43,52 @@ export function ChatPage() {
   const sendMessage = useAppStore((s) => s.sendMessage);
   const init = useAppStore((s) => s.init);
   const { user } = useAuth();
-  const isApiMode = user?.source === "api";
+  const isStudentApiMode = user?.source === "api" && user.role === "student";
+
+  const { data: subjectRows } = useStudentMySubjects(isStudentApiMode);
+  const apiCourses = useMemo(
+    () =>
+      (subjectRows ?? []).map((subject) => ({
+        code: subject.code,
+        name: subject.name,
+      })),
+    [subjectRows],
+  );
 
   const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
-  const [apiCourses, setApiCourses] = useState<Course[]>([]);
 
-  const displayCourses = isApiMode ? apiCourses : courses;
+  const displayCourses = isStudentApiMode ? apiCourses : courses;
   const assignedCodes = useMemo(
     () => new Set(apiCourses.map((course) => course.code)),
     [apiCourses],
   );
-  const displayDocuments = isApiMode
+  const displayDocuments = isStudentApiMode
     ? apiDocuments.filter((doc) => assignedCodes.has(doc.course))
     : documents;
 
-  const loadApiData = useCallback(async () => {
+  const loadApiDocuments = useCallback(async () => {
+    const codes = new Set(apiCourses.map((course) => course.code));
+    if (codes.size === 0) {
+      setApiDocuments([]);
+      return;
+    }
     try {
-      const [docsRes, subjects] = await Promise.all([
-        fetchDocuments({ active: true, status: "INDEXED", size: 100 }),
-        fetchMySubjects(),
-      ]);
-      const courses = subjects.map((subject) => ({
-        code: subject.code,
-        name: subject.name,
-      }));
-      const codes = new Set(courses.map((course) => course.code));
-      setApiCourses(courses);
+      const docsRes = await fetchDocuments({ active: true, status: "INDEXED", size: 100 });
       setApiDocuments(
         docsRes.content.map(mapDocumentResponse).filter((doc) => codes.has(doc.course)),
       );
     } catch {
       setApiDocuments([]);
-      setApiCourses([]);
     }
-  }, []);
+  }, [apiCourses]);
 
   useEffect(() => {
-    if (!isApiMode) return;
-    void loadApiData();
-  }, [isApiMode, loadApiData]);
+    if (!isStudentApiMode) {
+      setApiDocuments([]);
+      return;
+    }
+    void loadApiDocuments();
+  }, [isStudentApiMode, loadApiDocuments]);
 
   const messages: ChatMessage[] = conversations[activeSession] ?? [];
 

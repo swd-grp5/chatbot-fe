@@ -49,8 +49,7 @@ import {
   fetchDocuments,
   mapDocumentResponse,
 } from "@/features/lecturer/api/document-api";
-import type { SubjectOption } from "@/features/lecturer/api/subject-api";
-import { fetchMySubjects } from "@/features/student/api/student-api";
+import { useStudentMySubjects } from "@/features/student/hooks/use-my-subjects";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import { DocumentsCardGrid } from "@/features/lecturer/components/documents-card-grid";
 import {
@@ -80,6 +79,16 @@ const WIDTHS_STORAGE = "student-documents-column-widths";
 const VIEW_MODE_STORAGE = "student-documents-view-mode";
 
 export function StudentDocumentsPage() {
+  const {
+    data: subjectRows,
+    isLoading: subjectsLoading,
+    isError: subjectsError,
+    error: subjectsLoadError,
+  } = useStudentMySubjects();
+  const subjects = useMemo(
+    () => [...(subjectRows ?? [])].sort((a, b) => a.code.localeCompare(b.code)),
+    [subjectRows],
+  );
   const [selectedCourse, setSelectedCourse] = useState("");
   const [queryInput, setQueryInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -90,8 +99,6 @@ export function StudentDocumentsPage() {
     doc: Doc;
     viewTab: DocumentViewMode;
   } | null>(null);
-  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
-  const [subjectsLoading, setSubjectsLoading] = useState(true);
   const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [sortBy, setSortBy] = useState<DocumentSortField | null>(null);
@@ -133,23 +140,23 @@ export function StudentDocumentsPage() {
     setPage(0);
   };
 
-  const loadSubjects = useCallback(async () => {
-    setSubjectsLoading(true);
-    try {
-      const rows = await fetchMySubjects();
-      const sorted = [...rows].sort((a, b) => a.code.localeCompare(b.code));
-      setSubjects(sorted);
-      setSelectedCourse((current) => {
-        if (current && sorted.some((row) => row.code === current)) return current;
-        return sorted[0]?.code ?? "";
-      });
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Không tải được danh sách môn học");
-      setSubjects([]);
-    } finally {
-      setSubjectsLoading(false);
+  useEffect(() => {
+    if (subjectsError) {
+      toast.error(
+        subjectsLoadError instanceof ApiError
+          ? subjectsLoadError.message
+          : "Không tải được danh sách môn học",
+      );
     }
-  }, []);
+  }, [subjectsError, subjectsLoadError]);
+
+  useEffect(() => {
+    if (subjects.length === 0) return;
+    setSelectedCourse((current) => {
+      if (current && subjects.some((row) => row.code === current)) return current;
+      return subjects[0]?.code ?? "";
+    });
+  }, [subjects]);
 
   const loadApiDocuments = useCallback(async () => {
     if (!selectedSubjectId) {
@@ -202,10 +209,6 @@ export function StudentDocumentsPage() {
     setSortBy(null);
     setSortDir(null);
   };
-
-  useEffect(() => {
-    void loadSubjects();
-  }, [loadSubjects]);
 
   useEffect(() => {
     localStorage.setItem(API_COLUMNS_STORAGE, JSON.stringify(apiColumns));
