@@ -287,39 +287,99 @@ export const useAppStore = create<Store>((set, get) => ({
 
     const userMsg: ChatMessage = { id: newMessageId(), role: "user", content: text };
     const existing = get().conversations[sessionId] ?? [];
-    const conversations = { ...get().conversations, [sessionId]: [...existing, userMsg] };
-
     const isFirst = existing.length === 0;
+
+    // ----- API MODE INTEGRATION -----
+    const useApi = !!getApiSession();
+    let backendConversationId = sessionId;
+
+    if (useApi) {
+      const { createConversation, sendMessageApi } = await import("@/features/student/api/chat-api");
+      if (isFirst) {
+        // Create conversation on backend for first message
+        try {
+          const newConv = await createConversation({
+            title: sessionTitleFrom(text),
+            // subjectId is now optional on backend
+          });
+          backendConversationId = newConv.id;
+
+          // Replace local frontend session ID with backend ID if they differ
+          if (backendConversationId !== sessionId) {
+            const sessions = get().sessions.map(s => s.id === sessionId ? { ...s, id: backendConversationId } : s);
+            const conversations = { ...get().conversations };
+            conversations[backendConversationId] = conversations[sessionId] || [];
+            delete conversations[sessionId];
+
+            const sessionDocs = { ...get().sessionDocs };
+            sessionDocs[backendConversationId] = sessionDocs[sessionId] || [];
+            delete sessionDocs[sessionId];
+
+            sessionId = backendConversationId;
+            set({ sessions, conversations, sessionDocs, activeSessionId: sessionId });
+          }
+        } catch (e) {
+          console.error("Failed to create conversation", e);
+          return;
+        }
+      }
+    }
+    // --------------------------------
+
+    const conversationsAfterUser = { ...get().conversations, [sessionId]: [...(get().conversations[sessionId] ?? []), userMsg] };
+
     const now = new Date();
-    const sessions = get().sessions.map((s) =>
+    const sessionsAfterUser = get().sessions.map((s) =>
       s.id === sessionId
         ? {
-            ...s,
-            title: isFirst ? sessionTitleFrom(text) : s.title,
-            messageCount: (conversations[sessionId]?.length ?? 0),
-            updatedAt: toSessionTimestamp(now),
-            group: groupFor(now),
-          }
+          ...s,
+          title: isFirst && !useApi ? sessionTitleFrom(text) : s.title, // API title is handled during creation
+          messageCount: (conversationsAfterUser[sessionId]?.length ?? 0),
+          updatedAt: toSessionTimestamp(now),
+          group: groupFor(now),
+        }
         : s,
     );
 
-    set({ conversations, sessions });
+    set({ conversations: conversationsAfterUser, sessions: sessionsAfterUser });
     persistChat(get().userId, {
-      sessions,
-      conversations,
+      sessions: sessionsAfterUser,
+      conversations: conversationsAfterUser,
       sessionDocs: get().sessionDocs,
       activeSessionId: sessionId,
     });
 
-    await new Promise((r) => setTimeout(r, MOCK_REPLY_DELAY_MS));
+    let assistantMsg: ChatMessage;
 
-    const { content: reply, citations } = generateMockReply(text, get().documents);
-    const assistantMsg: ChatMessage = {
-      id: newMessageId(),
-      role: "assistant",
-      content: reply,
-      citations,
-    };
+    if (useApi) {
+      const { sendMessageApi } = await import("@/features/student/api/chat-api");
+      try {
+        const response = await sendMessageApi(sessionId, { message: text });
+        assistantMsg = {
+          id: response.message.id || newMessageId(),
+          role: "assistant",
+          content: response.message.content,
+          citations: response.citations?.map((c) => ({
+            docId: c.documentId,
+            docName: c.documentTitle,
+            snippet: c.quotedText,
+            page: c.pageStart || 1,
+            course: "", // optional mapping if needed
+          })),
+        };
+      } catch (e) {
+        assistantMsg = { id: newMessageId(), role: "assistant", content: "Lỗi kết nối đến máy chủ AI." };
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, MOCK_REPLY_DELAY_MS));
+      const { content: reply, citations } = generateMockReply(text, get().documents);
+      assistantMsg = {
+        id: newMessageId(),
+        role: "assistant",
+        content: reply,
+        citations,
+      };
+    }
 
     const updatedConversations = {
       ...get().conversations,
