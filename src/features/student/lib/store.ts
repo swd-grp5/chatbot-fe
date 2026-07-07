@@ -128,6 +128,34 @@ export const useAppStore = create<Store>((set, get) => ({
     set({ activeSessionId: id, selectedDocIds: [] });
     const { userId, sessions, conversations, sessionDocs } = get();
     persistChat(userId, { sessions, conversations, sessionDocs, activeSessionId: id });
+
+    if (getApiSession() && (!conversations[id] || conversations[id].length === 0)) {
+      import("@/features/student/api/chat-api").then(({ getMessages }) => {
+        getMessages(id, 0, 100)
+          .then((res) => {
+            if (res.content.length > 0) {
+              const messages = res.content.map((m) => ({
+                id: m.id,
+                role: m.role as "user" | "assistant",
+                content: m.content,
+                citations: [],
+              }));
+              const currentConversations = get().conversations;
+              if (!currentConversations[id] || currentConversations[id].length === 0) {
+                const newConversations = { ...currentConversations, [id]: messages };
+                set({ conversations: newConversations });
+                persistChat(get().userId, {
+                  sessions: get().sessions,
+                  conversations: newConversations,
+                  sessionDocs: get().sessionDocs,
+                  activeSessionId: get().activeSessionId,
+                });
+              }
+            }
+          })
+          .catch((e) => console.warn("Failed to fetch messages for session", id, e));
+      });
+    }
   },
 
   setSelectedDocIds: (ids) => set({ selectedDocIds: ids }),
@@ -352,6 +380,32 @@ export const useAppStore = create<Store>((set, get) => ({
         sessionDocs: get().sessionDocs,
         activeSessionId,
       });
+
+      if (activeSessionId && (!mergedConversations[activeSessionId] || mergedConversations[activeSessionId].length === 0)) {
+        import("@/features/student/api/chat-api").then(({ getMessages }) => {
+          getMessages(activeSessionId, 0, 100).then((res) => {
+            if (res.content.length > 0) {
+              const messages = res.content.map((m) => ({
+                id: m.id,
+                role: m.role as "user" | "assistant",
+                content: m.content,
+                citations: [],
+              }));
+              const currentConversations = get().conversations;
+              if (!currentConversations[activeSessionId] || currentConversations[activeSessionId].length === 0) {
+                const newConversations = { ...currentConversations, [activeSessionId]: messages };
+                set({ conversations: newConversations });
+                persistChat(get().userId, {
+                  sessions: get().sessions,
+                  conversations: newConversations,
+                  sessionDocs: get().sessionDocs,
+                  activeSessionId: get().activeSessionId,
+                });
+              }
+            }
+          }).catch(e => console.warn("Failed to fetch initial messages", e));
+        });
+      }
     } catch (e) {
       console.warn("Failed to sync conversations from backend", e);
     }
