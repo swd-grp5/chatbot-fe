@@ -30,6 +30,8 @@ export function ChatPage() {
   const [input, setInput] = useState("");
   const [sessionQuery, setSessionQuery] = useState("");
   const [sending, setSending] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [, setTick] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const courses = useAppStore((s) => s.courses);
@@ -40,6 +42,8 @@ export function ChatPage() {
   const setActiveSession = useAppStore((s) => s.setActiveSession);
   const createSession = useAppStore((s) => s.createSession);
   const deleteSession = useAppStore((s) => s.deleteSession);
+  const renameSession = useAppStore((s) => s.renameSession);
+  const syncConversations = useAppStore((s) => s.syncConversations);
   const sendMessage = useAppStore((s) => s.sendMessage);
   const init = useAppStore((s) => s.init);
   const { user } = useAuth();
@@ -102,7 +106,8 @@ export function ChatPage() {
 
   useEffect(() => {
     init();
-  }, [init]);
+    void syncConversations();
+  }, [init, syncConversations]);
   const activeTitle = sessions.find((s) => s.id === activeSession)?.title ?? "Hội thoại mới";
 
   useEffect(() => {
@@ -208,7 +213,28 @@ export function ChatPage() {
                         >
                           <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
-                            <div className="truncate font-medium leading-tight">{s.title}</div>
+                            {renamingId === s.id ? (
+                              <input
+                                autoFocus
+                                className="w-full rounded border border-primary/40 bg-background px-1 py-0.5 text-xs font-medium outline-none"
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onBlur={() => {
+                                  void renameSession(s.id, renameValue);
+                                  setRenamingId(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    void renameSession(s.id, renameValue);
+                                    setRenamingId(null);
+                                  }
+                                  if (e.key === "Escape") setRenamingId(null);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <div className="truncate font-medium leading-tight">{s.title}</div>
+                            )}
                             <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                               <span>{s.messageCount} tin nhắn</span>
                               <span>·</span>
@@ -232,7 +258,15 @@ export function ChatPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem><Pencil className="mr-2 h-3.5 w-3.5" />Đổi tên</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenamingId(s.id);
+                                setRenameValue(s.title);
+                              }}
+                            >
+                              <Pencil className="mr-2 h-3.5 w-3.5" />Đổi tên
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"

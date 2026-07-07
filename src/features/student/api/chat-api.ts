@@ -68,6 +68,17 @@ export async function getConversations(page = 0, size = 50) {
   return apiFetch<Page<ConversationResponse>>(`/chat/conversations?page=${page}&size=${size}`);
 }
 
+export async function getConversation(id: string) {
+  return apiFetch<ConversationResponse>(`/chat/conversations/${id}`);
+}
+
+export async function updateConversation(id: string, title: string) {
+  return apiFetch<ConversationResponse>(`/chat/conversations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
+}
+
 export async function deleteConversation(id: string) {
   return apiFetch<void>(`/chat/conversations/${id}`, {
     method: "DELETE",

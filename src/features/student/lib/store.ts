@@ -38,6 +38,8 @@ type Store = {
   updateDocument: (docId: string, patch: Partial<Doc>) => void;
   createSession: (title?: string) => string;
   deleteSession: (sessionId: string) => void;
+  renameSession: (sessionId: string, newTitle: string) => Promise<void>;
+  syncConversations: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
 };
 
@@ -274,6 +276,79 @@ export const useAppStore = create<Store>((set, get) => ({
 
     set({ sessions, conversations, sessionDocs, activeSessionId });
     persistChat(userId, { sessions, conversations, sessionDocs, activeSessionId });
+
+    // Gọi API backend để soft-delete conversation (không chờ kết quả)
+    if (getApiSession()) {
+      import("@/features/student/api/chat-api").then(({ deleteConversation }) => {
+        deleteConversation(sessionId).catch((e) =>
+          console.warn("Failed to delete conversation on backend", e),
+        );
+      });
+    }
+  },
+
+  renameSession: async (sessionId, newTitle) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+
+    // Cập nhật local state ngay lập tức (optimistic update)
+    const sessions = get().sessions.map((s) =>
+      s.id === sessionId ? { ...s, title: trimmed } : s,
+    );
+    set({ sessions });
+    persistChat(get().userId, {
+      sessions,
+      conversations: get().conversations,
+      sessionDocs: get().sessionDocs,
+      activeSessionId: get().activeSessionId,
+    });
+
+    // Gọi API backend nếu đang ở API mode
+    if (getApiSession()) {
+      try {
+        const { updateConversation } = await import("@/features/student/api/chat-api");
+        await updateConversation(sessionId, trimmed);
+      } catch (e) {
+        console.warn("Failed to rename conversation on backend", e);
+      }
+    }
+  },
+
+  syncConversations: async () => {
+    if (!getApiSession()) return;
+    try {
+      const { getConversations } = await import("@/features/student/api/chat-api");
+      const result = await getConversations(0, 100);
+      const backendSessions: UISession[] = result.content.map((conv) => ({
+        id: conv.id,
+        title: conv.title,
+        messageCount: conv.totalMessages,
+        updatedAt: conv.updatedAt,
+        group: groupFor(new Date(conv.updatedAt)),
+      }));
+
+      // Merge: ưu tiên backend, giữ conversations local
+      const localConversations = get().conversations;
+      const mergedConversations: Record<string, import("@/shared/lib/mock-data").ChatMessage[]> = {};
+      backendSessions.forEach((s) => {
+        mergedConversations[s.id] = localConversations[s.id] ?? [];
+      });
+
+      const activeSessionId =
+        backendSessions.find((s) => s.id === get().activeSessionId)?.id ??
+        backendSessions[0]?.id ??
+        "";
+
+      set({ sessions: backendSessions, conversations: mergedConversations, activeSessionId });
+      persistChat(get().userId, {
+        sessions: backendSessions,
+        conversations: mergedConversations,
+        sessionDocs: get().sessionDocs,
+        activeSessionId,
+      });
+    } catch (e) {
+      console.warn("Failed to sync conversations from backend", e);
+    }
   },
 
   sendMessage: async (content) => {
@@ -293,20 +368,25 @@ export const useAppStore = create<Store>((set, get) => ({
     const useApi = !!getApiSession();
     let backendConversationId = sessionId;
 
-    if (useApi) {
-      const { createConversation, sendMessageApi } = await import("@/features/student/api/chat-api");
+    // Import một lần duy nhất tất cả các hàm cần dùng
+    const chatApi = useApi
+      ? await import("@/features/student/api/chat-api")
+      : null;
+
+    if (useApi && chatApi) {
       if (isFirst) {
-        // Create conversation on backend for first message
+        // Tạo conversation trên backend cho tin nhắn đầu tiên
         try {
-          const newConv = await createConversation({
+          const newConv = await chatApi.createConversation({
             title: sessionTitleFrom(text),
-            // subjectId is now optional on backend
           });
           backendConversationId = newConv.id;
 
-          // Replace local frontend session ID with backend ID if they differ
+          // Thay thế local session ID bằng backend ID nếu khác nhau
           if (backendConversationId !== sessionId) {
-            const sessions = get().sessions.map(s => s.id === sessionId ? { ...s, id: backendConversationId } : s);
+            const sessions = get().sessions.map((s) =>
+              s.id === sessionId ? { ...s, id: backendConversationId } : s,
+            );
             const conversations = { ...get().conversations };
             conversations[backendConversationId] = conversations[sessionId] || [];
             delete conversations[sessionId];
@@ -351,10 +431,9 @@ export const useAppStore = create<Store>((set, get) => ({
 
     let assistantMsg: ChatMessage;
 
-    if (useApi) {
-      const { sendMessageApi } = await import("@/features/student/api/chat-api");
+    if (useApi && chatApi) {
       try {
-        const response = await sendMessageApi(sessionId, { message: text });
+        const response = await chatApi.sendMessageApi(sessionId, { message: text });
         assistantMsg = {
           id: response.message.id || newMessageId(),
           role: "assistant",
@@ -363,12 +442,13 @@ export const useAppStore = create<Store>((set, get) => ({
             docId: c.documentId,
             docName: c.documentTitle,
             snippet: c.quotedText,
-            page: c.pageStart || 1,
-            course: "", // optional mapping if needed
+            page: c.pageStart ?? 1,
+            course: "",
           })),
         };
       } catch (e) {
-        assistantMsg = { id: newMessageId(), role: "assistant", content: "Lỗi kết nối đến máy chủ AI." };
+        console.error("Failed to send message", e);
+        assistantMsg = { id: newMessageId(), role: "assistant", content: "Lỗi kết nối đến máy chủ AI. Vui lòng thử lại." };
       }
     } else {
       await new Promise((r) => setTimeout(r, MOCK_REPLY_DELAY_MS));
