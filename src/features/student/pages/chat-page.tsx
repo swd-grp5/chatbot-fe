@@ -5,6 +5,7 @@ import {
   Plus, Search, MessageSquare, Send,
   Copy, RefreshCw, BookOpen, ChevronDown, ChevronRight, FileText,
   MoreHorizontal, Pencil, Trash2, Bot, User, FileX, Loader2,
+  BookMarked, X, Check, ChevronsUpDown,
 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { ChatWelcome } from "@/shared/components/chat/chat-welcome";
@@ -15,6 +16,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Badge } from "@/shared/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/shared/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 import { formatRelativeTime } from "@/shared/lib/format-time";
@@ -33,6 +35,8 @@ export function ChatPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [, setTick] = useState(0);
+  const [docPickerOpen, setDocPickerOpen] = useState(false);
+  const [docSearch, setDocSearch] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const courses = useAppStore((s) => s.courses);
   const documents = useAppStore((s) => s.documents);
@@ -46,6 +50,8 @@ export function ChatPage() {
   const syncConversations = useAppStore((s) => s.syncConversations);
   const sendMessage = useAppStore((s) => s.sendMessage);
   const init = useAppStore((s) => s.init);
+  const selectedDocIds = useAppStore((s) => s.selectedDocIds);
+  const setSelectedDocIds = useAppStore((s) => s.setSelectedDocIds);
   const { user } = useAuth();
   const isStudentApiMode = user?.source === "api" && user.role === "student";
 
@@ -122,10 +128,11 @@ export function ChatPage() {
   const handleSend = async () => {
     const text = input.trim();
     if (!text || sending) return;
+    if (isStudentApiMode && selectedDocIds.length === 0) return;
     setInput("");
     setSending(true);
     try {
-      await sendMessage(text);
+      await sendMessage(text, isStudentApiMode ? selectedDocIds : undefined);
     } finally {
       setSending(false);
     }
@@ -157,6 +164,32 @@ export function ChatPage() {
     if (!q) return sessions;
     return sessions.filter((s) => s.title.toLowerCase().includes(q));
   }, [sessions, sessionQuery]);
+
+  // Tài liệu lọc theo search trong picker
+  const filteredPickerDocs = useMemo(() => {
+    const q = docSearch.trim().toLowerCase();
+    const docs = displayDocuments.filter((d) => d.status === "indexed");
+    if (!q) return docs;
+    return docs.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        (d.title ?? "").toLowerCase().includes(q) ||
+        d.course.toLowerCase().includes(q),
+    );
+  }, [displayDocuments, docSearch]);
+
+  const selectedDocs = useMemo(
+    () => displayDocuments.filter((d) => selectedDocIds.includes(d.id)),
+    [displayDocuments, selectedDocIds],
+  );
+
+  const toggleDoc = (id: string) => {
+    setSelectedDocIds(
+      selectedDocIds.includes(id)
+        ? selectedDocIds.filter((x) => x !== id)
+        : [...selectedDocIds, id],
+    );
+  };
 
   return (
     <AppShell fullBleed>
@@ -332,27 +365,156 @@ export function ChatPage() {
           </div>
 
           <div className="border-t border-border bg-card px-6 py-4">
-            <div className="mx-auto max-w-3xl">
+            <div className="mx-auto max-w-3xl space-y-2">
+              {/* Document Picker */}
+              {isStudentApiMode && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Popover open={docPickerOpen} onOpenChange={setDocPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "h-8 gap-1.5 text-xs",
+                          selectedDocIds.length === 0 && "border-amber-500/60 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50",
+                        )}
+                      >
+                        <BookMarked className="h-3.5 w-3.5" />
+                        {selectedDocIds.length === 0
+                          ? "Chọn tài liệu"
+                          : `${selectedDocIds.length} tài liệu đã chọn`}
+                        <ChevronsUpDown className="h-3 w-3 opacity-60" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      side="top"
+                      className="w-80 p-0 shadow-xl"
+                      sideOffset={8}
+                    >
+                      <div className="border-b border-border px-3 py-2.5">
+                        <div className="flex items-center gap-2 text-xs font-semibold">
+                          <BookMarked className="h-3.5 w-3.5 text-primary" />
+                          Chọn tài liệu để hỏi
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          AI sẽ chỉ tra cứu trong các tài liệu bạn chọn.
+                        </p>
+                      </div>
+                      <div className="px-3 py-2">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            value={docSearch}
+                            onChange={(e) => setDocSearch(e.target.value)}
+                            placeholder="Tìm tài liệu..."
+                            className="h-7 pl-7 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto px-2 pb-2">
+                        {filteredPickerDocs.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-muted-foreground">
+                            {displayDocuments.filter(d => d.status === "indexed").length === 0
+                              ? "Chưa có tài liệu nào được index."
+                              : "Không tìm thấy tài liệu phù hợp."}
+                          </div>
+                        ) : (
+                          filteredPickerDocs.map((doc) => {
+                            const selected = selectedDocIds.includes(doc.id);
+                            return (
+                              <button
+                                key={doc.id}
+                                type="button"
+                                onClick={() => toggleDoc(doc.id)}
+                                className={cn(
+                                  "flex w-full items-start gap-2 rounded-md px-2 py-2 text-left transition-colors",
+                                  selected
+                                    ? "bg-primary/10 text-foreground"
+                                    : "hover:bg-secondary/60 text-foreground",
+                                )}
+                              >
+                                <div className={cn(
+                                  "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                                  selected
+                                    ? "bg-primary border-primary text-primary-foreground"
+                                    : "border-border bg-background",
+                                )}>
+                                  {selected && <Check className="h-2.5 w-2.5" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-xs font-medium">{doc.title ?? doc.name}</div>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <Badge variant="outline" className="h-4 px-1 font-mono text-[9px] font-semibold">{doc.course}</Badge>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                      {selectedDocIds.length > 0 && (
+                        <div className="border-t border-border px-3 py-2">
+                          <button
+                            type="button"
+                            className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                            onClick={() => setSelectedDocIds([])}
+                          >
+                            Bỏ chọn tất cả
+                          </button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Chips của tài liệu đã chọn */}
+                  {selectedDocs.map((doc) => (
+                    <span
+                      key={doc.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary"
+                    >
+                      <FileText className="h-3 w-3 shrink-0" />
+                      <span className="max-w-[140px] truncate">{doc.title ?? doc.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleDoc(doc.id)}
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-primary/20 transition-colors"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Chat input */}
               <div className="relative rounded-lg border border-border bg-background focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
                 <Textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={sending}
-                  placeholder="Hỏi về nội dung môn học"
+                  placeholder={isStudentApiMode && selectedDocIds.length === 0 ? "Vui lòng chọn tài liệu trước khi hỏi..." : "Hỏi về nội dung môn học"}
                   className="min-h-[60px] resize-none border-0 bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0"
                   rows={2}
                 />
                 <div className="flex items-center justify-between border-t border-border px-3 py-2">
                   <span className="px-1 text-[11px] text-muted-foreground">{input.length} ký tự</span>
-                  <Button size="sm" className="h-7 gap-1.5" disabled={!input.trim() || sending} onClick={() => void handleSend()}>
+                  <Button
+                    size="sm"
+                    className="h-7 gap-1.5"
+                    disabled={!input.trim() || sending || (isStudentApiMode && selectedDocIds.length === 0)}
+                    onClick={() => void handleSend()}
+                  >
                     {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     Gửi
                   </Button>
                 </div>
               </div>
-              <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                Câu trả lời được sinh từ tài liệu môn học. Luôn đối chiếu với giảng viên khi cần thiết.
+              <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                {isStudentApiMode && selectedDocIds.length === 0
+                  ? <span className="text-amber-500 dark:text-amber-400">⚠ Chọn ít nhất 1 tài liệu để bắt đầu hỏi.</span>
+                  : "Câu trả lời được sinh từ tài liệu môn học. Luôn đối chiếu với giảng viên khi cần thiết."}
               </p>
             </div>
           </div>

@@ -19,6 +19,7 @@ export interface ConversationResponse {
 
 export interface SendMessageRequest {
   message: string;
+  documentIds?: string[];
 }
 
 export interface ChatAnswerResponse {

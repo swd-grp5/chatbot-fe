@@ -24,9 +24,12 @@ type Store = {
   sessionDocs: Record<string, string[]>;
   activeSessionId: string;
   initialized: boolean;
+  /** IDs của tài liệu student chọn cho hội thoại hiện tại */
+  selectedDocIds: string[];
 
   init: () => void;
   setActiveSession: (id: string) => void;
+  setSelectedDocIds: (ids: string[]) => void;
   loadUserData: (userId: string) => void;
   clear: () => void;
 
@@ -40,7 +43,7 @@ type Store = {
   deleteSession: (sessionId: string) => void;
   renameSession: (sessionId: string, newTitle: string) => Promise<void>;
   syncConversations: () => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, documentIds?: string[]) => Promise<void>;
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -96,6 +99,7 @@ export const useAppStore = create<Store>((set, get) => ({
   sessionDocs: {},
   activeSessionId: "",
   initialized: false,
+  selectedDocIds: [],
 
   init: () => {
     if (get().initialized) return;
@@ -121,10 +125,12 @@ export const useAppStore = create<Store>((set, get) => ({
   },
 
   setActiveSession: (id) => {
-    set({ activeSessionId: id });
+    set({ activeSessionId: id, selectedDocIds: [] });
     const { userId, sessions, conversations, sessionDocs } = get();
     persistChat(userId, { sessions, conversations, sessionDocs, activeSessionId: id });
   },
+
+  setSelectedDocIds: (ids) => set({ selectedDocIds: ids }),
 
   clear: () =>
     set({
@@ -351,7 +357,7 @@ export const useAppStore = create<Store>((set, get) => ({
     }
   },
 
-  sendMessage: async (content) => {
+  sendMessage: async (content, documentIds) => {
     const text = content.trim();
     if (!text) return;
 
@@ -433,7 +439,7 @@ export const useAppStore = create<Store>((set, get) => ({
 
     if (useApi && chatApi) {
       try {
-        const response = await chatApi.sendMessageApi(sessionId, { message: text });
+        const response = await chatApi.sendMessageApi(sessionId, { message: text, documentIds });
         assistantMsg = {
           id: response.message.id || newMessageId(),
           role: "assistant",
