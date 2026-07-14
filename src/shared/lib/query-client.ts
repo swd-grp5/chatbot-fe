@@ -12,7 +12,10 @@ export const queryClient = new QueryClient({
   },
 });
 
+/** Hủy + xóa cache môn học — tránh refetch bằng token/role mới khi còn observer cũ. */
 export function resetMySubjectsQueries() {
-  void queryClient.removeQueries({ queryKey: studentMySubjectsQueryKey });
-  void queryClient.removeQueries({ queryKey: lecturerMySubjectsQueryKey });
+  void queryClient.cancelQueries({ queryKey: studentMySubjectsQueryKey });
+  void queryClient.cancelQueries({ queryKey: lecturerMySubjectsQueryKey });
+  queryClient.removeQueries({ queryKey: studentMySubjectsQueryKey, exact: true });
+  queryClient.removeQueries({ queryKey: lecturerMySubjectsQueryKey, exact: true });
 }

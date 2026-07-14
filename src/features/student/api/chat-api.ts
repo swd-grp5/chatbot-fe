@@ -1,4 +1,5 @@
 import { apiFetch } from "@/shared/lib/api-client";
+import type { Citation, ChatMessage } from "@/shared/lib/mock-data";
 
 export interface CreateConversationRequest {
   title: string;
@@ -45,11 +46,36 @@ export interface MessageResponse {
   completionTokens?: number;
   totalTokens?: number;
   createdAt: string;
+  /** Có trên message ASSISTANT khi tải lịch sử hoặc gửi tin mới */
+  citations?: CitationResponse[] | null;
 }
 
 /** BE enum: USER | ASSISTANT → UI: user | assistant */
 export function mapMessageRole(role: string | null | undefined): "user" | "assistant" {
   return role?.trim().toUpperCase() === "USER" ? "user" : "assistant";
+}
+
+/** BE `CitationResponse` → UI `Citation`. */
+export function mapCitations(citations?: CitationResponse[] | null): Citation[] {
+  return (citations ?? []).map((c) => ({
+    docId: c.documentId,
+    docName: c.documentTitle,
+    snippet: c.quotedText,
+    highlightText: c.highlightText ?? null,
+    citationIndex: c.citationIndex,
+    page: c.pageStart ?? 1,
+    course: "",
+  }));
+}
+
+/** BE `MessageResponse` → UI `ChatMessage`. */
+export function mapApiMessage(message: MessageResponse): ChatMessage {
+  return {
+    id: message.id,
+    role: mapMessageRole(message.role),
+    content: message.content,
+    citations: mapCitations(message.citations),
+  };
 }
 
 export interface CitationResponse {
@@ -58,7 +84,10 @@ export interface CitationResponse {
   documentId: string;
   documentTitle: string;
   chunkId: string;
+  /** Đoạn trích sidebar */
   quotedText: string;
+  /** Câu/đoạn trong quotedText để FE tô đậm */
+  highlightText?: string | null;
   pageStart?: number;
   pageEnd?: number;
   score: number;

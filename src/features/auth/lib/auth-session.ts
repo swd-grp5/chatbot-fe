@@ -35,14 +35,19 @@ export function getApiSession(): ApiAuthSession | null {
   }
 }
 
-export function setApiSession(session: ApiAuthSessionInput | null) {
+export function setApiSession(
+  session: ApiAuthSessionInput | null,
+  options?: { resetQueries?: boolean },
+) {
   if (typeof window === "undefined") return;
   if (session) {
     localStorage.setItem(API_AUTH_KEY, JSON.stringify(normalizeSession(session)));
   } else {
     localStorage.removeItem(API_AUTH_KEY);
   }
-  resetMySubjectsQueries();
+  if (options?.resetQueries !== false) {
+    resetMySubjectsQueries();
+  }
   window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
 }
 

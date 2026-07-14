@@ -12,13 +12,13 @@ import {
   CreditCard,
   MessageSquare,
   Wallet,
+  ClipboardList,
 } from "lucide-react";
 import { Logo } from "@/shared/components/layout/logo";
 import { cn } from "@/shared/lib/utils";
 import { useAuth } from "@/features/auth/lib/auth-context";
 import { useRole, type AppRole } from "@/features/auth/hooks/use-role";
 import { DEMO_EMAILS, loginDemoAccount } from "@/features/auth/api/auth-api";
-import { setApiSession } from "@/features/auth/lib/auth-session";
 import { routeForAppRole } from "@/features/auth/lib/auth-types";
 import {
   DropdownMenu,
@@ -51,7 +51,7 @@ export function AppShell({
   mainClassName?: string;
 }) {
   const { location } = useRouterState();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, applyApiSession } = useAuth();
   const { role, loading: roleLoading, isAdmin, isLecturer } = useRole();
   const navigate = useNavigate();
 
@@ -115,10 +115,14 @@ export function AppShell({
         { to: "/admin/ai-config", label: "Cấu hình AI", icon: Bot },
       ]
     : isLecturer
-      ? [{ to: "/lecturer/documents", label: "Tài liệu", icon: FileText }]
+      ? [
+          { to: "/lecturer/documents", label: "Tài liệu", icon: FileText },
+          { to: "/lecturer/quizzes", label: "Quiz", icon: ClipboardList },
+        ]
       : [
           { to: "/", label: "Chat", icon: MessageSquare },
           { to: "/documents", label: "Tài liệu", icon: FileText },
+          { to: "/quizzes", label: "Quiz", icon: ClipboardList },
           { to: "/wallet", label: "Ví", icon: Wallet },
           { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
         ];
@@ -133,8 +137,8 @@ export function AppShell({
     try {
       const data = await loginDemoAccount(targetRole);
       if (!data.token) return;
-      setApiSession({ token: data.token, user: data.user });
-      navigate({ to: routeForAppRole(targetRole) });
+      applyApiSession({ token: data.token, user: data.user });
+      navigate({ to: routeForAppRole(targetRole), replace: true });
     } catch {
       /* ignore */
     }

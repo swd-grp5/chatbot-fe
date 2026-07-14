@@ -1,4 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, Children, cloneElement, isValidElement } from "react";
+import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -100,6 +101,7 @@ export function ChatPage() {
   const [, setTick] = useState(0);
   const [rightTab, setRightTab] = useState<"documents" | "citations">("documents");
   const [docsSaving, setDocsSaving] = useState(false);
+  const [focusCitationIndex, setFocusCitationIndex] = useState<number | null>(null);
   const [historyWidth, setHistoryWidth] = useState(loadHistoryWidth);
   const [historyResizing, setHistoryResizing] = useState(false);
   const [rightWidth, setRightWidth] = useState(loadRightWidth);
@@ -196,9 +198,10 @@ export function ChatPage() {
   const showWelcome = messages.length === 0 && !hasEverChatted;
 
   useEffect(() => {
+    if (!isStudentApiMode) return;
     init();
     void syncConversations();
-  }, [init, syncConversations]);
+  }, [isStudentApiMode, init, syncConversations]);
   const activeTitle = sessions.find((s) => s.id === activeSession)?.title ?? "Hội thoại mới";
 
   useEffect(() => {
@@ -211,6 +214,18 @@ export function ChatPage() {
   useEffect(() => {
     const id = window.setInterval(() => setTick((t) => t + 1), 60000);
     return () => window.clearInterval(id);
+  }, []);
+
+  const scrollToCitation = useCallback((citationIndex: number) => {
+    setRightTab("citations");
+    setFocusCitationIndex(citationIndex);
+    // Đợi tab citations mount rồi scroll
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        const el = document.getElementById(`citation-excerpt-${citationIndex}`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+    });
   }, []);
 
   const handleSend = useCallback(
@@ -354,16 +369,27 @@ export function ChatPage() {
             aria-valuemax={HISTORY_WIDTH_MAX}
             title="Kéo để đổi độ rộng"
             className={cn(
-              "absolute inset-y-0 -right-1 z-20 w-2 cursor-col-resize touch-none select-none",
-              "hover:bg-primary/25",
-              historyResizing && "bg-primary/40",
+              "group absolute inset-y-0 -right-1.5 z-20 flex w-3 cursor-col-resize touch-none select-none items-center justify-center",
+              "hover:bg-primary/10",
+              historyResizing && "bg-primary/15",
             )}
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
               startHistoryResize(e.clientX);
             }}
-          />
+          >
+            <span
+              className={cn(
+                "flex h-9 w-3.5 items-center justify-center gap-0.5 rounded-full border border-border bg-card shadow-sm transition-colors",
+                "group-hover:border-primary/50 group-hover:bg-primary/10",
+                historyResizing && "border-primary bg-primary/15",
+              )}
+            >
+              <span className="h-4 w-px rounded-full bg-muted-foreground/50 transition-colors group-hover:bg-primary" />
+              <span className="h-4 w-px rounded-full bg-muted-foreground/50 transition-colors group-hover:bg-primary" />
+            </span>
+          </div>
           <div className="flex items-center justify-between px-4 pt-5 pb-3">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" />
@@ -530,7 +556,7 @@ export function ChatPage() {
                 </div>
               )}
               {messages.map((m) => (
-                <MessageBubble key={m.id} message={m} />
+                <MessageBubble key={m.id} message={m} onCiteClick={scrollToCitation} />
               ))}
               {sending && (
                 <div className="flex justify-start">
@@ -573,16 +599,27 @@ export function ChatPage() {
             aria-valuemax={RIGHT_WIDTH_MAX}
             title="Kéo để đổi độ rộng"
             className={cn(
-              "absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize touch-none select-none",
-              "hover:bg-primary/25",
-              rightResizing && "bg-primary/40",
+              "group absolute inset-y-0 -left-1.5 z-20 flex w-3 cursor-col-resize touch-none select-none items-center justify-center",
+              "hover:bg-primary/10",
+              rightResizing && "bg-primary/15",
             )}
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
               startRightResize(e.clientX);
             }}
-          />
+          >
+            <span
+              className={cn(
+                "flex h-9 w-3.5 items-center justify-center gap-0.5 rounded-full border border-border bg-card shadow-sm transition-colors",
+                "group-hover:border-primary/50 group-hover:bg-primary/10",
+                rightResizing && "border-primary bg-primary/15",
+              )}
+            >
+              <span className="h-4 w-px rounded-full bg-muted-foreground/50 transition-colors group-hover:bg-primary" />
+              <span className="h-4 w-px rounded-full bg-muted-foreground/50 transition-colors group-hover:bg-primary" />
+            </span>
+          </div>
           <Tabs
             value={rightTab}
             onValueChange={(v) => setRightTab(v as "documents" | "citations")}
@@ -745,6 +782,7 @@ export function ChatPage() {
                     courseCode={d.course}
                     courseName={courseLabel(d.course, displayCourses)}
                     citations={d.items}
+                    focusCitationIndex={focusCitationIndex}
                   />
                 ))}
               </div>
@@ -801,7 +839,7 @@ function ChatComposer({
           placeholder={
             needsDocs ? "Gắn tài liệu ở panel bên phải trước khi hỏi..." : "Hỏi về nội dung môn học"
           }
-          className="min-h-[60px] resize-none border-0 bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0"
+          className="min-h-15 resize-none border-0 bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0"
           rows={2}
         />
         <div className="flex items-center justify-between border-t border-border px-3 py-2">
@@ -844,7 +882,80 @@ function ChatComposer({
   );
 }
 
-const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMessage }) {
+/** Chèn nút [n] clickable vào text node của ReactMarkdown */
+function linkifyCitationMarkers(children: ReactNode, onCite: (n: number) => void): ReactNode {
+  return Children.map(children, (child, childIdx) => {
+    if (typeof child === "string") {
+      const parts = child.split(/(\[\d+\])/g);
+      if (parts.length === 1) return child;
+      return parts.map((part, i) => {
+        const m = /^\[(\d+)\]$/.exec(part);
+        if (!m) return <span key={`${childIdx}-${i}`}>{part}</span>;
+        const n = Number(m[1]);
+        return (
+          <button
+            key={`${childIdx}-${i}`}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCite(n);
+            }}
+            className="mx-0.5 inline-flex h-5 min-w-5 cursor-pointer items-center justify-center rounded bg-primary/15 px-1 align-baseline text-[11px] font-semibold text-primary hover:bg-primary/25"
+            title={`Xem trích dẫn [${n}]`}
+          >
+            [{n}]
+          </button>
+        );
+      });
+    }
+    if (isValidElement<{ children?: ReactNode }>(child) && child.props.children != null) {
+      return cloneElement(child, {
+        ...child.props,
+        children: linkifyCitationMarkers(child.props.children, onCite),
+      });
+    }
+    return child;
+  });
+}
+
+function HighlightedQuote({ text, highlight }: { text: string; highlight?: string | null }) {
+  const needle = highlight?.trim();
+  if (!needle) return <>{text}</>;
+  const idx = text.indexOf(needle);
+  if (idx < 0) {
+    // thử match không phân biệt hoa thường
+    const lower = text.toLowerCase();
+    const nIdx = lower.indexOf(needle.toLowerCase());
+    if (nIdx < 0) return <>{text}</>;
+    return (
+      <>
+        {text.slice(0, nIdx)}
+        <strong className="rounded bg-primary/15 font-semibold text-foreground">
+          {text.slice(nIdx, nIdx + needle.length)}
+        </strong>
+        {text.slice(nIdx + needle.length)}
+      </>
+    );
+  }
+  return (
+    <>
+      {text.slice(0, idx)}
+      <strong className="rounded bg-primary/15 font-semibold text-foreground">
+        {text.slice(idx, idx + needle.length)}
+      </strong>
+      {text.slice(idx + needle.length)}
+    </>
+  );
+}
+
+const MessageBubble = memo(function MessageBubble({
+  message,
+  onCiteClick,
+}: {
+  message: ChatMessage;
+  onCiteClick?: (citationIndex: number) => void;
+}) {
   const courses = useAppStore((s) => s.courses);
   const documents = useAppStore((s) => s.documents);
 
@@ -852,6 +963,23 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMe
     c.course || documents.find((d) => d.id === c.docId)?.course || "";
 
   const isUser = String(message.role).toUpperCase() === "USER";
+
+  const mdComponents = useMemo(() => {
+    if (!onCiteClick) return undefined;
+    const wrap =
+      (Tag: "p" | "li" | "td" | "th" | "blockquote") =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ({ children, ...props }: any) => (
+        <Tag {...props}>{linkifyCitationMarkers(children, onCiteClick)}</Tag>
+      );
+    return {
+      p: wrap("p"),
+      li: wrap("li"),
+      td: wrap("td"),
+      th: wrap("th"),
+      blockquote: wrap("blockquote"),
+    };
+  }, [onCiteClick]);
 
   if (isUser) {
     return (
@@ -885,7 +1013,9 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMe
           </div>
           <div className="rounded-2xl rounded-tl-sm border border-border bg-card px-4 py-3">
             <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:rounded prose-code:bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-md prose-pre:border prose-pre:border-border prose-pre:bg-secondary/50 prose-pre:text-foreground prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                {message.content}
+              </ReactMarkdown>
             </div>
 
             {message.citations && message.citations.length > 0 && (
@@ -893,29 +1023,39 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMe
                 {message.citations.map((c, i) => {
                   const code = courseForCitation(c);
                   const name = courseLabel(code, courses);
+                  const citeNo = c.citationIndex ?? i + 1;
                   return (
-                    <span
-                      key={i}
-                      className="inline-flex max-w-full flex-wrap items-center gap-x-1 gap-y-0.5 rounded border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                    <button
+                      key={`${c.docId}-${citeNo}-${i}`}
+                      type="button"
+                      onClick={() => onCiteClick?.(citeNo)}
+                      className="inline-flex max-w-full cursor-pointer flex-wrap items-center gap-x-1 gap-y-0.5 rounded border border-border bg-background px-2 py-1 text-left text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
+                      title={`Xem trích dẫn [${citeNo}]`}
                     >
                       <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-primary/10 text-[10px] font-semibold text-primary">
-                        {i + 1}
+                        {citeNo}
                       </span>
                       <FileText className="h-3 w-3 shrink-0" />
-                      <span className="max-w-[140px] truncate font-medium text-foreground">
+                      <span className="max-w-35 truncate font-medium text-foreground">
                         {c.docName}
                       </span>
-                      <span className="text-border">·</span>
-                      <span className="font-mono text-[10px] font-medium text-primary">{code}</span>
-                      {name !== code && (
+                      {code && (
                         <>
                           <span className="text-border">·</span>
-                          <span className="max-w-[120px] truncate">{name}</span>
+                          <span className="font-mono text-[10px] font-medium text-primary">
+                            {code}
+                          </span>
+                        </>
+                      )}
+                      {name !== code && code && (
+                        <>
+                          <span className="text-border">·</span>
+                          <span className="max-w-30 truncate">{name}</span>
                         </>
                       )}
                       <span className="text-border">·</span>
                       <span>p.{c.page}</span>
-                    </span>
+                    </button>
                   );
                 })}
               </div>
@@ -944,19 +1084,30 @@ function DocSourceCard({
   courseCode,
   courseName,
   citations,
+  focusCitationIndex,
 }: {
   index: number;
   docName: string;
   courseCode: string;
   courseName: string;
   citations: Citation[];
+  focusCitationIndex?: number | null;
 }) {
-  const [open, setOpen] = useState(index === 1);
+  const hasFocus = citations.some(
+    (c, i) => (c.citationIndex ?? i + 1) === focusCitationIndex,
+  );
+  const [open, setOpen] = useState(index === 1 || hasFocus);
+
+  useEffect(() => {
+    if (hasFocus) setOpen(true);
+  }, [hasFocus]);
+
   return (
     <div className="rounded-lg border border-border bg-card">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-start gap-2 p-3 text-left"
+        className="flex w-full cursor-pointer items-start gap-2 p-3 text-left"
       >
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/10 text-[11px] font-semibold text-primary">
           {index}
@@ -982,19 +1133,33 @@ function DocSourceCard({
         )}
       </button>
       {open && (
-        <div className="border-t border-border bg-secondary/30 px-3 py-2.5 space-y-2">
-          {citations.map((c, i) => (
-            <div key={i}>
-              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <span>Đoạn trích</span>
-                <span className="normal-case font-mono text-primary">{c.course || courseCode}</span>
-                <span>· Trang {c.page}</span>
+        <div className="space-y-2 border-t border-border bg-secondary/30 px-3 py-2.5">
+          {citations.map((c, i) => {
+            const citeNo = c.citationIndex ?? i + 1;
+            const focused = focusCitationIndex === citeNo;
+            return (
+              <div
+                key={`${c.docId}-${citeNo}-${i}`}
+                id={`citation-excerpt-${citeNo}`}
+                className={cn(
+                  "rounded-md px-1 py-1 transition-colors",
+                  focused && "bg-primary/10 ring-1 ring-primary/30",
+                )}
+              >
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary/15 px-1 font-mono normal-case text-primary">
+                    [{citeNo}]
+                  </span>
+                  <span>Đoạn trích</span>
+                  <span className="font-mono normal-case text-primary">{c.course || courseCode}</span>
+                  <span>· Trang {c.page}</span>
+                </div>
+                <p className="mt-1 border-l-2 border-primary/40 pl-2 text-xs leading-relaxed text-foreground/80">
+                  <HighlightedQuote text={c.snippet} highlight={c.highlightText} />
+                </p>
               </div>
-              <p className="mt-1 border-l-2 border-primary/40 pl-2 text-xs leading-relaxed text-foreground/80">
-                {c.snippet}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

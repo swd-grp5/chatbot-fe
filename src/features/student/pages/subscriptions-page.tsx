@@ -50,7 +50,7 @@ export function StudentSubscriptionsPage() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.role !== "student") return;
     void load();
   }, [user, load]);
 

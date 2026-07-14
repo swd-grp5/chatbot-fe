@@ -18,7 +18,7 @@ import {
 import { toSessionTimestamp, groupFor } from "@/shared/lib/format-time";
 import { getApiSession } from "@/features/auth/lib/auth-session";
 import { storageKey } from "@/shared/lib/storage-keys";
-import { mapMessageRole } from "@/features/student/api/chat-api";
+import { mapApiMessage, mapCitations, mapMessageRole } from "@/features/student/api/chat-api";
 
 type Store = {
   userId: string | null;
@@ -162,32 +162,21 @@ export const useAppStore = create<Store>((set, get) => ({
           })
           .catch((e) => console.warn("Failed to fetch conversation docs", e));
 
-        if (!conversations[id] || conversations[id].length === 0) {
-          getMessages(id, 0, 100)
-            .then((res) => {
-              if (get().activeSessionId !== loadToken) return;
-              if (res.content.length > 0) {
-                const messages = res.content.map((m) => ({
-                  id: m.id,
-                  role: mapMessageRole(m.role),
-                  content: m.content,
-                  citations: [],
-                }));
-                const currentConversations = get().conversations;
-                if (!currentConversations[id] || currentConversations[id].length === 0) {
-                  const newConversations = { ...currentConversations, [id]: messages };
-                  set({ conversations: newConversations });
-                  persistChat(get().userId, {
-                    sessions: get().sessions,
-                    conversations: newConversations,
-                    sessionDocs: get().sessionDocs,
-                    activeSessionId: get().activeSessionId,
-                  });
-                }
-              }
-            })
-            .catch((e) => console.warn("Failed to fetch messages for session", id, e));
-        }
+        getMessages(id, 0, 100)
+          .then((res) => {
+            if (get().activeSessionId !== loadToken) return;
+            if (res.content.length === 0) return;
+            const messages = res.content.map(mapApiMessage);
+            const newConversations = { ...get().conversations, [id]: messages };
+            set({ conversations: newConversations });
+            persistChat(get().userId, {
+              sessions: get().sessions,
+              conversations: newConversations,
+              sessionDocs: get().sessionDocs,
+              activeSessionId: get().activeSessionId,
+            });
+          })
+          .catch((e) => console.warn("Failed to fetch messages for session", id, e));
       });
     }
   },
@@ -487,12 +476,7 @@ export const useAppStore = create<Store>((set, get) => ({
           getMessages(activeSessionId, 0, 100)
             .then((res) => {
               if (res.content.length > 0) {
-                const messages = res.content.map((m) => ({
-                  id: m.id,
-                  role: mapMessageRole(m.role),
-                  content: m.content,
-                  citations: [],
-                }));
+                const messages = res.content.map(mapApiMessage);
                 const currentConversations = get().conversations;
                 if (
                   !currentConversations[activeSessionId] ||
@@ -652,13 +636,7 @@ export const useAppStore = create<Store>((set, get) => ({
           id: assistant?.id || newMessageId(),
           role: mapMessageRole(assistant?.role),
           content: assistant?.content ?? "Không nhận được câu trả lời từ máy chủ.",
-          citations: response.citations?.map((c) => ({
-            docId: c.documentId,
-            docName: c.documentTitle,
-            snippet: c.quotedText,
-            page: c.pageStart ?? 1,
-            course: "",
-          })),
+          citations: mapCitations(assistant?.citations ?? response.citations),
         };
       } catch (e) {
         console.error("Failed to send message", e);

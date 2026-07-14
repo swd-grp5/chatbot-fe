@@ -27,7 +27,7 @@ export function ChatWelcome({ courses, documents, subscription }: ChatWelcomePro
 
   return (
     <div className="space-y-4 text-left">
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-card p-6">
+      <Card className="border-primary/20 bg-linear-to-br from-primary/5 to-card p-6">
         <div className="flex gap-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Bot className="h-6 w-6" />

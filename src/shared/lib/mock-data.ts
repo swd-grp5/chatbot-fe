@@ -118,6 +118,10 @@ export interface Citation {
   course: string;
   page: number;
   snippet: string;
+  /** Số [n] trong câu trả lời LLM — khớp BE citationIndex */
+  citationIndex?: number;
+  /** Đoạn cần tô đậm trong snippet (quotedText) */
+  highlightText?: string | null;
 }
 
 export interface ChatMessage {

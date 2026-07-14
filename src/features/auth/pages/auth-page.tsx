@@ -19,7 +19,6 @@ import {
   resendVerificationEmail,
 } from "@/features/auth/api/auth-api";
 import { ApiError } from "@/shared/lib/api-client";
-import { setApiSession } from "@/features/auth/lib/auth-session";
 import { apiRoleToAppRole, routeForAppRole } from "@/features/auth/lib/auth-types";
 import { isGoogleAuthConfigured } from "@/features/auth/components/google-auth-provider";
 import { GoogleSignInButton } from "@/features/auth/components/google-sign-in-button";
@@ -34,7 +33,7 @@ const routeForMockRole = (role: MockUser["role"]) => routeForAppRole(role);
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, applyApiSession } = useAuth();
   const [tab, setTab] = useState<"signin" | "signup">("signin");
   const [signInForm, setSignInForm] = useState({ email: "", password: "" });
   const [signUpForm, setSignUpForm] = useState({
@@ -67,7 +66,7 @@ export function AuthPage() {
         toast.error(data.message ?? "Đăng nhập thất bại");
         return;
       }
-      setApiSession({ token: data.token, user: data.user });
+      applyApiSession({ token: data.token, user: data.user });
       toast.success("Đăng nhập thành công");
       navigate({ to: routeForAppRole(apiRoleToAppRole(data.user.role)) });
     } catch (err: unknown) {
@@ -97,7 +96,7 @@ export function AuthPage() {
         toast.error(data.message ?? "Đăng nhập thất bại");
         return;
       }
-      setApiSession({ token: data.token, user: data.user });
+      applyApiSession({ token: data.token, user: data.user });
       toast.success("Đăng nhập Google thành công");
       navigate({ to: routeForAppRole(apiRoleToAppRole(data.user.role)) });
     } catch (err: unknown) {
