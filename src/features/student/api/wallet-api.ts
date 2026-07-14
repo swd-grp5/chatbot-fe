@@ -36,11 +36,11 @@ export const WALLET_TRANSACTION_OPTIONAL_COLUMNS: {
   key: WalletTransactionColumnKey;
   label: string;
 }[] = [
-    { key: "transactionType", label: "Loại" },
-    { key: "referenceId", label: "Mã GD" },
-    { key: "description", label: "Mô tả" },
-    { key: "status", label: "Trạng thái" },
-  ];
+  { key: "transactionType", label: "Loại" },
+  { key: "referenceId", label: "Mã GD" },
+  { key: "description", label: "Mô tả" },
+  { key: "status", label: "Trạng thái" },
+];
 
 export const WALLET_TRANSACTION_TYPE_OPTIONS: { value: WalletTransactionType; label: string }[] = [
   { value: WALLET_TRANSACTION_TYPE.TOP_UP, label: "Nạp tiền" },
@@ -48,7 +48,10 @@ export const WALLET_TRANSACTION_TYPE_OPTIONS: { value: WalletTransactionType; la
   { value: WALLET_TRANSACTION_TYPE.REFUND, label: "Hoàn tiền" },
 ];
 
-export const WALLET_TRANSACTION_STATUS_OPTIONS: { value: WalletTransactionStatus; label: string }[] = [
+export const WALLET_TRANSACTION_STATUS_OPTIONS: {
+  value: WalletTransactionStatus;
+  label: string;
+}[] = [
   { value: WALLET_TRANSACTION_STATUS.PENDING, label: "Đang xử lý" },
   { value: WALLET_TRANSACTION_STATUS.SUCCESS, label: "Thành công" },
   { value: WALLET_TRANSACTION_STATUS.FAILED, label: "Thất bại" },
@@ -151,9 +154,7 @@ export function toWalletCreatedTo(date: string) {
   return date ? `${date}T23:59:59` : undefined;
 }
 
-function isWalletTransactionPage(
-  data: unknown,
-): data is PageResponse<WalletTransactionResponse> {
+function isWalletTransactionPage(data: unknown): data is PageResponse<WalletTransactionResponse> {
   return (
     typeof data === "object" &&
     data != null &&

@@ -68,9 +68,7 @@ function SubjectPicker({
   const toggle = (id: string) => {
     if (disabled) return;
     onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((item) => item !== id)
-        : [...selectedIds, id],
+      selectedIds.includes(id) ? selectedIds.filter((item) => item !== id) : [...selectedIds, id],
     );
   };
 
@@ -259,13 +257,13 @@ export function LecturerModal({
   };
 
   const title =
-    mode === "view" ? "Chi tiết giảng viên" : mode === "edit" ? "Sửa giảng viên" : "Thêm giảng viên";
+    mode === "view"
+      ? "Chi tiết giảng viên"
+      : mode === "edit"
+        ? "Sửa giảng viên"
+        : "Thêm giảng viên";
 
-  const status = detail
-    ? detail.active
-      ? activeStyles.active
-      : activeStyles.inactive
-    : null;
+  const status = detail ? (detail.active ? activeStyles.active : activeStyles.inactive) : null;
 
   return (
     <Modal open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>

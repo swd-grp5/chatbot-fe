@@ -2,10 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  Plus, Search, MessageSquare, Send,
-  Copy, RefreshCw, BookOpen, ChevronDown, ChevronRight, FileText,
-  MoreHorizontal, Pencil, Trash2, Bot, User, FileX, Loader2,
-  BookMarked, X, Check, ChevronsUpDown,
+  Plus,
+  Search,
+  MessageSquare,
+  Send,
+  Copy,
+  RefreshCw,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Bot,
+  User,
+  FileX,
+  Loader2,
+  BookMarked,
+  X,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { ChatWelcome } from "@/shared/components/chat/chat-welcome";
@@ -15,12 +32,23 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Badge } from "@/shared/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/shared/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/shared/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 import { formatRelativeTime } from "@/shared/lib/format-time";
-import { type Citation, type ChatMessage, courseLabel, sessionGroupOrder } from "@/shared/lib/mock-data";
+import {
+  type Citation,
+  type ChatMessage,
+  courseLabel,
+  sessionGroupOrder,
+} from "@/shared/lib/mock-data";
 import { fetchDocuments, mapDocumentResponse } from "@/features/lecturer/api/document-api";
 import { useStudentMySubjects } from "@/features/student/hooks/use-my-subjects";
 import { useAppStore } from "@/features/student/lib/store";
@@ -149,8 +177,7 @@ export function ChatPage() {
     const map = new Map<string, { docName: string; course: string; items: Citation[] }>();
     messages.forEach((m) =>
       (m.citations ?? []).forEach((c) => {
-        const course =
-          c.course || displayDocuments.find((d) => d.id === c.docId)?.course || "";
+        const course = c.course || displayDocuments.find((d) => d.id === c.docId)?.course || "";
         const entry = map.get(c.docId) ?? { docName: c.docName, course, items: [] };
         entry.items.push({ ...c, course: c.course || course });
         map.set(c.docId, entry);
@@ -201,7 +228,13 @@ export function ChatPage() {
               <MessageSquare className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold">Lịch sử chat</h2>
             </div>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => createSession("Hội thoại mới")} title="Tạo hội thoại mới">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => createSession("Hội thoại mới")}
+              title="Tạo hội thoại mới"
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -229,14 +262,18 @@ export function ChatPage() {
               if (!items.length) return null;
               return (
                 <div key={group} className="mb-3">
-                  <div className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{group}</div>
+                  <div className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group}
+                  </div>
                   <div className="space-y-0.5">
                     {items.map((s) => (
                       <div
                         key={s.id}
                         className={cn(
                           "group flex w-full items-center gap-1 rounded-md px-1 py-1 transition-colors",
-                          activeSession === s.id ? "bg-accent text-accent-foreground" : "hover:bg-secondary/60",
+                          activeSession === s.id
+                            ? "bg-accent text-accent-foreground"
+                            : "hover:bg-secondary/60",
                         )}
                       >
                         <button
@@ -298,7 +335,8 @@ export function ChatPage() {
                                 setRenameValue(s.title);
                               }}
                             >
-                              <Pencil className="mr-2 h-3.5 w-3.5" />Đổi tên
+                              <Pencil className="mr-2 h-3.5 w-3.5" />
+                              Đổi tên
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -309,7 +347,8 @@ export function ChatPage() {
                                 toast.success("Đã xóa hội thoại");
                               }}
                             >
-                              <Trash2 className="mr-2 h-3.5 w-3.5" />Xoá
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                              Xoá
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -346,7 +385,9 @@ export function ChatPage() {
                   </p>
                 </div>
               )}
-              {messages.map((m) => <MessageBubble key={m.id} message={m} />)}
+              {messages.map((m) => (
+                <MessageBubble key={m.id} message={m} />
+              ))}
               {sending && (
                 <div className="flex justify-start">
                   <div className="flex max-w-[85%] items-start gap-2.5">
@@ -376,7 +417,8 @@ export function ChatPage() {
                         size="sm"
                         className={cn(
                           "h-8 gap-1.5 text-xs",
-                          selectedDocIds.length === 0 && "border-amber-500/60 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50",
+                          selectedDocIds.length === 0 &&
+                            "border-amber-500/60 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50",
                         )}
                       >
                         <BookMarked className="h-3.5 w-3.5" />
@@ -415,7 +457,7 @@ export function ChatPage() {
                       <div className="max-h-60 overflow-y-auto px-2 pb-2">
                         {filteredPickerDocs.length === 0 ? (
                           <div className="py-6 text-center text-xs text-muted-foreground">
-                            {displayDocuments.filter(d => d.status === "indexed").length === 0
+                            {displayDocuments.filter((d) => d.status === "indexed").length === 0
                               ? "Chưa có tài liệu nào được index."
                               : "Không tìm thấy tài liệu phù hợp."}
                           </div>
@@ -434,18 +476,27 @@ export function ChatPage() {
                                     : "hover:bg-secondary/60 text-foreground",
                                 )}
                               >
-                                <div className={cn(
-                                  "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                                  selected
-                                    ? "bg-primary border-primary text-primary-foreground"
-                                    : "border-border bg-background",
-                                )}>
+                                <div
+                                  className={cn(
+                                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                                    selected
+                                      ? "bg-primary border-primary text-primary-foreground"
+                                      : "border-border bg-background",
+                                  )}
+                                >
                                   {selected && <Check className="h-2.5 w-2.5" />}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="truncate text-xs font-medium">{doc.title ?? doc.name}</div>
+                                  <div className="truncate text-xs font-medium">
+                                    {doc.title ?? doc.name}
+                                  </div>
                                   <div className="flex items-center gap-1 mt-0.5">
-                                    <Badge variant="outline" className="h-4 px-1 font-mono text-[9px] font-semibold">{doc.course}</Badge>
+                                    <Badge
+                                      variant="outline"
+                                      className="h-4 px-1 font-mono text-[9px] font-semibold"
+                                    >
+                                      {doc.course}
+                                    </Badge>
                                   </div>
                                 </div>
                               </button>
@@ -494,43 +545,66 @@ export function ChatPage() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={sending}
-                  placeholder={isStudentApiMode && selectedDocIds.length === 0 ? "Vui lòng chọn tài liệu trước khi hỏi..." : "Hỏi về nội dung môn học"}
+                  placeholder={
+                    isStudentApiMode && selectedDocIds.length === 0
+                      ? "Vui lòng chọn tài liệu trước khi hỏi..."
+                      : "Hỏi về nội dung môn học"
+                  }
                   className="min-h-[60px] resize-none border-0 bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0"
                   rows={2}
                 />
                 <div className="flex items-center justify-between border-t border-border px-3 py-2">
-                  <span className="px-1 text-[11px] text-muted-foreground">{input.length} ký tự</span>
+                  <span className="px-1 text-[11px] text-muted-foreground">
+                    {input.length} ký tự
+                  </span>
                   <Button
                     size="sm"
                     className="h-7 gap-1.5"
-                    disabled={!input.trim() || sending || (isStudentApiMode && selectedDocIds.length === 0)}
+                    disabled={
+                      !input.trim() || sending || (isStudentApiMode && selectedDocIds.length === 0)
+                    }
                     onClick={() => void handleSend()}
                   >
-                    {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    {sending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5" />
+                    )}
                     Gửi
                   </Button>
                 </div>
               </div>
               <p className="mt-1 text-center text-[11px] text-muted-foreground">
-                {isStudentApiMode && selectedDocIds.length === 0
-                  ? <span className="text-amber-500 dark:text-amber-400">⚠ Chọn ít nhất 1 tài liệu để bắt đầu hỏi.</span>
-                  : "Câu trả lời được sinh từ tài liệu môn học. Luôn đối chiếu với giảng viên khi cần thiết."}
+                {isStudentApiMode && selectedDocIds.length === 0 ? (
+                  <span className="text-amber-500 dark:text-amber-400">
+                    ⚠ Chọn ít nhất 1 tài liệu để bắt đầu hỏi.
+                  </span>
+                ) : (
+                  "Câu trả lời được sinh từ tài liệu môn học. Luôn đối chiếu với giảng viên khi cần thiết."
+                )}
               </p>
             </div>
           </div>
         </section>
 
         {/* RIGHT: Nguồn trích dẫn */}
-        <aside key={activeSession} className="flex min-h-0 flex-col overflow-hidden border-l border-border bg-sidebar">
+        <aside
+          key={activeSession}
+          className="flex min-h-0 flex-col overflow-hidden border-l border-border bg-sidebar"
+        >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary" />
               <div>
                 <h2 className="text-sm font-semibold">Nguồn trích dẫn</h2>
-                <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{activeTitle}</p>
+                <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">
+                  {activeTitle}
+                </p>
               </div>
             </div>
-            <Badge variant="outline" className="h-5 text-[10px]">{citationsByDoc.length} tài liệu</Badge>
+            <Badge variant="outline" className="h-5 text-[10px]">
+              {citationsByDoc.length} tài liệu
+            </Badge>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -544,8 +618,8 @@ export function ChatPage() {
                         Sẵn sàng tra cứu
                       </div>
                       <p>
-                        Sau câu hỏi đầu tiên, các đoạn trích từ tài liệu (kèm mã môn) sẽ hiện
-                        tại đây.
+                        Sau câu hỏi đầu tiên, các đoạn trích từ tài liệu (kèm mã môn) sẽ hiện tại
+                        đây.
                       </p>
                       {userPlan && (
                         <p className="text-[11px]">
@@ -619,7 +693,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         <div className="min-w-0 flex-1 pt-0.5">
           <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span>EduBuddy</span>
-            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-normal">LLM</Badge>
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-normal">
+              LLM
+            </Badge>
           </div>
           <div className="rounded-2xl rounded-tl-sm border border-border bg-card px-4 py-3">
             <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:rounded prose-code:bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-md prose-pre:border prose-pre:border-border prose-pre:bg-secondary/50 prose-pre:text-foreground prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
@@ -661,8 +737,14 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           </div>
 
           <div className="mt-2 flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground"><Copy className="h-3.5 w-3.5" />Sao chép</Button>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground"><RefreshCw className="h-3.5 w-3.5" />Tạo lại</Button>
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground">
+              <Copy className="h-3.5 w-3.5" />
+              Sao chép
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Tạo lại
+            </Button>
           </div>
         </div>
       </div>
@@ -686,8 +768,13 @@ function DocSourceCard({
   const [open, setOpen] = useState(index === 1);
   return (
     <div className="rounded-lg border border-border bg-card">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-start gap-2 p-3 text-left">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/10 text-[11px] font-semibold text-primary">{index}</span>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-start gap-2 p-3 text-left"
+      >
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/10 text-[11px] font-semibold text-primary">
+          {index}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
@@ -702,7 +789,11 @@ function DocSourceCard({
             <span>{citations.length} trích dẫn</span>
           </div>
         </div>
-        {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
       </button>
       {open && (
         <div className="border-t border-border bg-secondary/30 px-3 py-2.5 space-y-2">

@@ -3,8 +3,18 @@ import type { AppRole, AuthApiResponse } from "@/features/auth/lib/auth-types";
 
 export const DEMO_ACCOUNTS = [
   { label: "Admin demo", email: "admin@gmail.com", password: "123456", role: "admin" as const },
-  { label: "Lecturer demo", email: "lecturer@gmail.com", password: "123456", role: "lecturer" as const },
-  { label: "Student demo", email: "student@gmail.com", password: "123456", role: "student" as const },
+  {
+    label: "Lecturer demo",
+    email: "lecturer@gmail.com",
+    password: "123456",
+    role: "lecturer" as const,
+  },
+  {
+    label: "Student demo",
+    email: "student@gmail.com",
+    password: "123456",
+    role: "student" as const,
+  },
 ];
 
 export const DEMO_ACCOUNT_BY_ROLE: Record<AppRole, { email: string; password: string }> = {

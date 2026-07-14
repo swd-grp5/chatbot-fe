@@ -94,10 +94,7 @@ export function DocumentsSubjectSelect({
       >
         {subjects.map((subject) => (
           <SelectItem key={subject.id} value={subject.code} className="text-xs">
-            {formatSubjectSelectLabel(
-              subject,
-              resolveDocumentCount(subject, documentCountsByCode),
-            )}
+            {formatSubjectSelectLabel(subject, resolveDocumentCount(subject, documentCountsByCode))}
           </SelectItem>
         ))}
       </SelectContent>

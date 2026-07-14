@@ -130,7 +130,8 @@ export function WalletCheckoutPage() {
                     success ? "text-success" : "text-destructive",
                   )}
                 >
-                  {result.message ?? (success ? "Giao dịch thành công" : "Giao dịch không thành công")}
+                  {result.message ??
+                    (success ? "Giao dịch thành công" : "Giao dịch không thành công")}
                 </p>
                 {result.amount != null && (
                   <p className="mt-2 text-2xl font-bold tabular-nums">

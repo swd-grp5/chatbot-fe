@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  Columns2,
-  Eye,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Columns2, Eye, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { SubjectModal, type SubjectModalMode } from "@/features/admin/components/subject-modal";
-import {
-  entityTableWidths,
-  useAdminTable,
-} from "@/features/admin/hooks/use-admin-table";
+import { entityTableWidths, useAdminTable } from "@/features/admin/hooks/use-admin-table";
 import {
   ACTIVE_FILTER_OPTIONS,
   FilterTableHead,
@@ -51,13 +40,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/shared/components/ui/modal";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import {
   Tooltip,
@@ -107,8 +90,7 @@ export function AdminSubjectsPage() {
     try {
       const res = await fetchSubjects({
         keyword: searchKeyword,
-        active:
-          activeFilter === "all" ? undefined : activeFilter === "true",
+        active: activeFilter === "all" ? undefined : activeFilter === "true",
         ...(sortBy && sortDir ? { sortBy, sortDir } : {}),
         page,
         size: DEFAULT_SUBJECT_PAGE_SIZE,
@@ -301,7 +283,10 @@ export function AdminSubjectsPage() {
                     {...table.resize("name")}
                   />
                   {table.isVisible("description") && (
-                    <ResizableTableHead className={TABLE_HEAD_LABEL} {...table.resize("description")}>
+                    <ResizableTableHead
+                      className={TABLE_HEAD_LABEL}
+                      {...table.resize("description")}
+                    >
                       Mô tả
                     </ResizableTableHead>
                   )}
@@ -344,17 +329,25 @@ export function AdminSubjectsPage() {
                   </ResizableTableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}>
+              <TableBody
+                className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}
+              >
                 {loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={table.tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       Đang tải môn học...
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={table.tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       Chưa có môn học — bấm Thêm môn học để tạo.
                     </TableCell>
                   </TableRow>
@@ -369,7 +362,10 @@ export function AdminSubjectsPage() {
                       >
                         {rowNumber}
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium" style={table.cell("code")}>
+                      <TableCell
+                        className="font-mono text-sm font-medium"
+                        style={table.cell("code")}
+                      >
                         {row.code}
                       </TableCell>
                       <TableCell className="text-sm font-medium" style={table.cell("name")}>
@@ -383,7 +379,10 @@ export function AdminSubjectsPage() {
                         </Tooltip>
                       </TableCell>
                       {table.isVisible("description") && (
-                        <TableCell className="text-sm text-muted-foreground" style={table.cell("description")}>
+                        <TableCell
+                          className="text-sm text-muted-foreground"
+                          style={table.cell("description")}
+                        >
                           {row.description?.trim() ? (
                             <Tooltip>
                               <TooltipTrigger asChild>

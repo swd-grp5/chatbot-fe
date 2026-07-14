@@ -11,10 +11,7 @@ type ToastProps = {
   duration?: number;
 };
 
-const typeConfig: Record<
-  ToastType,
-  { icon: string; iconClass: string; progressClass: string }
-> = {
+const typeConfig: Record<ToastType, { icon: string; iconClass: string; progressClass: string }> = {
   success: {
     icon: "✓",
     iconClass: "bg-green-500",

@@ -8,11 +8,11 @@ Chạy tại **thư mục gốc** `chatbox-fe` (có `docker-compose.yml`).
 
 ## Biến môi trường
 
-| Biến | Bắt buộc | Mô tả |
-|------|----------|--------|
-| `VITE_API_BASE_URL` | Có | URL API backend (**không** ghi vào Dockerfile / git) |
-| `VITE_GOOGLE_CLIENT_ID` | Có (nếu dùng Google login) | Client ID OAuth — cùng giá trị `GOOGLE_CLIENT_ID` trên BE |
-| `FE_PORT` | Không (mặc định `5173`, giống `npm run dev`) | Cổng host map vào nginx trong container |
+| Biến                    | Bắt buộc                                     | Mô tả                                                     |
+| ----------------------- | -------------------------------------------- | --------------------------------------------------------- |
+| `VITE_API_BASE_URL`     | Có                                           | URL API backend (**không** ghi vào Dockerfile / git)      |
+| `VITE_GOOGLE_CLIENT_ID` | Có (nếu dùng Google login)                   | Client ID OAuth — cùng giá trị `GOOGLE_CLIENT_ID` trên BE |
+| `FE_PORT`               | Không (mặc định `5173`, giống `npm run dev`) | Cổng host map vào nginx trong container                   |
 
 > `VITE_*` được **nhúng lúc build image**. Đổi URL API hoặc Google ID phải **build lại**: `docker compose build --no-cache fe`.
 

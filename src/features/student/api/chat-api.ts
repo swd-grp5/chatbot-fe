@@ -94,5 +94,7 @@ export async function sendMessageApi(conversationId: string, req: SendMessageReq
 }
 
 export async function getMessages(conversationId: string, page = 0, size = 50) {
-  return apiFetch<Page<MessageResponse>>(`/chat/conversations/${conversationId}/messages?page=${page}&size=${size}`);
+  return apiFetch<Page<MessageResponse>>(
+    `/chat/conversations/${conversationId}/messages?page=${page}&size=${size}`,
+  );
 }

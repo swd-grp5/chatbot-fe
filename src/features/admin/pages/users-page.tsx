@@ -4,7 +4,14 @@ import { AppShell } from "@/shared/components/layout/app-shell";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card } from "@/shared/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/components/ui/table";
 import { loadUsers, updateUser, type MockUser } from "@/shared/lib/mock-storage";
 import { toast } from "@/shared/lib/toast";
 
@@ -14,7 +21,9 @@ export function AdminUsersPage() {
 
   const load = () => setRows(loadUsers());
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const toggleBlock = (row: MockUser) => {
     setBusyId(row.id);
@@ -29,7 +38,9 @@ export function AdminUsersPage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Quản lý người dùng</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Khóa hoặc mở khóa truy cập của sinh viên.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Khóa hoặc mở khóa truy cập của sinh viên.
+          </p>
         </div>
 
         <Card className="overflow-hidden p-0">
@@ -54,18 +65,30 @@ export function AdminUsersPage() {
                     <TableCell className="text-sm font-medium">{r.email}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="gap-1.5 font-normal">
-                        {r.role === "admin" ? <ShieldCheck className="h-3 w-3" /> : <GraduationCap className="h-3 w-3" />}
+                        {r.role === "admin" ? (
+                          <ShieldCheck className="h-3 w-3" />
+                        ) : (
+                          <GraduationCap className="h-3 w-3" />
+                        )}
                         {r.role === "admin" ? "Admin" : "Student"}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       {r.isBlocked ? (
-                        <Badge variant="outline" className="gap-1.5 border-destructive/30 bg-destructive/10 text-destructive">
-                          <Lock className="h-3 w-3" />Đã khóa
+                        <Badge
+                          variant="outline"
+                          className="gap-1.5 border-destructive/30 bg-destructive/10 text-destructive"
+                        >
+                          <Lock className="h-3 w-3" />
+                          Đã khóa
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="gap-1.5 border-success/30 bg-success/10 text-success">
-                          <Unlock className="h-3 w-3" />Hoạt động
+                        <Badge
+                          variant="outline"
+                          className="gap-1.5 border-success/30 bg-success/10 text-success"
+                        >
+                          <Unlock className="h-3 w-3" />
+                          Hoạt động
                         </Badge>
                       )}
                     </TableCell>
@@ -77,9 +100,15 @@ export function AdminUsersPage() {
                         onClick={() => toggleBlock(r)}
                       >
                         {r.isBlocked ? (
-                          <><Unlock className="mr-1.5 h-3.5 w-3.5" />Mở khóa</>
+                          <>
+                            <Unlock className="mr-1.5 h-3.5 w-3.5" />
+                            Mở khóa
+                          </>
                         ) : (
-                          <><Lock className="mr-1.5 h-3.5 w-3.5" />Khóa</>
+                          <>
+                            <Lock className="mr-1.5 h-3.5 w-3.5" />
+                            Khóa
+                          </>
                         )}
                       </Button>
                     </TableCell>

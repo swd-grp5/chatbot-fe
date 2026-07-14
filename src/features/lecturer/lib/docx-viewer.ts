@@ -43,8 +43,7 @@ export async function renderDocxPreview(
   compact = false,
 ) {
   const blob = toDocxBlob(data);
-  const buffer =
-    data instanceof ArrayBuffer ? data : await data.arrayBuffer().catch(() => null);
+  const buffer = data instanceof ArrayBuffer ? data : await data.arrayBuffer().catch(() => null);
 
   if (buffer && !isZipBytes(buffer)) {
     throw new Error("File is not a valid DOCX archive");

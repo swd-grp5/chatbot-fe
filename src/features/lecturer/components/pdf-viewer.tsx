@@ -67,8 +67,7 @@ export function PdfViewer({
   const [pageWidth, setPageWidth] = useState(DEFAULT_PAGE_WIDTH);
 
   const estimatePageSize = useMemo(
-    () => (index: number) =>
-      (pageHeights[index] ?? DEFAULT_PAGE_HEIGHT) * scale + PAGE_GAP,
+    () => (index: number) => (pageHeights[index] ?? DEFAULT_PAGE_HEIGHT) * scale + PAGE_GAP,
     [pageHeights, scale],
   );
 
@@ -200,7 +199,10 @@ export function PdfViewer({
   const defaultPageHeight = pageHeights[0] ?? DEFAULT_PAGE_HEIGHT;
 
   return (
-    <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-16">
+    <div
+      ref={scrollRef}
+      className="h-full min-h-0 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-16"
+    >
       <Document
         file={file}
         loading={
@@ -209,19 +211,14 @@ export function PdfViewer({
             Đang render PDF...
           </div>
         }
-        error={
-          <p className="py-12 text-sm text-destructive">Không hiển thị được PDF.</p>
-        }
+        error={<p className="py-12 text-sm text-destructive">Không hiển thị được PDF.</p>}
         onLoadSuccess={handleLoadSuccess}
         onLoadError={(err) => {
           console.error("PDF viewer load failed:", err);
         }}
       >
         {numPages > 0 && (
-          <div
-            className="relative mx-auto w-full"
-            style={{ height: virtualizer.getTotalSize() }}
-          >
+          <div className="relative mx-auto w-full" style={{ height: virtualizer.getTotalSize() }}>
             {virtualItems.map((virtualItem) => {
               const pageNumber = virtualItem.index + 1;
               const rowHeight = pageHeights[virtualItem.index] ?? defaultPageHeight;
@@ -259,7 +256,6 @@ export function PdfViewer({
           </div>
         )}
       </Document>
-
     </div>
   );
 }

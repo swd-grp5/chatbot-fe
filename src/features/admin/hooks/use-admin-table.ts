@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  loadColumnVisibility,
-  useResizableColumns,
-} from "@/shared/components/ui/table-head";
+import { loadColumnVisibility, useResizableColumns } from "@/shared/components/ui/table-head";
 
 export const ADMIN_COLUMN_WIDTHS = {
   stt: 48,
@@ -57,10 +54,7 @@ export function userTableWidths() {
 
 type OptionalColumnDef<T extends string> = { key: T; label: string };
 
-export function useAdminTable<
-  const TOptional extends string,
-  const TWidth extends string,
->({
+export function useAdminTable<const TOptional extends string, const TWidth extends string>({
   storageKey,
   optionalColumns,
   widthDefaults,
@@ -82,10 +76,7 @@ export function useAdminTable<
     loadColumnVisibility(visibilityStorageKey, optionalKeys),
   );
 
-  const { widths, startResize, columnStyle } = useResizableColumns(
-    widthStorageKey,
-    widthDefaults,
-  );
+  const { widths, startResize, columnStyle } = useResizableColumns(widthStorageKey, widthDefaults);
 
   useEffect(() => {
     localStorage.setItem(visibilityStorageKey, JSON.stringify(columnVisibility));

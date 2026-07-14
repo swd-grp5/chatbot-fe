@@ -28,11 +28,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/shared/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 
 export type SortDirection = "asc" | "desc";
@@ -143,7 +139,10 @@ export function loadColumnVisibility<T extends string>(
     const raw = localStorage.getItem(storageKey);
     if (!raw) return defaults;
     const parsed = JSON.parse(raw) as Partial<Record<T, boolean>>;
-    return Object.fromEntries(keys.map((key) => [key, parsed[key] !== false])) as Record<T, boolean>;
+    return Object.fromEntries(keys.map((key) => [key, parsed[key] !== false])) as Record<
+      T,
+      boolean
+    >;
   } catch {
     return defaults;
   }
@@ -266,15 +265,12 @@ export function ResizableTableHead({
       {...props}
     >
       {children}
-      {resizable && (
-        <ColumnResizeHandle resizeKey={resizeKey} onResizeStart={onResizeStart} />
-      )}
+      {resizable && <ColumnResizeHandle resizeKey={resizeKey} onResizeStart={onResizeStart} />}
     </TableHead>
   );
 }
 
-export const TABLE_HEAD_LABEL =
-  "whitespace-nowrap text-sm font-medium text-muted-foreground";
+export const TABLE_HEAD_LABEL = "whitespace-nowrap text-sm font-medium text-muted-foreground";
 
 export const FILTER_HEAD_BASE =
   "flex min-w-0 items-center gap-1 rounded-md border border-border px-2.5 py-1.5 transition-colors";
@@ -391,9 +387,7 @@ export function SortableTableHead<T extends string>({
         />
         <span className="truncate">{label}</span>
       </div>
-      {resizable && (
-        <ColumnResizeHandle resizeKey={resizeKey} onResizeStart={onResizeStart} />
-      )}
+      {resizable && <ColumnResizeHandle resizeKey={resizeKey} onResizeStart={onResizeStart} />}
     </TableHead>
   );
 }
@@ -433,12 +427,7 @@ export function FilterTableHead<T extends string = string>({
 
   return (
     <TableHead className={filterHeadCellClass(className, width)} style={columnWidthStyle(width)}>
-      <div
-        className={cn(
-          filterHeadBoxClass({ className, isFiltered, width }),
-          "gap-0 p-0",
-        )}
-      >
+      <div className={cn(filterHeadBoxClass({ className, isFiltered, width }), "gap-0 p-0")}>
         {field && onSort && (
           <SortArrowButton
             field={field}
@@ -447,37 +436,30 @@ export function FilterTableHead<T extends string = string>({
             onSort={onSort}
           />
         )}
-        <Select
-          value={filterValue}
-          onValueChange={onFilterChange}
-          disabled={disabled}
-          className="flex min-w-0 flex-1"
-        >
-          <SelectTrigger
-            title={selectedLabel}
-            className={cn(
-              "h-auto min-h-0 w-full min-w-0 flex-1 cursor-pointer justify-center gap-1 overflow-hidden border-0 bg-transparent px-2.5 py-1.5 text-center text-sm shadow-none focus:ring-0 [&>span]:block [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>svg]:hidden",
-              field && onSort && "pl-1",
-              isFiltered
-                ? "font-medium text-foreground"
-                : "font-medium text-muted-foreground",
-            )}
-          >
-            <SelectValue placeholder={label} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{label}</SelectItem>
-            {filterOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex min-w-0 flex-1">
+          <Select value={filterValue} onValueChange={onFilterChange} disabled={disabled}>
+            <SelectTrigger
+              title={selectedLabel}
+              className={cn(
+                "h-auto min-h-0 w-full min-w-0 flex-1 cursor-pointer justify-center gap-1 overflow-hidden border-0 bg-transparent px-2.5 py-1.5 text-center text-sm shadow-none focus:ring-0 [&>span]:block [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>svg]:hidden",
+                field && onSort && "pl-1",
+                isFiltered ? "font-medium text-foreground" : "font-medium text-muted-foreground",
+              )}
+            >
+              <SelectValue placeholder={label} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{label}</SelectItem>
+              {filterOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      {resizable && (
-        <ColumnResizeHandle resizeKey={resizeKey} onResizeStart={onResizeStart} />
-      )}
+      {resizable && <ColumnResizeHandle resizeKey={resizeKey} onResizeStart={onResizeStart} />}
     </TableHead>
   );
 }
@@ -486,8 +468,8 @@ function isAntdOverlayTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   return Boolean(
     target.closest(".ant-picker-dropdown") ||
-      target.closest(".ant-slider-tooltip") ||
-      target.closest(".ant-tooltip"),
+    target.closest(".ant-slider-tooltip") ||
+    target.closest(".ant-tooltip"),
   );
 }
 
@@ -544,10 +526,7 @@ function FilterDropdownTableHead({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className={cn(
-              filterHeadBoxClass({ className, isFiltered, width }),
-              "cursor-pointer",
-            )}
+            className={cn(filterHeadBoxClass({ className, isFiltered, width }), "cursor-pointer")}
           >
             <span
               className={cn(
@@ -572,20 +551,12 @@ function FilterDropdownTableHead({
           {children}
         </DropdownMenuContent>
       </DropdownMenu>
-      {resizable && (
-        <ColumnResizeHandle resizeKey={resizeKey} onResizeStart={onResizeStart} />
-      )}
+      {resizable && <ColumnResizeHandle resizeKey={resizeKey} onResizeStart={onResizeStart} />}
     </TableHead>
   );
 }
 
-function FilterDropdownActions({
-  onClear,
-  onApply,
-}: {
-  onClear: () => void;
-  onApply: () => void;
-}) {
+function FilterDropdownActions({ onClear, onApply }: { onClear: () => void; onApply: () => void }) {
   return (
     <div className="mt-3 flex justify-end gap-2">
       <Button type="button" size="sm" variant="ghost" onClick={onClear}>
@@ -720,9 +691,7 @@ export function AmountRangeFilterTableHead<T extends string>({
   className?: string;
 } & ColumnResizeProps) {
   const isFiltered = value != null;
-  const [draft, setDraft] = useState<[number, number]>(
-    value ? [value.min, value.max] : [0, max],
-  );
+  const [draft, setDraft] = useState<[number, number]>(value ? [value.min, value.max] : [0, max]);
 
   useEffect(() => {
     setDraft(value ? [value.min, value.max] : [0, max]);

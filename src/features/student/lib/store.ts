@@ -10,7 +10,11 @@ import {
   saveCourses,
   saveDocuments,
 } from "@/shared/lib/mock-storage";
-import { generateMockReply, MOCK_REPLY_DELAY_MS, newMessageId } from "@/features/student/lib/mock-chat";
+import {
+  generateMockReply,
+  MOCK_REPLY_DELAY_MS,
+  newMessageId,
+} from "@/features/student/lib/mock-chat";
 import { toSessionTimestamp, groupFor } from "@/shared/lib/format-time";
 import { getApiSession } from "@/features/auth/lib/auth-session";
 import { storageKey } from "@/shared/lib/storage-keys";
@@ -53,7 +57,10 @@ const sessionTitleFrom = (text: string) => {
   return t.length > 48 ? `${t.slice(0, 48)}…` : t;
 };
 
-const persistChat = (userId: string | null, data: Pick<Store, "sessions" | "conversations" | "sessionDocs" | "activeSessionId">) => {
+const persistChat = (
+  userId: string | null,
+  data: Pick<Store, "sessions" | "conversations" | "sessionDocs" | "activeSessionId">,
+) => {
   if (!userId) return;
   saveChatData(userId, {
     sessions: data.sessions,
@@ -215,16 +222,12 @@ export const useAppStore = create<Store>((set, get) => ({
     if (!nextCode || !nextName) return false;
     if (nextCode !== oldCode && list.some((c) => c.code === nextCode)) return false;
 
-    const courses = list.map((c) =>
-      c.code === oldCode ? { code: nextCode, name: nextName } : c,
-    );
+    const courses = list.map((c) => (c.code === oldCode ? { code: nextCode, name: nextName } : c));
     saveCourses(courses);
 
     let documents = get().documents;
     if (nextCode !== oldCode) {
-      documents = documents.map((d) =>
-        d.course === oldCode ? { ...d, course: nextCode } : d,
-      );
+      documents = documents.map((d) => (d.course === oldCode ? { ...d, course: nextCode } : d));
       saveDocuments(documents);
     }
 
@@ -326,9 +329,7 @@ export const useAppStore = create<Store>((set, get) => ({
     if (!trimmed) return;
 
     // Cập nhật local state ngay lập tức (optimistic update)
-    const sessions = get().sessions.map((s) =>
-      s.id === sessionId ? { ...s, title: trimmed } : s,
-    );
+    const sessions = get().sessions.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s));
     set({ sessions });
     persistChat(get().userId, {
       sessions,
@@ -363,7 +364,8 @@ export const useAppStore = create<Store>((set, get) => ({
 
       // Merge: ưu tiên backend, giữ conversations local
       const localConversations = get().conversations;
-      const mergedConversations: Record<string, import("@/shared/lib/mock-data").ChatMessage[]> = {};
+      const mergedConversations: Record<string, import("@/shared/lib/mock-data").ChatMessage[]> =
+        {};
       backendSessions.forEach((s) => {
         mergedConversations[s.id] = localConversations[s.id] ?? [];
       });
@@ -381,29 +383,37 @@ export const useAppStore = create<Store>((set, get) => ({
         activeSessionId,
       });
 
-      if (activeSessionId && (!mergedConversations[activeSessionId] || mergedConversations[activeSessionId].length === 0)) {
+      if (
+        activeSessionId &&
+        (!mergedConversations[activeSessionId] || mergedConversations[activeSessionId].length === 0)
+      ) {
         import("@/features/student/api/chat-api").then(({ getMessages }) => {
-          getMessages(activeSessionId, 0, 100).then((res) => {
-            if (res.content.length > 0) {
-              const messages = res.content.map((m) => ({
-                id: m.id,
-                role: m.role as "user" | "assistant",
-                content: m.content,
-                citations: [],
-              }));
-              const currentConversations = get().conversations;
-              if (!currentConversations[activeSessionId] || currentConversations[activeSessionId].length === 0) {
-                const newConversations = { ...currentConversations, [activeSessionId]: messages };
-                set({ conversations: newConversations });
-                persistChat(get().userId, {
-                  sessions: get().sessions,
-                  conversations: newConversations,
-                  sessionDocs: get().sessionDocs,
-                  activeSessionId: get().activeSessionId,
-                });
+          getMessages(activeSessionId, 0, 100)
+            .then((res) => {
+              if (res.content.length > 0) {
+                const messages = res.content.map((m) => ({
+                  id: m.id,
+                  role: m.role as "user" | "assistant",
+                  content: m.content,
+                  citations: [],
+                }));
+                const currentConversations = get().conversations;
+                if (
+                  !currentConversations[activeSessionId] ||
+                  currentConversations[activeSessionId].length === 0
+                ) {
+                  const newConversations = { ...currentConversations, [activeSessionId]: messages };
+                  set({ conversations: newConversations });
+                  persistChat(get().userId, {
+                    sessions: get().sessions,
+                    conversations: newConversations,
+                    sessionDocs: get().sessionDocs,
+                    activeSessionId: get().activeSessionId,
+                  });
+                }
               }
-            }
-          }).catch(e => console.warn("Failed to fetch initial messages", e));
+            })
+            .catch((e) => console.warn("Failed to fetch initial messages", e));
         });
       }
     } catch (e) {
@@ -429,9 +439,7 @@ export const useAppStore = create<Store>((set, get) => ({
     let backendConversationId = sessionId;
 
     // Import một lần duy nhất tất cả các hàm cần dùng
-    const chatApi = useApi
-      ? await import("@/features/student/api/chat-api")
-      : null;
+    const chatApi = useApi ? await import("@/features/student/api/chat-api") : null;
 
     if (useApi && chatApi) {
       if (isFirst) {
@@ -466,18 +474,21 @@ export const useAppStore = create<Store>((set, get) => ({
     }
     // --------------------------------
 
-    const conversationsAfterUser = { ...get().conversations, [sessionId]: [...(get().conversations[sessionId] ?? []), userMsg] };
+    const conversationsAfterUser = {
+      ...get().conversations,
+      [sessionId]: [...(get().conversations[sessionId] ?? []), userMsg],
+    };
 
     const now = new Date();
     const sessionsAfterUser = get().sessions.map((s) =>
       s.id === sessionId
         ? {
-          ...s,
-          title: isFirst && !useApi ? sessionTitleFrom(text) : s.title, // API title is handled during creation
-          messageCount: (conversationsAfterUser[sessionId]?.length ?? 0),
-          updatedAt: toSessionTimestamp(now),
-          group: groupFor(now),
-        }
+            ...s,
+            title: isFirst && !useApi ? sessionTitleFrom(text) : s.title, // API title is handled during creation
+            messageCount: conversationsAfterUser[sessionId]?.length ?? 0,
+            updatedAt: toSessionTimestamp(now),
+            group: groupFor(now),
+          }
         : s,
     );
 
@@ -508,7 +519,11 @@ export const useAppStore = create<Store>((set, get) => ({
         };
       } catch (e) {
         console.error("Failed to send message", e);
-        assistantMsg = { id: newMessageId(), role: "assistant", content: "Lỗi kết nối đến máy chủ AI. Vui lòng thử lại." };
+        assistantMsg = {
+          id: newMessageId(),
+          role: "assistant",
+          content: "Lỗi kết nối đến máy chủ AI. Vui lòng thử lại.",
+        };
       }
     } else {
       await new Promise((r) => setTimeout(r, MOCK_REPLY_DELAY_MS));
@@ -527,7 +542,11 @@ export const useAppStore = create<Store>((set, get) => ({
     };
     const updatedSessions = get().sessions.map((s) =>
       s.id === sessionId
-        ? { ...s, messageCount: updatedConversations[sessionId].length, updatedAt: toSessionTimestamp() }
+        ? {
+            ...s,
+            messageCount: updatedConversations[sessionId].length,
+            updatedAt: toSessionTimestamp(),
+          }
         : s,
     );
 

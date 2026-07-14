@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  Columns2,
-  Eye,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Columns2, Eye, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { StudentModal, type StudentModalMode } from "@/features/admin/components/student-modal";
-import {
-  useAdminTable,
-  userTableWidths,
-} from "@/features/admin/hooks/use-admin-table";
+import { useAdminTable, userTableWidths } from "@/features/admin/hooks/use-admin-table";
 import {
   ACTIVE_FILTER_OPTIONS,
   FilterTableHead,
@@ -52,13 +41,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/shared/components/ui/modal";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import {
   Tooltip,
@@ -378,17 +361,25 @@ export function AdminStudentsPage() {
                   </ResizableTableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}>
+              <TableBody
+                className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}
+              >
                 {loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={table.tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       Đang tải sinh viên...
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={table.tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       Chưa có sinh viên — bấm Thêm sinh viên để tạo.
                     </TableCell>
                   </TableRow>
@@ -413,7 +404,10 @@ export function AdminStudentsPage() {
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground" style={table.cell("email")}>
+                      <TableCell
+                        className="text-sm text-muted-foreground"
+                        style={table.cell("email")}
+                      >
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className="block cursor-default truncate">{row.email}</span>
@@ -445,7 +439,10 @@ export function AdminStudentsPage() {
                         </TableCell>
                       )}
                       {table.isVisible("provider") && (
-                        <TableCell className="text-sm text-muted-foreground" style={table.cell("provider")}>
+                        <TableCell
+                          className="text-sm text-muted-foreground"
+                          style={table.cell("provider")}
+                        >
                           {row.provider}
                         </TableCell>
                       )}

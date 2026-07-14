@@ -187,11 +187,7 @@ export function SubjectModal({
   const title =
     mode === "view" ? "Chi tiết môn học" : mode === "edit" ? "Sửa môn học" : "Thêm môn học";
 
-  const status = detail
-    ? detail.active
-      ? activeStyles.active
-      : activeStyles.inactive
-    : null;
+  const status = detail ? (detail.active ? activeStyles.active : activeStyles.inactive) : null;
 
   return (
     <Modal open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>
@@ -226,7 +222,9 @@ export function SubjectModal({
             </DetailField>
             <DetailField label="Mô tả">
               {detail.description?.trim() ? (
-                <p className="whitespace-pre-wrap text-muted-foreground">{detail.description.trim()}</p>
+                <p className="whitespace-pre-wrap text-muted-foreground">
+                  {detail.description.trim()}
+                </p>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}
@@ -297,10 +295,7 @@ export function SubjectModal({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Đóng
               </Button>
-              <Button
-                onClick={() => detail && onEditRequest?.(detail.id)}
-                disabled={!detail}
-              >
+              <Button onClick={() => detail && onEditRequest?.(detail.id)} disabled={!detail}>
                 Sửa
               </Button>
             </>
