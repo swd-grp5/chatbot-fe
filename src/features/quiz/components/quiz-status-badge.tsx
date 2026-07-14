@@ -4,7 +4,8 @@ import { QUIZ_STATUS, QUIZ_STATUS_LABELS, type QuizStatus } from "@/features/qui
 
 const STATUS_STYLES: Record<QuizStatus, string> = {
   [QUIZ_STATUS.DRAFT]: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-  [QUIZ_STATUS.PUBLISHED]: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  [QUIZ_STATUS.PUBLISHED]:
+    "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
   [QUIZ_STATUS.CLOSED]: "border-muted-foreground/30 bg-muted text-muted-foreground",
 };
 

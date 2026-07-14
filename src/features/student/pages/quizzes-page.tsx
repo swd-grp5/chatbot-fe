@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ClipboardList, Clock, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock, FileText, Loader2, RefreshCw } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
+import { Badge } from "@/shared/components/ui/badge";
 import { Label } from "@/shared/components/ui/label";
 import { DocumentsSubjectSelect } from "@/features/lecturer/components/documents-subject-select";
 import { useStudentMySubjects } from "@/features/student/hooks/use-my-subjects";
@@ -131,35 +132,63 @@ export function StudentQuizzesPage() {
           <div className="space-y-3">
             {filteredQuizzes.map((quiz) => {
               const attempts = attemptsByQuiz[quiz.id] ?? [];
+              const canRetake = quiz.allowRetake === true;
+              const hasSubmitted = attempts.length > 0;
+              const canStart = !hasSubmitted || canRetake;
               const best = attempts.reduce<QuizAttempt | null>((acc, cur) => {
+                if (cur.resultsVisible === false) return acc;
                 if (!acc || (cur.percentage ?? 0) > (acc.percentage ?? 0)) return cur;
                 return acc;
               }, null);
+              const hasHiddenAttempts = attempts.some((a) => a.resultsVisible === false);
               return (
-                <Card key={quiz.id} className="flex flex-wrap items-center gap-4 p-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{quiz.title}</div>
-                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <span>
-                        {quiz.subjectCode} — {quiz.subjectName}
+                <Card key={quiz.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="font-mono text-xs">
+                        {quiz.subjectCode}
+                      </Badge>
+                      <h3 className="text-base font-semibold">{quiz.title}</h3>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground">
+                        <FileText className="h-3.5 w-3.5" />
+                        {quiz.questionCount ?? 0} câu hỏi
                       </span>
-                      <span>{quiz.questionCount ?? 0} câu</span>
-                      <span>{quiz.totalPoints ?? 0} điểm</span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground">
+                        Thang điểm {quiz.totalPoints ?? 0}
+                      </span>
                       {quiz.timeLimitMinutes != null && (
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                        <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5" />
                           {quiz.timeLimitMinutes} phút
                         </span>
                       )}
                     </div>
+
                     {attempts.length > 0 && (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Đã làm {attempts.length} lần
-                        {best != null && ` · Điểm cao nhất: ${best.totalScore}/${best.maxScore}`}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 font-medium text-emerald-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Đã làm {attempts.length} lần
+                        </span>
+                        {best != null && (
+                          <span className="rounded-md bg-emerald-500/10 px-2 py-1 font-medium text-emerald-700">
+                            Điểm cao nhất: {best.totalScore ?? 0}/{best.maxScore ?? 0}
+                          </span>
+                        )}
+                        {hasHiddenAttempts && best == null && (
+                          <span className="text-muted-foreground">Điểm được giấu</span>
+                        )}
+                        {!canRetake && (
+                          <span className="text-muted-foreground">Không thể làm lại</span>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+
+                  <div className="flex shrink-0 flex-wrap gap-2">
                     {attempts.length > 0 && (
                       <Button variant="outline" size="sm" asChild>
                         <Link
@@ -171,11 +200,17 @@ export function StudentQuizzesPage() {
                         </Link>
                       </Button>
                     )}
-                    <Button size="sm" asChild>
-                      <Link to="/quizzes/$quizId" params={{ quizId: quiz.id }}>
-                        Làm bài
-                      </Link>
-                    </Button>
+                    {canStart ? (
+                      <Button size="sm" asChild>
+                        <Link to="/quizzes/$quizId" params={{ quizId: quiz.id }}>
+                          {hasSubmitted ? "Làm lại" : "Làm bài"}
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="secondary" disabled>
+                        Đã nộp
+                      </Button>
+                    )}
                   </div>
                 </Card>
               );

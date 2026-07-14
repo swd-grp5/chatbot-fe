@@ -1,6 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { LecturerQuizzesPage } from "@/features/lecturer/pages/quizzes-page";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/lecturer/quizzes")({
-  component: LecturerQuizzesPage,
+  component: LecturerQuizzesLayout,
 });
+
+function LecturerQuizzesLayout() {
+  return <Outlet />;
+}

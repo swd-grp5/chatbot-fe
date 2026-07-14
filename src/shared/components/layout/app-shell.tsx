@@ -117,6 +117,7 @@ export function AppShell({
     : isLecturer
       ? [
           { to: "/lecturer/documents", label: "Tài liệu", icon: FileText },
+          { to: "/lecturer/question-bank", label: "Ngân hàng", icon: BookOpen },
           { to: "/lecturer/quizzes", label: "Quiz", icon: ClipboardList },
         ]
       : [

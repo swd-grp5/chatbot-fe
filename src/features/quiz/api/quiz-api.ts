@@ -16,12 +16,21 @@ export const MULTIPLE_CHOICE_MODE = {
 
 export type MultipleChoiceMode = (typeof MULTIPLE_CHOICE_MODE)[keyof typeof MULTIPLE_CHOICE_MODE];
 
+/** AI generate quiz */
 export const POINTS_DISTRIBUTION = {
   EVEN: "EVEN",
   BY_DIFFICULTY: "BY_DIFFICULTY",
 } as const;
 
 export type PointsDistributionMode = (typeof POINTS_DISTRIBUTION)[keyof typeof POINTS_DISTRIBUTION];
+
+/** Assemble quiz từ ngân hàng */
+export const POINTS_MODE = {
+  EVEN: "EVEN",
+  CUSTOM: "CUSTOM",
+} as const;
+
+export type PointsMode = (typeof POINTS_MODE)[keyof typeof POINTS_MODE];
 
 export type QuestionType = {
   id: string;
@@ -54,6 +63,13 @@ export type QuizQuestion = {
   options: QuizOption[];
 };
 
+export type QuizVariantSummary = {
+  id: string;
+  variantNumber: number;
+  questionCount: number | null;
+  totalPoints: number | null;
+};
+
 export type QuizSummary = {
   id: string;
   subjectId: string;
@@ -66,6 +82,9 @@ export type QuizSummary = {
   questionCount: number | null;
   active: boolean;
   aiGenerated: boolean;
+  showScore: boolean | null;
+  allowRetake: boolean | null;
+  variantCount: number | null;
   publishedAt: string | null;
   createdAt: string;
 };
@@ -74,8 +93,24 @@ export type Quiz = QuizSummary & {
   createdById: string;
   createdByName: string;
   description: string | null;
+  shuffleQuestions: boolean | null;
+  shuffleOptions: boolean | null;
+  questionsPerVariant: number | null;
   updatedAt: string;
-  questions: QuizQuestion[];
+  questions: QuizQuestion[] | null;
+  variants: QuizVariantSummary[] | null;
+};
+
+export type QuizStart = {
+  quizId: string;
+  title: string;
+  description: string | null;
+  timeLimitMinutes: number | null;
+  variantId: string | null;
+  variantNumber: number | null;
+  questionCount: number | null;
+  totalPoints: number | null;
+  questions: QuizQuestion[] | null;
 };
 
 export type QuizAnswerResult = {
@@ -91,11 +126,28 @@ export type QuizAttempt = {
   id: string;
   quizId: string;
   quizTitle: string;
+  variantId: string | null;
+  variantNumber: number | null;
+  resultsVisible: boolean | null;
+  totalScore: number | null;
+  maxScore: number | null;
+  percentage: number | null;
+  submittedAt: string | null;
+  answers: QuizAnswerResult[] | null;
+};
+
+export type LecturerQuizAttempt = {
+  id: string;
+  quizId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  variantId: string | null;
+  variantNumber: number | null;
   totalScore: number;
   maxScore: number;
   percentage: number;
   submittedAt: string;
-  answers: QuizAnswerResult[];
 };
 
 export type QuizOptionPayload = {
@@ -131,9 +183,38 @@ export type QuizGeneratePayload = {
   pointsDistribution?: PointsDistributionMode;
   timeLimitMinutes?: number;
   documentIds?: string[];
+  allowRetake?: boolean;
+};
+
+export type QuizSettingsPayload = {
+  showScore?: boolean;
+  allowRetake?: boolean;
+};
+
+export type QuestionPointsItem = {
+  bankQuestionId: string;
+  points: number;
+};
+
+export type QuizAssemblePayload = {
+  subjectId: string;
+  title: string;
+  description?: string;
+  timeLimitMinutes?: number;
+  bankQuestionIds: string[];
+  questionsPerVariant?: number;
+  variantCount?: number;
+  shuffleQuestions?: boolean;
+  shuffleOptions?: boolean;
+  showScore?: boolean;
+  allowRetake?: boolean;
+  pointsMode?: PointsMode;
+  totalPoints?: number;
+  customPoints?: QuestionPointsItem[];
 };
 
 export type QuizSubmitPayload = {
+  variantId?: string;
   answers: { questionId: string; selectedOptionIds: string[] }[];
 };
 
@@ -154,14 +235,19 @@ export const QUIZ_STATUS_LABELS: Record<QuizStatus, string> = {
   CLOSED: "Đã đóng",
 };
 
-/** Khớp validation `QuizGenerateRequest` trên BE */
 export const QUIZ_GENERATE_LIMITS = {
   questionCount: { min: 1, max: 20, default: 5 },
   totalPoints: { min: 1, max: 10, default: 10 },
   timeLimitMinutes: { min: 1, max: 600, default: 30 },
 } as const;
 
-/** Khớp validation `QuizUpdateRequest.timeLimitMinutes` trên BE */
+export const QUIZ_ASSEMBLE_LIMITS = {
+  variantCount: { min: 1, max: 50, default: 1 },
+  questionsPerVariant: { min: 1, max: 100, default: 10 },
+  timeLimitMinutes: { min: 1, max: 600, default: 30 },
+  totalPoints: { min: 0.1, max: 100, default: 10 },
+} as const;
+
 export const QUIZ_TIME_LIMIT = { min: 1, max: 600 } as const;
 
 export function clampInt(value: number, min: number, max: number): number {
@@ -202,11 +288,26 @@ export async function fetchQuizById(id: string, forAttempt = false) {
   return apiFetch<Quiz>(`/quizzes/${id}${search}`);
 }
 
+export async function startQuiz(id: string) {
+  return apiFetch<QuizStart>(`/quizzes/${id}/start`);
+}
+
 export async function generateQuiz(payload: QuizGeneratePayload) {
   return apiFetch<Quiz>("/quizzes/generate", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function assembleQuiz(payload: QuizAssemblePayload) {
+  return apiFetch<Quiz>("/quizzes/assemble", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function regenerateQuizVariants(id: string) {
+  return apiFetch<Quiz>(`/quizzes/${id}/variants/regenerate`, { method: "POST" });
 }
 
 export async function updateQuiz(id: string, payload: QuizUpdatePayload) {
@@ -228,6 +329,13 @@ export async function toggleQuizActive(id: string) {
   return apiFetch<Quiz>(`/quizzes/${id}/toggle-active`, { method: "PATCH" });
 }
 
+export async function patchQuizSettings(id: string, payload: QuizSettingsPayload) {
+  return apiFetch<Quiz>(`/quizzes/${id}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function deleteQuiz(id: string) {
   return apiFetch<void>(`/quizzes/${id}`, { method: "DELETE" });
 }
@@ -243,6 +351,10 @@ export async function fetchMyQuizAttempts(quizId: string) {
   return apiFetch<QuizAttempt[]>(`/quizzes/${quizId}/attempts`);
 }
 
+export async function fetchLecturerQuizAttempts(quizId: string) {
+  return apiFetch<LecturerQuizAttempt[]>(`/quizzes/${quizId}/submissions`);
+}
+
 export async function fetchQuizAttempt(quizId: string, attemptId: string) {
   return apiFetch<QuizAttempt>(`/quizzes/${quizId}/attempts/${attemptId}`);
 }
@@ -252,19 +364,21 @@ export function quizToUpdatePayload(quiz: Quiz): QuizUpdatePayload {
     title: quiz.title,
     description: quiz.description,
     timeLimitMinutes: quiz.timeLimitMinutes,
-    questions: quiz.questions.map((q) => ({
-      questionTypeId: q.questionType.id,
-      multipleChoiceMode: q.multipleChoiceMode,
-      questionText: q.questionText,
-      points: q.points,
-      sortOrder: q.sortOrder,
-      sourceDocumentId: q.sourceDocumentId,
-      sourceExcerpt: q.sourceExcerpt,
-      options: q.options.map((o) => ({
-        optionText: o.optionText,
-        isCorrect: Boolean(o.isCorrect),
-        sortOrder: o.sortOrder,
+    questions: (quiz.questions ?? [])
+      .filter((q) => q?.questionType?.id)
+      .map((q) => ({
+        questionTypeId: q.questionType.id,
+        multipleChoiceMode: q.multipleChoiceMode,
+        questionText: q.questionText,
+        points: q.points,
+        sortOrder: q.sortOrder,
+        sourceDocumentId: q.sourceDocumentId,
+        sourceExcerpt: q.sourceExcerpt,
+        options: (q.options ?? []).map((o) => ({
+          optionText: o.optionText,
+          isCorrect: Boolean(o.isCorrect),
+          sortOrder: o.sortOrder,
+        })),
       })),
-    })),
   };
 }

@@ -1,4 +1,14 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, Children, cloneElement, isValidElement } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  Children,
+  cloneElement,
+  isValidElement,
+} from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1093,9 +1103,7 @@ function DocSourceCard({
   citations: Citation[];
   focusCitationIndex?: number | null;
 }) {
-  const hasFocus = citations.some(
-    (c, i) => (c.citationIndex ?? i + 1) === focusCitationIndex,
-  );
+  const hasFocus = citations.some((c, i) => (c.citationIndex ?? i + 1) === focusCitationIndex);
   const [open, setOpen] = useState(index === 1 || hasFocus);
 
   useEffect(() => {
@@ -1151,7 +1159,9 @@ function DocSourceCard({
                     [{citeNo}]
                   </span>
                   <span>Đoạn trích</span>
-                  <span className="font-mono normal-case text-primary">{c.course || courseCode}</span>
+                  <span className="font-mono normal-case text-primary">
+                    {c.course || courseCode}
+                  </span>
                   <span>· Trang {c.page}</span>
                 </div>
                 <p className="mt-1 border-l-2 border-primary/40 pl-2 text-xs leading-relaxed text-foreground/80">
