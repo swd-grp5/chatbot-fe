@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -21,13 +21,14 @@ import {
   Loader2,
   BookMarked,
   X,
-  Check,
-  ChevronsUpDown,
 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { ChatWelcome } from "@/shared/components/chat/chat-welcome";
 import { useAuth } from "@/features/auth/lib/auth-context";
-import { getUserPlan } from "@/features/student/lib/subscriptions";
+import {
+  fetchCurrentSubscription,
+  type CurrentUserSubscription,
+} from "@/features/student/api/subscription-api";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -39,7 +40,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/shared/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 import { formatRelativeTime } from "@/shared/lib/format-time";
@@ -53,19 +54,57 @@ import { fetchDocuments, mapDocumentResponse } from "@/features/lecturer/api/doc
 import { useStudentMySubjects } from "@/features/student/hooks/use-my-subjects";
 import { useAppStore } from "@/features/student/lib/store";
 import type { Course, Doc } from "@/shared/lib/mock-data";
+import { ApiError } from "@/shared/lib/api-client";
 
 const groupOrder = sessionGroupOrder;
 
+const HISTORY_WIDTH_KEY = "chat-history-panel-width";
+const HISTORY_WIDTH_DEFAULT = 280;
+const HISTORY_WIDTH_MIN = 200;
+const HISTORY_WIDTH_MAX = 480;
+
+const RIGHT_WIDTH_KEY = "chat-right-panel-width";
+const RIGHT_WIDTH_DEFAULT = 360;
+const RIGHT_WIDTH_MIN = 260;
+const RIGHT_WIDTH_MAX = 560;
+
+function loadPanelWidth(key: string, fallback: number, min: number, max: number) {
+  try {
+    const raw = localStorage.getItem(key);
+    const n = raw != null ? Number(raw) : fallback;
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  } catch {
+    return fallback;
+  }
+}
+
+function loadHistoryWidth() {
+  return loadPanelWidth(
+    HISTORY_WIDTH_KEY,
+    HISTORY_WIDTH_DEFAULT,
+    HISTORY_WIDTH_MIN,
+    HISTORY_WIDTH_MAX,
+  );
+}
+
+function loadRightWidth() {
+  return loadPanelWidth(RIGHT_WIDTH_KEY, RIGHT_WIDTH_DEFAULT, RIGHT_WIDTH_MIN, RIGHT_WIDTH_MAX);
+}
+
 export function ChatPage() {
-  const [input, setInput] = useState("");
   const [sessionQuery, setSessionQuery] = useState("");
   const [sending, setSending] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [, setTick] = useState(0);
-  const [docPickerOpen, setDocPickerOpen] = useState(false);
-  const [docSearch, setDocSearch] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [rightTab, setRightTab] = useState<"documents" | "citations">("documents");
+  const [docsSaving, setDocsSaving] = useState(false);
+  const [historyWidth, setHistoryWidth] = useState(loadHistoryWidth);
+  const [historyResizing, setHistoryResizing] = useState(false);
+  const [rightWidth, setRightWidth] = useState(loadRightWidth);
+  const [rightResizing, setRightResizing] = useState(false);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const courses = useAppStore((s) => s.courses);
   const documents = useAppStore((s) => s.documents);
   const sessions = useAppStore((s) => s.sessions);
@@ -79,7 +118,7 @@ export function ChatPage() {
   const sendMessage = useAppStore((s) => s.sendMessage);
   const init = useAppStore((s) => s.init);
   const selectedDocIds = useAppStore((s) => s.selectedDocIds);
-  const setSelectedDocIds = useAppStore((s) => s.setSelectedDocIds);
+  const setSessionDocumentIds = useAppStore((s) => s.setSessionDocumentIds);
   const { user } = useAuth();
   const isStudentApiMode = user?.source === "api" && user.role === "student";
 
@@ -94,6 +133,7 @@ export function ChatPage() {
   );
 
   const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
+  const [subscription, setSubscription] = useState<CurrentUserSubscription | null>(null);
 
   const displayCourses = isStudentApiMode ? apiCourses : courses;
   const assignedCodes = useMemo(
@@ -128,6 +168,24 @@ export function ChatPage() {
     void loadApiDocuments();
   }, [isStudentApiMode, loadApiDocuments]);
 
+  useEffect(() => {
+    if (!user || user.role !== "student") {
+      setSubscription(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchCurrentSubscription()
+      .then((data) => {
+        if (!cancelled) setSubscription(data);
+      })
+      .catch(() => {
+        if (!cancelled) setSubscription(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const messages: ChatMessage[] = conversations[activeSession] ?? [];
 
   const hasEverChatted = useMemo(
@@ -136,7 +194,6 @@ export function ChatPage() {
   );
 
   const showWelcome = messages.length === 0 && !hasEverChatted;
-  const userPlan = user ? getUserPlan(user.id) : null;
 
   useEffect(() => {
     init();
@@ -145,33 +202,34 @@ export function ChatPage() {
   const activeTitle = sessions.find((s) => s.id === activeSession)?.title ?? "Hội thoại mới";
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, sending]);
+    const scroller = messagesScrollRef.current;
+    if (!scroller) return;
+    // Scroll only the messages pane — never the document (scrollIntoView would).
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+  }, [messages.length, sending, activeSession]);
 
   useEffect(() => {
     const id = window.setInterval(() => setTick((t) => t + 1), 60000);
     return () => window.clearInterval(id);
   }, []);
 
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || sending) return;
-    if (isStudentApiMode && selectedDocIds.length === 0) return;
-    setInput("");
-    setSending(true);
-    try {
-      await sendMessage(text, isStudentApiMode ? selectedDocIds : undefined);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  };
+  const handleSend = useCallback(
+    async (text: string) => {
+      if (!text || sending) return;
+      if (isStudentApiMode && selectedDocIds.length === 0) {
+        setRightTab("documents");
+        toast.error("Hãy gắn ít nhất 1 tài liệu vào hội thoại (panel bên phải).");
+        return;
+      }
+      setSending(true);
+      try {
+        await sendMessage(text);
+      } finally {
+        setSending(false);
+      }
+    },
+    [sending, isStudentApiMode, selectedDocIds.length, sendMessage],
+  );
 
   const citationsByDoc = useMemo(() => {
     const map = new Map<string, { docName: string; course: string; items: Citation[] }>();
@@ -192,37 +250,120 @@ export function ChatPage() {
     return sessions.filter((s) => s.title.toLowerCase().includes(q));
   }, [sessions, sessionQuery]);
 
-  // Tài liệu lọc theo search trong picker
-  const filteredPickerDocs = useMemo(() => {
-    const q = docSearch.trim().toLowerCase();
-    const docs = displayDocuments.filter((d) => d.status === "indexed");
-    if (!q) return docs;
-    return docs.filter(
-      (d) =>
-        d.name.toLowerCase().includes(q) ||
-        (d.title ?? "").toLowerCase().includes(q) ||
-        d.course.toLowerCase().includes(q),
-    );
-  }, [displayDocuments, docSearch]);
+  const indexedDocs = useMemo(
+    () => displayDocuments.filter((d) => d.status === "indexed"),
+    [displayDocuments],
+  );
 
   const selectedDocs = useMemo(
     () => displayDocuments.filter((d) => selectedDocIds.includes(d.id)),
     [displayDocuments, selectedDocIds],
   );
 
-  const toggleDoc = (id: string) => {
-    setSelectedDocIds(
-      selectedDocIds.includes(id)
-        ? selectedDocIds.filter((x) => x !== id)
-        : [...selectedDocIds, id],
-    );
+  const toggleDoc = async (id: string) => {
+    const next = selectedDocIds.includes(id)
+      ? selectedDocIds.filter((x) => x !== id)
+      : [...selectedDocIds, id];
+    setDocsSaving(true);
+    try {
+      await setSessionDocumentIds(next);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Không cập nhật được tài liệu hội thoại");
+    } finally {
+      setDocsSaving(false);
+    }
   };
+
+  useEffect(() => {
+    localStorage.setItem(HISTORY_WIDTH_KEY, String(historyWidth));
+  }, [historyWidth]);
+
+  useEffect(() => {
+    localStorage.setItem(RIGHT_WIDTH_KEY, String(rightWidth));
+  }, [rightWidth]);
+
+  const startHistoryResize = useCallback(
+    (startX: number) => {
+      const startWidth = historyWidth;
+      setHistoryResizing(true);
+      const onMouseMove = (e: MouseEvent) => {
+        const next = Math.min(
+          HISTORY_WIDTH_MAX,
+          Math.max(HISTORY_WIDTH_MIN, startWidth + (e.clientX - startX)),
+        );
+        setHistoryWidth(next);
+      };
+      const onMouseUp = () => {
+        setHistoryResizing(false);
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [historyWidth],
+  );
+
+  const startRightResize = useCallback(
+    (startX: number) => {
+      const startWidth = rightWidth;
+      setRightResizing(true);
+      const onMouseMove = (e: MouseEvent) => {
+        // Kéo sang trái (clientX giảm) → panel phải rộng hơn
+        const next = Math.min(
+          RIGHT_WIDTH_MAX,
+          Math.max(RIGHT_WIDTH_MIN, startWidth + (startX - e.clientX)),
+        );
+        setRightWidth(next);
+      };
+      const onMouseUp = () => {
+        setRightResizing(false);
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [rightWidth],
+  );
 
   return (
     <AppShell fullBleed>
-      <div className="grid h-full min-h-0 grid-cols-[280px_1fr_360px] overflow-hidden">
+      <div
+        className="grid h-full min-h-0 overflow-hidden"
+        style={{
+          gridTemplateColumns: `${historyWidth}px minmax(0, 1fr) ${rightWidth}px`,
+        }}
+      >
         {/* LEFT: Lịch sử chat */}
-        <aside className="flex min-h-0 flex-col overflow-hidden border-r border-border bg-sidebar">
+        <aside className="relative flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-sidebar">
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Đổi độ rộng lịch sử chat"
+            aria-valuenow={Math.round(historyWidth)}
+            aria-valuemin={HISTORY_WIDTH_MIN}
+            aria-valuemax={HISTORY_WIDTH_MAX}
+            title="Kéo để đổi độ rộng"
+            className={cn(
+              "absolute inset-y-0 -right-1 z-20 w-2 cursor-col-resize touch-none select-none",
+              "hover:bg-primary/25",
+              historyResizing && "bg-primary/40",
+            )}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              startHistoryResize(e.clientX);
+            }}
+          />
           <div className="flex items-center justify-between px-4 pt-5 pb-3">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" />
@@ -270,7 +411,7 @@ export function ChatPage() {
                       <div
                         key={s.id}
                         className={cn(
-                          "group flex w-full items-center gap-1 rounded-md px-1 py-1 transition-colors",
+                          "group flex w-full cursor-pointer items-center gap-1 rounded-md px-1 py-1 transition-colors",
                           activeSession === s.id
                             ? "bg-accent text-accent-foreground"
                             : "hover:bg-secondary/60",
@@ -279,7 +420,7 @@ export function ChatPage() {
                         <button
                           type="button"
                           onClick={() => setActiveSession(s.id)}
-                          className="flex min-w-0 flex-1 items-start gap-2 rounded-md px-1 py-1.5 text-left text-xs"
+                          className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 rounded-md px-1 py-1.5 text-left text-xs"
                         >
                           <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
@@ -362,18 +503,21 @@ export function ChatPage() {
         </aside>
 
         {/* CENTER: Chat */}
-        <section className="flex min-h-0 flex-col overflow-hidden bg-background">
+        <section className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
           <div className="border-b border-border bg-card px-6 py-3">
             <h1 className="truncate text-base font-semibold">{activeTitle}</h1>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            ref={messagesScrollRef}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+          >
             <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
-              {showWelcome && userPlan && (
+              {showWelcome && (
                 <ChatWelcome
                   courses={displayCourses}
                   documents={displayDocuments}
-                  plan={userPlan}
+                  subscription={subscription}
                 />
               )}
               {messages.length === 0 && hasEverChatted && (
@@ -401,273 +545,315 @@ export function ChatPage() {
                   </div>
                 </div>
               )}
-              <div ref={bottomRef} />
             </div>
           </div>
 
           <div className="border-t border-border bg-card px-6 py-4">
-            <div className="mx-auto max-w-3xl space-y-2">
-              {/* Document Picker */}
-              {isStudentApiMode && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Popover open={docPickerOpen} onOpenChange={setDocPickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          "h-8 gap-1.5 text-xs",
-                          selectedDocIds.length === 0 &&
-                            "border-amber-500/60 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50",
-                        )}
-                      >
-                        <BookMarked className="h-3.5 w-3.5" />
-                        {selectedDocIds.length === 0
-                          ? "Chọn tài liệu"
-                          : `${selectedDocIds.length} tài liệu đã chọn`}
-                        <ChevronsUpDown className="h-3 w-3 opacity-60" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      align="start"
-                      side="top"
-                      className="w-80 p-0 shadow-xl"
-                      sideOffset={8}
-                    >
-                      <div className="border-b border-border px-3 py-2.5">
-                        <div className="flex items-center gap-2 text-xs font-semibold">
-                          <BookMarked className="h-3.5 w-3.5 text-primary" />
-                          Chọn tài liệu để hỏi
-                        </div>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          AI sẽ chỉ tra cứu trong các tài liệu bạn chọn.
-                        </p>
-                      </div>
-                      <div className="px-3 py-2">
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            value={docSearch}
-                            onChange={(e) => setDocSearch(e.target.value)}
-                            placeholder="Tìm tài liệu..."
-                            className="h-7 pl-7 text-xs"
-                          />
-                        </div>
-                      </div>
-                      <div className="max-h-60 overflow-y-auto px-2 pb-2">
-                        {filteredPickerDocs.length === 0 ? (
-                          <div className="py-6 text-center text-xs text-muted-foreground">
-                            {displayDocuments.filter((d) => d.status === "indexed").length === 0
-                              ? "Chưa có tài liệu nào được index."
-                              : "Không tìm thấy tài liệu phù hợp."}
-                          </div>
-                        ) : (
-                          filteredPickerDocs.map((doc) => {
-                            const selected = selectedDocIds.includes(doc.id);
-                            return (
-                              <button
-                                key={doc.id}
-                                type="button"
-                                onClick={() => toggleDoc(doc.id)}
-                                className={cn(
-                                  "flex w-full items-start gap-2 rounded-md px-2 py-2 text-left transition-colors",
-                                  selected
-                                    ? "bg-primary/10 text-foreground"
-                                    : "hover:bg-secondary/60 text-foreground",
-                                )}
-                              >
-                                <div
-                                  className={cn(
-                                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                                    selected
-                                      ? "bg-primary border-primary text-primary-foreground"
-                                      : "border-border bg-background",
-                                  )}
-                                >
-                                  {selected && <Check className="h-2.5 w-2.5" />}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="truncate text-xs font-medium">
-                                    {doc.title ?? doc.name}
-                                  </div>
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <Badge
-                                      variant="outline"
-                                      className="h-4 px-1 font-mono text-[9px] font-semibold"
-                                    >
-                                      {doc.course}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                      {selectedDocIds.length > 0 && (
-                        <div className="border-t border-border px-3 py-2">
-                          <button
-                            type="button"
-                            className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
-                            onClick={() => setSelectedDocIds([])}
-                          >
-                            Bỏ chọn tất cả
-                          </button>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* Chips của tài liệu đã chọn */}
-                  {selectedDocs.map((doc) => (
-                    <span
-                      key={doc.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary"
-                    >
-                      <FileText className="h-3 w-3 shrink-0" />
-                      <span className="max-w-[140px] truncate">{doc.title ?? doc.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => toggleDoc(doc.id)}
-                        className="ml-0.5 rounded-full p-0.5 hover:bg-primary/20 transition-colors"
-                      >
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Chat input */}
-              <div className="relative rounded-lg border border-border bg-background focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
-                <Textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={sending}
-                  placeholder={
-                    isStudentApiMode && selectedDocIds.length === 0
-                      ? "Vui lòng chọn tài liệu trước khi hỏi..."
-                      : "Hỏi về nội dung môn học"
-                  }
-                  className="min-h-[60px] resize-none border-0 bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0"
-                  rows={2}
-                />
-                <div className="flex items-center justify-between border-t border-border px-3 py-2">
-                  <span className="px-1 text-[11px] text-muted-foreground">
-                    {input.length} ký tự
-                  </span>
-                  <Button
-                    size="sm"
-                    className="h-7 gap-1.5"
-                    disabled={
-                      !input.trim() || sending || (isStudentApiMode && selectedDocIds.length === 0)
-                    }
-                    onClick={() => void handleSend()}
-                  >
-                    {sending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Send className="h-3.5 w-3.5" />
-                    )}
-                    Gửi
-                  </Button>
-                </div>
-              </div>
-              <p className="mt-1 text-center text-[11px] text-muted-foreground">
-                {isStudentApiMode && selectedDocIds.length === 0 ? (
-                  <span className="text-amber-500 dark:text-amber-400">
-                    ⚠ Chọn ít nhất 1 tài liệu để bắt đầu hỏi.
-                  </span>
-                ) : (
-                  "Câu trả lời được sinh từ tài liệu môn học. Luôn đối chiếu với giảng viên khi cần thiết."
-                )}
-              </p>
-            </div>
+            <ChatComposer
+              sending={sending}
+              requireDocs={isStudentApiMode}
+              selectedDocCount={selectedDocIds.length}
+              onOpenDocs={() => setRightTab("documents")}
+              onSend={handleSend}
+            />
           </div>
         </section>
 
-        {/* RIGHT: Nguồn trích dẫn */}
+        {/* RIGHT: Trích dẫn | Tài liệu hội thoại */}
         <aside
           key={activeSession}
-          className="flex min-h-0 flex-col overflow-hidden border-l border-border bg-sidebar"
+          className="relative flex h-full min-h-0 flex-col overflow-hidden border-l border-border bg-sidebar"
         >
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-primary" />
-              <div>
-                <h2 className="text-sm font-semibold">Nguồn trích dẫn</h2>
-                <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">
-                  {activeTitle}
-                </p>
-              </div>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Đổi độ rộng panel tài liệu"
+            aria-valuenow={Math.round(rightWidth)}
+            aria-valuemin={RIGHT_WIDTH_MIN}
+            aria-valuemax={RIGHT_WIDTH_MAX}
+            title="Kéo để đổi độ rộng"
+            className={cn(
+              "absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize touch-none select-none",
+              "hover:bg-primary/25",
+              rightResizing && "bg-primary/40",
+            )}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              startRightResize(e.clientX);
+            }}
+          />
+          <Tabs
+            value={rightTab}
+            onValueChange={(v) => setRightTab(v as "documents" | "citations")}
+            className="flex h-full min-h-0 flex-col"
+          >
+            <div className="border-b border-border px-3 pt-3 pb-2">
+              <TabsList className="grid h-8 w-full grid-cols-2">
+                <TabsTrigger value="documents" className="gap-1 text-xs">
+                  <BookMarked className="h-3.5 w-3.5" />
+                  Tài liệu
+                  {selectedDocIds.length > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                      {selectedDocIds.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="citations" className="gap-1 text-xs">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Trích dẫn
+                  {citationsByDoc.length > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                      {citationsByDoc.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+              <p className="mt-2 truncate text-[10px] text-muted-foreground">{activeTitle}</p>
             </div>
-            <Badge variant="outline" className="h-5 text-[10px]">
-              {citationsByDoc.length} tài liệu
-            </Badge>
-          </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            <div className="space-y-3">
-              {citationsByDoc.length === 0 && (
-                <div className="rounded-lg border border-dashed border-border bg-card/50 p-5">
-                  {showWelcome ? (
-                    <div className="space-y-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2 font-medium text-foreground">
-                        <BookOpen className="h-3.5 w-3.5 text-primary" />
-                        Sẵn sàng tra cứu
+            <TabsContent
+              value="documents"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+                {selectedDocs.length > 0 && (
+                  <div className="mb-3 space-y-1.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Đã gắn vào chat
+                    </div>
+                    {selectedDocs.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 px-2 py-2"
+                      >
+                        <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-medium">
+                            {doc.title ?? doc.name}
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="mt-0.5 h-4 px-1 font-mono text-[9px] font-semibold"
+                          >
+                            {doc.course}
+                          </Badge>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={docsSaving}
+                          onClick={() => void toggleDoc(doc.id)}
+                          className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          title="Bỏ khỏi hội thoại"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      <p>
-                        Sau câu hỏi đầu tiên, các đoạn trích từ tài liệu (kèm mã môn) sẽ hiện tại
-                        đây.
-                      </p>
-                      {userPlan && (
-                        <p className="text-[11px]">
-                          Gói {userPlan.name}: còn{" "}
-                          <strong className="text-foreground">
-                            {userPlan.questionsPerMonth.toLocaleString("vi-VN")}
-                          </strong>{" "}
-                          câu hỏi/tháng.
-                        </p>
-                      )}
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {selectedDocs.length > 0 ? "Thêm tài liệu" : "Chọn tài liệu"}
+                  </div>
+                  {indexedDocs.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                      Chưa có tài liệu nào được index.
                     </div>
                   ) : (
-                    <div className="text-center">
-                      <FileX className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-                      <div className="text-xs font-medium">Chưa có trích dẫn</div>
-                      <div className="mt-0.5 text-[11px] text-muted-foreground">
-                        Đặt câu hỏi để xem các đoạn tài liệu được hệ thống tham chiếu.
-                      </div>
-                    </div>
+                    indexedDocs
+                      .filter((d) => !selectedDocIds.includes(d.id))
+                      .map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          disabled={docsSaving}
+                          onClick={() => void toggleDoc(doc.id)}
+                          className="flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-secondary/60"
+                        >
+                          <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border bg-background">
+                            <Plus className="h-2.5 w-2.5 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-xs font-medium">
+                              {doc.title ?? doc.name}
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className="mt-0.5 h-4 px-1 font-mono text-[9px] font-semibold"
+                            >
+                              {doc.course}
+                            </Badge>
+                          </div>
+                        </button>
+                      ))
                   )}
+                  {indexedDocs.filter((d) => !selectedDocIds.includes(d.id)).length === 0 &&
+                    indexedDocs.length > 0 && (
+                      <p className="px-1 py-2 text-[11px] text-muted-foreground">
+                        Đã gắn hết tài liệu.
+                      </p>
+                    )}
                 </div>
-              )}
-              {citationsByDoc.map((d, i) => (
-                <DocSourceCard
-                  key={d.docId}
-                  index={i + 1}
-                  docName={d.docName}
-                  courseCode={d.course}
-                  courseName={courseLabel(d.course, displayCourses)}
-                  citations={d.items}
-                />
-              ))}
-            </div>
-          </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent
+              value="citations"
+              className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 data-[state=inactive]:hidden"
+            >
+              <div className="space-y-3">
+                {citationsByDoc.length === 0 && (
+                  <div className="rounded-lg border border-dashed border-border bg-card/50 p-5">
+                    {showWelcome ? (
+                      <div className="space-y-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 font-medium text-foreground">
+                          <BookOpen className="h-3.5 w-3.5 text-primary" />
+                          Sẵn sàng tra cứu
+                        </div>
+                        <p>
+                          Sau câu hỏi đầu tiên, các đoạn trích từ tài liệu (kèm mã môn) sẽ hiện tại
+                          đây.
+                        </p>
+                        {subscription?.plan && (
+                          <p className="text-[11px]">
+                            Gói {subscription.plan.name}: còn{" "}
+                            <strong className="text-foreground">
+                              {subscription.remainingCredits.toLocaleString("vi-VN")}
+                            </strong>{" "}
+                            credit.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <FileX className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+                        <div className="text-xs font-medium">Chưa có trích dẫn</div>
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">
+                          Đặt câu hỏi để xem các đoạn tài liệu được hệ thống tham chiếu.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {citationsByDoc.map((d, i) => (
+                  <DocSourceCard
+                    key={d.docId}
+                    index={i + 1}
+                    docName={d.docName}
+                    courseCode={d.course}
+                    courseName={courseLabel(d.course, displayCourses)}
+                    citations={d.items}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
         </aside>
       </div>
     </AppShell>
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+/** Ô nhập tách riêng — tránh re-render markdown/sidebar mỗi lần gõ */
+function ChatComposer({
+  sending,
+  requireDocs,
+  selectedDocCount,
+  onOpenDocs,
+  onSend,
+}: {
+  sending: boolean;
+  requireDocs: boolean;
+  selectedDocCount: number;
+  onOpenDocs: () => void;
+  onSend: (text: string) => Promise<void>;
+}) {
+  const [input, setInput] = useState("");
+  const needsDocs = requireDocs && selectedDocCount === 0;
+
+  const submit = async () => {
+    const text = input.trim();
+    if (!text || sending) return;
+    if (needsDocs) {
+      onOpenDocs();
+      toast.error("Hãy gắn ít nhất 1 tài liệu vào hội thoại (panel bên phải).");
+      return;
+    }
+    setInput("");
+    await onSend(text);
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-2">
+      <div className="relative rounded-lg border border-border bg-background focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
+        <Textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void submit();
+            }
+          }}
+          disabled={sending}
+          placeholder={
+            needsDocs ? "Gắn tài liệu ở panel bên phải trước khi hỏi..." : "Hỏi về nội dung môn học"
+          }
+          className="min-h-[60px] resize-none border-0 bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0"
+          rows={2}
+        />
+        <div className="flex items-center justify-between border-t border-border px-3 py-2">
+          <span className="px-1 text-[11px] text-muted-foreground">
+            {input.length} ký tự
+            {requireDocs && selectedDocCount > 0 && (
+              <>
+                {" · "}
+                <button type="button" className="text-primary hover:underline" onClick={onOpenDocs}>
+                  {selectedDocCount} tài liệu
+                </button>
+              </>
+            )}
+          </span>
+          <Button
+            size="sm"
+            className="h-7 gap-1.5"
+            disabled={!input.trim() || sending || needsDocs}
+            onClick={() => void submit()}
+          >
+            {sending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="h-3.5 w-3.5" />
+            )}
+            Gửi
+          </Button>
+        </div>
+      </div>
+      <p className="mt-1 text-center text-[11px] text-muted-foreground">
+        {needsDocs ? (
+          <span className="text-amber-500 dark:text-amber-400">
+            ⚠ Gắn tài liệu ở panel bên phải (tab Tài liệu) để bắt đầu hỏi.
+          </span>
+        ) : (
+          "Câu trả lời được sinh từ tài liệu gắn với hội thoại này. Luôn đối chiếu với giảng viên khi cần thiết."
+        )}
+      </p>
+    </div>
+  );
+}
+
+const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMessage }) {
   const courses = useAppStore((s) => s.courses);
   const documents = useAppStore((s) => s.documents);
 
   const courseForCitation = (c: Citation) =>
     c.course || documents.find((d) => d.id === c.docId)?.course || "";
 
-  if (message.role === "user") {
+  const isUser = String(message.role).toUpperCase() === "USER";
+
+  if (isUser) {
     return (
       <div className="flex justify-end">
         <div className="flex max-w-[85%] flex-row-reverse items-start gap-2.5">
@@ -750,7 +936,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
     </div>
   );
-}
+});
 
 function DocSourceCard({
   index,

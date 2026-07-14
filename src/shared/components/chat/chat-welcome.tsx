@@ -4,17 +4,21 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
 import type { Course, Doc } from "@/shared/lib/mock-data";
-import type { SubscriptionPlan } from "@/features/student/lib/subscriptions";
+import {
+  formatCreditQuota,
+  type CurrentUserSubscription,
+} from "@/features/student/api/subscription-api";
 import { cn } from "@/shared/lib/utils";
 
 type ChatWelcomeProps = {
   courses: Course[];
   documents: Doc[];
-  plan: SubscriptionPlan;
+  subscription?: CurrentUserSubscription | null;
 };
 
-export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
+export function ChatWelcome({ courses, documents, subscription }: ChatWelcomeProps) {
   const indexed = documents.filter((d) => d.status === "indexed");
+  const plan = subscription?.plan;
 
   const byCourse = courses.map((c) => ({
     course: c,
@@ -102,38 +106,36 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
         </Button>
       </Card>
 
-      <Card className="border-dashed p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Gói {plan.name} — miễn phí khi đăng ký</h3>
-        </div>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex items-start gap-2">
-            <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-            <span>
-              <strong className="text-foreground">
-                {plan.questionsPerMonth.toLocaleString("vi-VN")} câu hỏi / tháng
-              </strong>{" "}
-              — đủ để thử nghiệm và ôn tập cơ bản.
-            </span>
-          </li>
-          {plan.features.map((f) => (
-            <li key={f} className="flex items-start gap-2 pl-5 text-xs">
-              <span className="text-primary">·</span>
-              {f}
+      {plan && (
+        <Card className="border-dashed p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Gói {plan.name}</h3>
+          </div>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              <span>
+                Còn{" "}
+                <strong className="text-foreground">
+                  {(subscription?.remainingCredits ?? 0).toLocaleString("vi-VN")} credit
+                </strong>
+                {" · "}
+                {formatCreditQuota(plan.creditAmount, plan.resetPeriod)}.
+              </span>
             </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Cần hỏi nhiều hơn hoặc ưu tiên tốc độ? Nâng cấp gói Pro / Education trên trang Gói tháng.
-        </p>
-        <Button size="sm" variant="outline" className="mt-3 gap-1.5" asChild>
-          <Link to="/subscriptions">
-            Xem các gói
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </Button>
-      </Card>
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Cần hỏi nhiều hơn? Nâng cấp gói trên trang Gói tháng (trừ tiền từ ví).
+          </p>
+          <Button size="sm" variant="outline" className="mt-3 gap-1.5" asChild>
+            <Link to="/subscriptions">
+              Xem các gói
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        </Card>
+      )}
     </div>
   );
 }

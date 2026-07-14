@@ -59,6 +59,22 @@ export function AppShell({
     if (!loading && !user) navigate({ to: "/auth" });
   }, [loading, user, navigate]);
 
+  // Full-bleed pages (chat) must lock document scroll so only inner panes scroll.
+  useEffect(() => {
+    if (!fullBleed) return;
+    const html = document.documentElement;
+    const { body } = document;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    window.scrollTo(0, 0);
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+    };
+  }, [fullBleed]);
+
   useEffect(() => {
     if (roleLoading || !role) return;
     const home = HOME_FOR_ROLE[role];
@@ -128,7 +144,7 @@ export function AppShell({
     <div
       className={cn(
         "flex flex-col bg-background",
-        fullBleed ? "h-svh overflow-hidden" : "min-h-screen",
+        fullBleed ? "h-dvh max-h-dvh overflow-hidden overscroll-none" : "min-h-screen",
       )}
     >
       <header
@@ -218,10 +234,14 @@ export function AppShell({
       <main
         className={cn(
           "min-h-0 flex-1",
-          fullBleed ? "overflow-hidden" : (mainClassName ?? "px-6 py-6"),
+          fullBleed ? "flex flex-col overflow-hidden" : (mainClassName ?? "px-6 py-6"),
         )}
       >
-        {children}
+        {fullBleed ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        ) : (
+          children
+        )}
       </main>
     </div>
   );

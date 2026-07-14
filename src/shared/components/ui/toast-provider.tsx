@@ -19,7 +19,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback((message: string, type: ToastType) => {
     const currentTime = Date.now();
-    if (currentTime - lastToastTime < 2000) {
+    // Errors always show; success/info keep a short debounce to avoid spam.
+    if (type !== "error" && currentTime - lastToastTime < 2000) {
       return;
     }
 

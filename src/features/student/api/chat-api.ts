@@ -11,19 +11,28 @@ export interface ConversationResponse {
   title: string;
   subjectId?: string;
   subjectName?: string;
+  /** Tài liệu gắn với hội thoại; dùng lại mọi tin nhắn */
+  documentIds?: string[];
   totalMessages: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface SendMessageRequest {
-  message: string;
+export interface UpdateConversationRequest {
+  title?: string;
   documentIds?: string[];
 }
 
+export interface SendMessageRequest {
+  message: string;
+}
+
 export interface ChatAnswerResponse {
-  message: MessageResponse;
+  /** Tin nhắn user vừa gửi (`role = USER`) */
+  userMessage: MessageResponse;
+  /** Câu trả lời bot (`role = ASSISTANT`) */
+  assistantMessage: MessageResponse;
   citations: CitationResponse[];
 }
 
@@ -36,6 +45,11 @@ export interface MessageResponse {
   completionTokens?: number;
   totalTokens?: number;
   createdAt: string;
+}
+
+/** BE enum: USER | ASSISTANT → UI: user | assistant */
+export function mapMessageRole(role: string | null | undefined): "user" | "assistant" {
+  return role?.trim().toUpperCase() === "USER" ? "user" : "assistant";
 }
 
 export interface CitationResponse {
@@ -73,10 +87,10 @@ export async function getConversation(id: string) {
   return apiFetch<ConversationResponse>(`/chat/conversations/${id}`);
 }
 
-export async function updateConversation(id: string, title: string) {
+export async function updateConversation(id: string, payload: UpdateConversationRequest) {
   return apiFetch<ConversationResponse>(`/chat/conversations/${id}`, {
     method: "PATCH",
-    body: JSON.stringify({ title }),
+    body: JSON.stringify(payload),
   });
 }
 
