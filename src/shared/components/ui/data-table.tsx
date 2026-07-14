@@ -9,13 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import {
   Tooltip,
@@ -86,33 +80,38 @@ export function DataTable({
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <TooltipProvider delayDuration={200}>
               {toolbarExtra}
-              {optionalColumns && optionalColumns.length > 0 && columnVisibility && onColumnVisibilityChange && (
-                <DropdownMenu>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-                          <Columns2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">Hiển thị cột</TooltipContent>
-                  </Tooltip>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {optionalColumns.map(({ key, label }) => (
-                      <DropdownMenuCheckboxItem
-                        key={key}
-                        checked={columnVisibility[key] !== false}
-                        onCheckedChange={(checked) => onColumnVisibilityChange(key, checked === true)}
-                      >
-                        {label}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              {optionalColumns &&
+                optionalColumns.length > 0 &&
+                columnVisibility &&
+                onColumnVisibilityChange && (
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                            <Columns2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">Hiển thị cột</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {optionalColumns.map(({ key, label }) => (
+                        <DropdownMenuCheckboxItem
+                          key={key}
+                          checked={columnVisibility[key] !== false}
+                          onCheckedChange={(checked) =>
+                            onColumnVisibilityChange(key, checked === true)
+                          }
+                        >
+                          {label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               {onRefresh && (
                 <Tooltip>
                   <TooltipTrigger asChild>

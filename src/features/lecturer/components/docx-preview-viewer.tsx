@@ -120,7 +120,10 @@ export function DocxPreviewViewer({
   useEffect(() => {
     if (compact || loading) return;
     applyDocxScale(bodyRef.current, scale);
-    onPageChangeRef.current?.(visiblePageFromBody(bodyRef.current), countDocxPages(bodyRef.current));
+    onPageChangeRef.current?.(
+      visiblePageFromBody(bodyRef.current),
+      countDocxPages(bodyRef.current),
+    );
   }, [compact, loading, scale]);
 
   useEffect(() => {

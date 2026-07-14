@@ -10,7 +10,8 @@ const topics: TopicMatch[] = [
     keywords: ["uml", "diagram", "class diagram", "sequence", "use case diagram"],
     answer: (doc) => ({
       page: 12,
-      snippet: "UML diagrams are categorized into structural and behavioral views, each capturing a distinct aspect of the system…",
+      snippet:
+        "UML diagrams are categorized into structural and behavioral views, each capturing a distinct aspect of the system…",
       content: `Dựa trên **${doc.name}**, UML gồm hai nhóm chính:
 
 ### Structural Diagrams
@@ -41,7 +42,8 @@ const topics: TopicMatch[] = [
     keywords: ["use case", "user story", "actor", "yêu cầu"],
     answer: (doc) => ({
       page: 8,
-      snippet: "A use case describes a sequence of interactions between an actor and the system to achieve a goal…",
+      snippet:
+        "A use case describes a sequence of interactions between an actor and the system to achieve a goal…",
       content: `Từ **${doc.name}**:
 
 | Tiêu chí | Use Case | User Story |
@@ -57,7 +59,8 @@ Use Case mô tả tương tác **actor ↔ hệ thống** để đạt mục ti�
     keywords: ["architecture", "layered", "microservice", "monolith", "kiến trúc", "tầng"],
     answer: (doc) => ({
       page: 142,
-      snippet: "A layered architecture organizes the system into horizontal layers where each layer provides services to the layer above it…",
+      snippet:
+        "A layered architecture organizes the system into horizontal layers where each layer provides services to the layer above it…",
       content: `Dựa trên **${doc.name}**:
 
 ### Layered Architecture
@@ -75,7 +78,8 @@ Use Case mô tả tương tác **actor ↔ hệ thống** để đạt mục ti�
     keywords: ["express", "middleware", "rest", "api", "nodejs", "node.js", "async"],
     answer: (doc) => ({
       page: 34,
-      snippet: "Middleware functions have access to the request and response objects and the next function in the application's request-response cycle…",
+      snippet:
+        "Middleware functions have access to the request and response objects and the next function in the application's request-response cycle…",
       content: `Theo **${doc.name}** (SDN302):
 
 **Express** xử lý HTTP qua pipeline middleware — mỗi hàm nhận \`(req, res, next)\`.
@@ -89,7 +93,8 @@ Use Case mô tả tương tác **actor ↔ hệ thống** để đạt mục ti�
     keywords: ["mongodb", "mongoose", "schema", "collection", "embed", "reference"],
     answer: (doc) => ({
       page: 22,
-      snippet: "Embedding related data in a single document reduces the need for joins but increases document size…",
+      snippet:
+        "Embedding related data in a single document reduces the need for joins but increases document size…",
       content: `Từ **${doc.name}** (SDN302):
 
 - **Embed** dữ liệu liên quan trong cùng document khi đọc chung
@@ -101,7 +106,8 @@ Use Case mô tả tương tác **actor ↔ hệ thống** để đạt mục ti�
     keywords: ["java", "oop", "inheritance", "polymorphism", "extends", "implements", "lab211"],
     answer: (doc) => ({
       page: 18,
-      snippet: "Polymorphism allows objects of different classes to be treated as objects of a common superclass through method overriding…",
+      snippet:
+        "Polymorphism allows objects of different classes to be treated as objects of a common superclass through method overriding…",
       content: `Theo **${doc.name}** (LAB211):
 
 - **Kế thừa**: \`extends\` — tái sử dụng code từ lớp cha
@@ -113,7 +119,8 @@ Use Case mô tả tương tác **actor ↔ hệ thống** để đạt mục ti�
     keywords: ["swp391", "project", "capstone", "sprint", "nộp", "demo", "báo cáo"],
     answer: (doc) => ({
       page: 3,
-      snippet: "Final submission must include source repository, deployment guide, and sprint retrospective…",
+      snippet:
+        "Final submission must include source repository, deployment guide, and sprint retrospective…",
       content: `Theo **${doc.name}** (SWP391):
 
 1. Repository có README và hướng dẫn chạy
@@ -126,7 +133,8 @@ Use Case mô tả tương tác **actor ↔ hệ thống** để đạt mục ti�
     keywords: ["sequence", "interaction", "message", "luồng", "đăng nhập", "login"],
     answer: (doc) => ({
       page: 45,
-      snippet: "Sequence diagrams show object interactions arranged in time sequence, depicting messages exchanged between participants…",
+      snippet:
+        "Sequence diagrams show object interactions arranged in time sequence, depicting messages exchanged between participants…",
       content: `Theo **${doc.name}**, Sequence Diagram mô tả **trao đổi message theo thời gian**.
 
 Luồng đăng nhập điển hình:
@@ -144,9 +152,12 @@ function scoreDoc(doc: Doc, question: string): number {
   const q = question.toLowerCase();
   let score = 0;
   const haystack = `${doc.name} ${doc.course}`.toLowerCase();
-  haystack.split(/\W+/).filter((w) => w.length > 3).forEach((word) => {
-    if (q.includes(word)) score += 2;
-  });
+  haystack
+    .split(/\W+/)
+    .filter((w) => w.length > 3)
+    .forEach((word) => {
+      if (q.includes(word)) score += 2;
+    });
   if (doc.status === "indexed") score += 1;
   return score;
 }
@@ -176,7 +187,8 @@ export function generateMockReply(
 
   if (!doc) {
     return {
-      content: "Hiện chưa có tài liệu nào trong hệ thống. Vui lòng liên hệ admin để upload tài liệu môn học.",
+      content:
+        "Hiện chưa có tài liệu nào trong hệ thống. Vui lòng liên hệ admin để upload tài liệu môn học.",
       citations: [],
     };
   }
@@ -196,13 +208,15 @@ Câu hỏi của bạn liên quan đến nội dung đã được index trong h�
 Hệ thống đã tìm thấy **${doc.chunks || "một số"} chunks** liên quan trong tài liệu này. Bạn có thể hỏi cụ thể hơn (ví dụ: UML, Design Pattern, Use Case, Architecture…) để nhận câu trả lời chi tiết hơn.`,
       };
 
-  const citations: Citation[] = [{
-    docId: doc.id,
-    docName: doc.name,
-    course: doc.course,
-    page,
-    snippet,
-  }];
+  const citations: Citation[] = [
+    {
+      docId: doc.id,
+      docName: doc.name,
+      course: doc.course,
+      page,
+      snippet,
+    },
+  ];
 
   // Thêm tài liệu thứ 2 nếu có match tốt
   const second = documents

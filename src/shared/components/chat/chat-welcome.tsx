@@ -1,12 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-  Bot,
-  BookOpen,
-  FileText,
-  Sparkles,
-  MessageSquare,
-  ArrowRight,
-} from "lucide-react";
+import { Bot, BookOpen, FileText, Sparkles, MessageSquare, ArrowRight } from "lucide-react";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
@@ -36,15 +29,13 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
             <Bot className="h-6 w-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold tracking-tight">
-              Chào mừng đến EduBuddy
-            </h2>
+            <h2 className="text-base font-semibold tracking-tight">Chào mừng đến EduBuddy</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               EduBuddy là trợ lý học tập AI — trả lời câu hỏi dựa trên{" "}
-              <strong className="font-medium text-foreground">tài liệu môn học</strong> do
-              giảng viên cung cấp, kèm{" "}
-              <strong className="font-medium text-foreground">trích dẫn nguồn</strong> ở khung
-              bên phải để bạn đối chiếu.
+              <strong className="font-medium text-foreground">tài liệu môn học</strong> do giảng
+              viên cung cấp, kèm{" "}
+              <strong className="font-medium text-foreground">trích dẫn nguồn</strong> ở khung bên
+              phải để bạn đối chiếu.
             </p>
           </div>
         </div>
@@ -57,8 +48,8 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
         </div>
         <p className="mb-4 text-xs text-muted-foreground">
           Hiện tại hệ thống có {indexed.length} tài liệu sẵn sàng trên{" "}
-          {byCourse.filter((g) => g.docs.length > 0).length} môn. Gõ câu hỏi bên dưới để bắt
-          đầu — ví dụ: &quot;Tóm tắt nội dung tài liệu&quot;, &quot;Scrum là gì?&quot;
+          {byCourse.filter((g) => g.docs.length > 0).length} môn. Gõ câu hỏi bên dưới để bắt đầu —
+          ví dụ: &quot;Tóm tắt nội dung tài liệu&quot;, &quot;Scrum là gì?&quot;
         </p>
         <div className="space-y-3">
           {byCourse.map(({ course, docs }) => (
@@ -114,9 +105,7 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
       <Card className="border-dashed p-5">
         <div className="mb-3 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">
-            Gói {plan.name} — miễn phí khi đăng ký
-          </h3>
+          <h3 className="text-sm font-semibold">Gói {plan.name} — miễn phí khi đăng ký</h3>
         </div>
         <ul className="space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-2">
@@ -136,8 +125,7 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
           ))}
         </ul>
         <p className="mt-3 text-xs text-muted-foreground">
-          Cần hỏi nhiều hơn hoặc ưu tiên tốc độ? Nâng cấp gói Pro / Education trên trang Gói
-          tháng.
+          Cần hỏi nhiều hơn hoặc ưu tiên tốc độ? Nâng cấp gói Pro / Education trên trang Gói tháng.
         </p>
         <Button size="sm" variant="outline" className="mt-3 gap-1.5" asChild>
           <Link to="/subscriptions">

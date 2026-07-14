@@ -54,7 +54,11 @@ export function signIn(email: string, password: string): MockUser {
   return user;
 }
 
-export function signUp(email: string, password: string, role: "student" | "lecturer" = "student"): MockUser {
+export function signUp(
+  email: string,
+  password: string,
+  role: "student" | "lecturer" = "student",
+): MockUser {
   if (findUserByEmail(email)) {
     throw new Error("Email đã được sử dụng.");
   }

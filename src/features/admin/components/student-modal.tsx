@@ -68,9 +68,7 @@ function SubjectPicker({
   const toggle = (id: string) => {
     if (disabled) return;
     onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((item) => item !== id)
-        : [...selectedIds, id],
+      selectedIds.includes(id) ? selectedIds.filter((item) => item !== id) : [...selectedIds, id],
     );
   };
 
@@ -256,11 +254,7 @@ export function StudentModal({
   const title =
     mode === "view" ? "Chi tiết sinh viên" : mode === "edit" ? "Sửa sinh viên" : "Thêm sinh viên";
 
-  const status = detail
-    ? detail.active
-      ? activeStyles.active
-      : activeStyles.inactive
-    : null;
+  const status = detail ? (detail.active ? activeStyles.active : activeStyles.inactive) : null;
 
   return (
     <Modal open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>

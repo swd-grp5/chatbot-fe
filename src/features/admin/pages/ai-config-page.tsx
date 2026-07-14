@@ -64,7 +64,9 @@ export function AdminAIConfigPage() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(raw) });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const save = () => {
@@ -94,7 +96,9 @@ export function AdminAIConfigPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={reset}>Mặc định</Button>
+            <Button variant="outline" onClick={reset}>
+              Mặc định
+            </Button>
             <Button onClick={save} className="gap-2">
               <Save className="h-4 w-4" /> Lưu
             </Button>
@@ -109,10 +113,14 @@ export function AdminAIConfigPage() {
           <div className="space-y-2">
             <Label>Model</Label>
             <Select value={config.model} onValueChange={(v) => update("model", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {MODELS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -122,19 +130,27 @@ export function AdminAIConfigPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Temperature</Label>
-                <span className="text-xs tabular-nums text-muted-foreground">{config.temperature.toFixed(2)}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {config.temperature.toFixed(2)}
+                </span>
               </div>
               <Slider
                 value={[config.temperature]}
-                min={0} max={1} step={0.05}
+                min={0}
+                max={1}
+                step={0.05}
                 onValueChange={([v]) => update("temperature", v)}
               />
-              <p className="text-[11px] text-muted-foreground">Thấp = bám tài liệu. Cao = sáng tạo hơn.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Thấp = bám tài liệu. Cao = sáng tạo hơn.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Max tokens</Label>
               <Input
-                type="number" min={128} max={8192}
+                type="number"
+                min={128}
+                max={8192}
                 value={config.maxTokens}
                 onChange={(e) => update("maxTokens", Number(e.target.value))}
               />
@@ -157,11 +173,18 @@ export function AdminAIConfigPage() {
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label>Embedding model</Label>
-              <Select value={config.embeddingModel} onValueChange={(v) => update("embeddingModel", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={config.embeddingModel}
+                onValueChange={(v) => update("embeddingModel", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {EMBED_MODELS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -169,7 +192,9 @@ export function AdminAIConfigPage() {
             <div className="space-y-2">
               <Label>Top-K chunks</Label>
               <Input
-                type="number" min={1} max={20}
+                type="number"
+                min={1}
+                max={20}
                 value={config.topK}
                 onChange={(e) => update("topK", Number(e.target.value))}
               />
@@ -177,7 +202,9 @@ export function AdminAIConfigPage() {
             <div className="space-y-2">
               <Label>Chunk size (tokens)</Label>
               <Input
-                type="number" min={100} max={4000}
+                type="number"
+                min={100}
+                max={4000}
                 value={config.chunkSize}
                 onChange={(e) => update("chunkSize", Number(e.target.value))}
               />
@@ -185,7 +212,9 @@ export function AdminAIConfigPage() {
             <div className="space-y-2">
               <Label>Chunk overlap (tokens)</Label>
               <Input
-                type="number" min={0} max={1000}
+                type="number"
+                min={0}
+                max={1000}
                 value={config.chunkOverlap}
                 onChange={(e) => update("chunkOverlap", Number(e.target.value))}
               />

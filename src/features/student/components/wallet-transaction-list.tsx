@@ -53,11 +53,7 @@ dayjs.locale("vi");
 type DateRangeFilter = { from: string; to: string };
 type AmountRangeFilter = { min: number; max: number };
 
-export type WalletSortOption =
-  | "createdAt-desc"
-  | "createdAt-asc"
-  | "amount-desc"
-  | "amount-asc";
+export type WalletSortOption = "createdAt-desc" | "createdAt-asc" | "amount-desc" | "amount-asc";
 
 const SORT_OPTIONS: { value: WalletSortOption; label: string }[] = [
   { value: "createdAt-desc", label: "Mới nhất" },
@@ -142,7 +138,10 @@ function WalletTransactionItem({ tx }: { tx: WalletTransactionResponse }) {
           </Badge>
           <Badge
             variant="outline"
-            className={cn("font-normal text-[10px]", WALLET_TRANSACTION_STATUS_BADGE_CLASS[tx.status])}
+            className={cn(
+              "font-normal text-[10px]",
+              WALLET_TRANSACTION_STATUS_BADGE_CLASS[tx.status],
+            )}
           >
             {WALLET_TRANSACTION_STATUS_LABELS[tx.status]}
           </Badge>
@@ -266,7 +265,13 @@ export function WalletTransactionList({
               className="h-9 pl-8 text-xs"
             />
           </div>
-          <Button type="button" size="sm" variant="secondary" className="h-9 shrink-0 px-3 text-xs" onClick={onSearch}>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="h-9 shrink-0 px-3 text-xs"
+            onClick={onSearch}
+          >
             Tìm
           </Button>
 
@@ -308,7 +313,10 @@ export function WalletTransactionList({
             </SelectContent>
           </Select>
 
-          <Select value={sortOption} onValueChange={(value) => onSortOptionChange(value as WalletSortOption)}>
+          <Select
+            value={sortOption}
+            onValueChange={(value) => onSortOptionChange(value as WalletSortOption)}
+          >
             <SelectTrigger className="h-9 w-full text-xs sm:w-[160px]">
               <SelectValue placeholder="Sắp xếp" />
             </SelectTrigger>
@@ -393,7 +401,9 @@ export function WalletTransactionList({
                     onCreatedRangeApply(fromDayjsRange(dateDraft));
                     const isFullRange =
                       amountDraft[0] === 0 && amountDraft[1] === WALLET_AMOUNT_FILTER_MAX;
-                    onAmountRangeApply(isFullRange ? null : { min: amountDraft[0], max: amountDraft[1] });
+                    onAmountRangeApply(
+                      isFullRange ? null : { min: amountDraft[0], max: amountDraft[1] },
+                    );
                     setFiltersOpen(false);
                   }}
                 >

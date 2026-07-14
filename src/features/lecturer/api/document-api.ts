@@ -2,18 +2,11 @@ import { apiFetch, apiFetchBlob, apiUpload } from "@/shared/lib/api-client";
 
 import type { Doc, DocStatus } from "@/shared/lib/mock-data";
 
-
-
 export const ALLOWED_UPLOAD_EXTENSIONS = new Set(["pdf", "docx", "txt"]);
-
-
 
 export type ApiDocumentStatus = "UPLOADED" | "PROCESSING" | "INDEXED" | "FAILED";
 
-
-
 export const DOCUMENT_STATUS_OPTIONS: { value: ApiDocumentStatus; label: string }[] = [
-
   { value: "UPLOADED", label: "Mới upload" },
 
   { value: "PROCESSING", label: "Đang xử lý" },
@@ -21,17 +14,11 @@ export const DOCUMENT_STATUS_OPTIONS: { value: ApiDocumentStatus; label: string 
   { value: "INDEXED", label: "Sẵn sàng" },
 
   { value: "FAILED", label: "Lỗi" },
-
 ];
-
-
 
 export type ApiDocumentType = "PDF" | "DOCX" | "PPTX" | "TXT" | "OTHER";
 
-
-
 export const DOCUMENT_TYPE_OPTIONS: { value: ApiDocumentType; label: string }[] = [
-
   { value: "PDF", label: "PDF" },
 
   { value: "DOCX", label: "DOCX" },
@@ -41,13 +28,9 @@ export const DOCUMENT_TYPE_OPTIONS: { value: ApiDocumentType; label: string }[] 
   { value: "TXT", label: "TXT" },
 
   { value: "OTHER", label: "OTHER" },
-
 ];
 
-
-
 export type DocumentFileResponse = {
-
   id: string;
 
   originalFileName: string;
@@ -63,13 +46,9 @@ export type DocumentFileResponse = {
   checksum: string;
 
   createdAt: string;
-
 };
 
-
-
 export type DocumentResponse = {
-
   id: string;
 
   subjectId: string;
@@ -97,13 +76,9 @@ export type DocumentResponse = {
   updatedAt: string;
 
   files: DocumentFileResponse[];
-
 };
 
-
-
 export type PageResponse<T> = {
-
   content: T[];
 
   page: number;
@@ -119,13 +94,9 @@ export type PageResponse<T> = {
   last: boolean;
 
   empty: boolean;
-
 };
 
-
-
 export const apiStatusToDocStatus: Record<ApiDocumentStatus, DocStatus> = {
-
   UPLOADED: "uploaded",
 
   PROCESSING: "processing",
@@ -133,13 +104,9 @@ export const apiStatusToDocStatus: Record<ApiDocumentStatus, DocStatus> = {
   INDEXED: "indexed",
 
   FAILED: "failed",
-
 };
 
-
-
 const typeMap: Record<ApiDocumentType, Doc["type"]> = {
-
   PDF: "pdf",
 
   DOCX: "docx",
@@ -149,13 +116,9 @@ const typeMap: Record<ApiDocumentType, Doc["type"]> = {
   TXT: "txt",
 
   OTHER: "pdf",
-
 };
 
-
-
 function formatFileSize(bytes: number): string {
-
   if (bytes < 1024) return `${bytes} B`;
 
   const kb = bytes / 1024;
@@ -163,13 +126,9 @@ function formatFileSize(bytes: number): string {
   if (kb < 1024) return `${Math.round(kb)} KB`;
 
   return `${(kb / 1024).toFixed(1)} MB`;
-
 }
 
-
-
 export function mapDocumentResponse(doc: DocumentResponse): Doc {
-
   const file = doc.files[0];
 
   const size = file ? formatFileSize(file.fileSize) : "—";
@@ -178,10 +137,7 @@ export function mapDocumentResponse(doc: DocumentResponse): Doc {
 
   const name = doc.title || fileName || "—";
 
-
-
   return {
-
     id: doc.id,
 
     name,
@@ -207,25 +163,16 @@ export function mapDocumentResponse(doc: DocumentResponse): Doc {
     chunks: doc.totalChunks,
 
     active: doc.active,
-
   };
-
 }
 
-
-
 export function isAllowedUploadFile(file: File): boolean {
-
   const ext = file.name.split(".").pop()?.toLowerCase();
 
   return !!ext && ALLOWED_UPLOAD_EXTENSIONS.has(ext);
-
 }
 
-
-
 export type UploadDocumentItem = {
-
   file: File;
 
   subjectId: string;
@@ -233,119 +180,75 @@ export type UploadDocumentItem = {
   title: string;
 
   description?: string;
-
 };
 
-
-
 async function uploadDocumentsBatch(items: UploadDocumentItem[]) {
-
   const metadata = items.map(({ subjectId, title, description }) => ({
-
     subjectId,
 
     title,
 
     description: description?.trim() || "",
-
   }));
-
-
 
   const formData = new FormData();
 
   formData.append(
-
     "data",
 
     new File([JSON.stringify(metadata)], "data.json", { type: "application/json" }),
-
   );
 
   for (const { file } of items) {
-
     formData.append("files", file, file.name);
-
   }
-
-
 
   const subjectId = items[0]?.subjectId;
 
   const path = subjectId
-
     ? `/documents/upload?subjectId=${encodeURIComponent(subjectId)}`
-
     : "/documents/upload";
 
-
-
   return apiUpload<DocumentResponse | DocumentResponse[]>(path, formData);
-
 }
 
-
-
 export async function uploadDocuments(items: UploadDocumentItem[]) {
-
   if (items.length === 0) {
-
     throw new Error("No files to upload");
-
   }
 
   if (items.length === 1) {
-
     return uploadDocumentsBatch(items);
-
   }
-
-
 
   // Backend validates metadata.length === files.length per request; upload one file at a time.
 
   const results: DocumentResponse[] = [];
 
   for (const item of items) {
-
     const res = await uploadDocumentsBatch([item]);
 
     results.push(Array.isArray(res) ? res[0] : res);
-
   }
 
   return results;
-
 }
 
-
-
 export async function uploadDocument(
-
   file: File,
 
   meta: { subjectId: string; title: string; description?: string },
-
 ) {
-
   return uploadDocuments([{ file, ...meta }]);
-
 }
-
-
 
 export type DocumentSortField = "title" | "status" | "documentType" | "createdAt" | "updatedAt";
 
 export type SortDirection = "asc" | "desc";
 
-
-
 export const DEFAULT_DOCUMENT_PAGE_SIZE = 10;
 
-
-
 export type FetchDocumentsParams = {
-
   subjectId?: string;
 
   subjectCode?: string;
@@ -365,19 +268,13 @@ export type FetchDocumentsParams = {
   page?: number;
 
   size?: number;
-
 };
 
-
-
 export async function fetchDocuments(params?: FetchDocumentsParams) {
-
   const search = new URLSearchParams({
-
     page: String(params?.page ?? 0),
 
     size: String(params?.size ?? DEFAULT_DOCUMENT_PAGE_SIZE),
-
   });
 
   if (params?.subjectId) search.set("subjectId", params.subjectId);
@@ -397,56 +294,37 @@ export async function fetchDocuments(params?: FetchDocumentsParams) {
   if (params?.active != null) search.set("active", String(params.active));
 
   return apiFetch<PageResponse<DocumentResponse>>(`/documents?${search}`);
-
 }
-
-
 
 export async function deleteDocument(id: string) {
-
   return apiFetch<void>(`/documents/${id}`, { method: "DELETE" });
-
 }
 
-
-
 export type UpdateDocumentPayload = {
-
   title: string;
 
   description?: string;
 
   active: boolean;
-
 };
 
-
-
 export async function updateDocumentApi(id: string, payload: UpdateDocumentPayload) {
-
   return apiFetch<DocumentResponse>(`/documents/${id}`, {
-
     method: "PUT",
 
     body: JSON.stringify({
-
       title: payload.title,
 
       description: payload.description?.trim() ?? "",
 
       active: payload.active,
-
     }),
-
   });
-
 }
-
-
 
 export async function toggleDocumentActive(
   id: string,
-  doc: { title?: string; name: string; description?: string; active?: boolean },
+  doc: { title?: string; name: string; description?: string | null; active?: boolean },
 ) {
   const wasActive = doc.active !== false;
   return updateDocumentApi(id, {
@@ -456,10 +334,7 @@ export async function toggleDocumentActive(
   });
 }
 
-
-
 export type DocumentChunkResponse = {
-
   id: string;
 
   documentId: string;
@@ -483,21 +358,13 @@ export type DocumentChunkResponse = {
   metadataJson: string | null;
 
   createdAt: string;
-
 };
 
-
-
 export async function fetchDocumentChunks(documentId: string) {
-
   return apiFetch<DocumentChunkResponse[]>(`/documents/${documentId}/chunks`);
-
 }
 
-
-
 export type DocumentViewerResponse = {
-
   id: string;
 
   title: string;
@@ -513,33 +380,19 @@ export type DocumentViewerResponse = {
   fileName: string;
 
   mimeType: string;
-
 };
 
-
-
 export async function fetchDocumentViewer(documentId: string) {
-
   return apiFetch<DocumentViewerResponse>(`/documents/${documentId}/viewer`);
-
 }
-
-
 
 export async function fetchDocumentFile(documentId: string) {
-
   return apiFetchBlob(`/documents/${documentId}/view`);
-
 }
-
-
 
 export type DocumentPreviewContentType = "IMAGE" | "TEXT" | string;
 
-
-
 export type DocumentPreviewResponse = {
-
   documentId: string;
 
   fileName: string;
@@ -557,10 +410,7 @@ export type DocumentPreviewResponse = {
   textPreview: string | null;
 
   truncated: boolean;
-
 };
-
-
 
 export function documentPreviewImageSrc(preview: DocumentPreviewResponse): string | null {
   const raw = preview.contentBase64?.trim();
@@ -571,10 +421,7 @@ export function documentPreviewImageSrc(preview: DocumentPreviewResponse): strin
   const base64 = raw.replace(/\s/g, "");
 
   let mime = preview.mimeType || "image/png";
-  if (
-    preview.previewContentType === "IMAGE" ||
-    preview.documentType === "PDF"
-  ) {
+  if (preview.previewContentType === "IMAGE" || preview.documentType === "PDF") {
     if (!mime.startsWith("image/")) {
       mime = "image/png";
     }
@@ -583,11 +430,6 @@ export function documentPreviewImageSrc(preview: DocumentPreviewResponse): strin
   return `data:${mime};base64,${base64}`;
 }
 
-
-
 export async function fetchDocumentPreview(documentId: string) {
-
   return apiFetch<DocumentPreviewResponse>(`/documents/${documentId}/preview`);
-
 }
-

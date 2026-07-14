@@ -76,13 +76,33 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "EduBuddy" },
-      { name: "description", content: "Trợ lý học tập thông minh cho sinh viên — hỏi đáp tài liệu môn học kèm trích dẫn nguồn" },
+      {
+        name: "description",
+        content:
+          "Trợ lý học tập thông minh cho sinh viên — hỏi đáp tài liệu môn học kèm trích dẫn nguồn",
+      },
       { property: "og:title", content: "EduBuddy — Trợ lý học tập" },
       { name: "twitter:title", content: "EduBuddy — Trợ lý học tập" },
-      { property: "og:description", content: "Trợ lý học tập thông minh cho sinh viên — hỏi đáp tài liệu môn học kèm trích dẫn nguồn" },
-      { name: "twitter:description", content: "Trợ lý học tập thông minh cho sinh viên — hỏi đáp tài liệu môn học kèm trích dẫn nguồn" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3d25ecc4-005d-45af-ac09-835bb3a27d13/id-preview-91542cb0--291e13fd-5512-4efa-8f0d-230e652ee83a.lovable.app-1779615194506.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3d25ecc4-005d-45af-ac09-835bb3a27d13/id-preview-91542cb0--291e13fd-5512-4efa-8f0d-230e652ee83a.lovable.app-1779615194506.png" },
+      {
+        property: "og:description",
+        content:
+          "Trợ lý học tập thông minh cho sinh viên — hỏi đáp tài liệu môn học kèm trích dẫn nguồn",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Trợ lý học tập thông minh cho sinh viên — hỏi đáp tài liệu môn học kèm trích dẫn nguồn",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3d25ecc4-005d-45af-ac09-835bb3a27d13/id-preview-91542cb0--291e13fd-5512-4efa-8f0d-230e652ee83a.lovable.app-1779615194506.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3d25ecc4-005d-45af-ac09-835bb3a27d13/id-preview-91542cb0--291e13fd-5512-4efa-8f0d-230e652ee83a.lovable.app-1779615194506.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
@@ -91,7 +111,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+      },
       { rel: "stylesheet", href: appCss },
     ],
   }),
@@ -100,7 +123,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (

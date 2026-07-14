@@ -101,7 +101,9 @@ export function AdminSubscriptionsPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-lg font-semibold">{p.name || "(Chưa đặt tên)"}</div>
-                  <div className="mt-1 text-2xl font-bold tabular-nums">{formatPlanPrice(p.pricePerMonth)}</div>
+                  <div className="mt-1 text-2xl font-bold tabular-nums">
+                    {formatPlanPrice(p.pricePerMonth)}
+                  </div>
                 </div>
                 {p.active ? (
                   <Badge variant="outline" className="border-success/30 bg-success/10 text-success">
@@ -131,11 +133,17 @@ export function AdminSubscriptionsPage() {
                   <span className="text-xs text-muted-foreground">Hiển thị</span>
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => openEdit(p)}
+                  >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
-                    variant="ghost" size="icon"
+                    variant="ghost"
+                    size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive"
                     onClick={() => remove(p.id)}
                   >
@@ -150,7 +158,9 @@ export function AdminSubscriptionsPage() {
         <Modal open={open} onOpenChange={setOpen}>
           <ModalContent>
             <ModalHeader>
-              <ModalTitle>{editing && plans.find((p) => p.id === editing.id) ? "Sửa gói" : "Tạo gói mới"}</ModalTitle>
+              <ModalTitle>
+                {editing && plans.find((p) => p.id === editing.id) ? "Sửa gói" : "Tạo gói mới"}
+              </ModalTitle>
             </ModalHeader>
 
             {editing && (
@@ -168,17 +178,23 @@ export function AdminSubscriptionsPage() {
                   <div className="space-y-2">
                     <Label>Giá (VND/tháng)</Label>
                     <Input
-                      type="number" min={0}
+                      type="number"
+                      min={0}
                       value={editing.pricePerMonth}
-                      onChange={(e) => setEditing({ ...editing, pricePerMonth: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setEditing({ ...editing, pricePerMonth: Number(e.target.value) })
+                      }
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Số câu hỏi/tháng</Label>
                     <Input
-                      type="number" min={0}
+                      type="number"
+                      min={0}
                       value={editing.questionsPerMonth}
-                      onChange={(e) => setEditing({ ...editing, questionsPerMonth: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setEditing({ ...editing, questionsPerMonth: Number(e.target.value) })
+                      }
                     />
                   </div>
                 </div>
@@ -191,7 +207,10 @@ export function AdminSubscriptionsPage() {
                     onChange={(e) =>
                       setEditing({
                         ...editing,
-                        features: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+                        features: e.target.value
+                          .split("\n")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
                       })
                     }
                   />
@@ -208,7 +227,9 @@ export function AdminSubscriptionsPage() {
             )}
 
             <ModalFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Hủy</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Hủy
+              </Button>
               <Button onClick={save}>Lưu</Button>
             </ModalFooter>
           </ModalContent>

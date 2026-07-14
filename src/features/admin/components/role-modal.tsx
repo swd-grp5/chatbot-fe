@@ -185,11 +185,7 @@ export function RoleModal({
   const title =
     mode === "view" ? "Chi tiết vai trò" : mode === "edit" ? "Sửa vai trò" : "Thêm vai trò";
 
-  const status = detail
-    ? detail.active
-      ? activeStyles.active
-      : activeStyles.inactive
-    : null;
+  const status = detail ? (detail.active ? activeStyles.active : activeStyles.inactive) : null;
 
   return (
     <Modal open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>
@@ -224,7 +220,9 @@ export function RoleModal({
             </DetailField>
             <DetailField label="Mô tả">
               {detail.description?.trim() ? (
-                <p className="whitespace-pre-wrap text-muted-foreground">{detail.description.trim()}</p>
+                <p className="whitespace-pre-wrap text-muted-foreground">
+                  {detail.description.trim()}
+                </p>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}
@@ -275,9 +273,7 @@ export function RoleModal({
                 <Label htmlFor="role-active" className="text-sm">
                   Kích hoạt
                 </Label>
-                <p className="text-xs text-muted-foreground">
-                  Vai trò có thể gán cho người dùng
-                </p>
+                <p className="text-xs text-muted-foreground">Vai trò có thể gán cho người dùng</p>
               </div>
               <Switch
                 id="role-active"
@@ -295,10 +291,7 @@ export function RoleModal({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Đóng
               </Button>
-              <Button
-                onClick={() => detail && onEditRequest?.(detail.id)}
-                disabled={!detail}
-              >
+              <Button onClick={() => detail && onEditRequest?.(detail.id)} disabled={!detail}>
                 Sửa
               </Button>
             </>

@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  Columns2,
-  Eye,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Columns2, Eye, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { RoleModal, type RoleModalMode } from "@/features/admin/components/role-modal";
-import {
-  entityTableWidths,
-  useAdminTable,
-} from "@/features/admin/hooks/use-admin-table";
+import { entityTableWidths, useAdminTable } from "@/features/admin/hooks/use-admin-table";
 import {
   ACTIVE_FILTER_OPTIONS,
   FilterTableHead,
@@ -50,13 +39,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/shared/components/ui/modal";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import {
   Tooltip,
@@ -106,8 +89,7 @@ export function AdminRolesPage() {
     try {
       const res = await fetchRoles({
         keyword: searchKeyword,
-        active:
-          activeFilter === "all" ? undefined : activeFilter === "true",
+        active: activeFilter === "all" ? undefined : activeFilter === "true",
         ...(sortBy && sortDir ? { sortBy, sortDir } : {}),
         page,
         size: DEFAULT_ROLE_PAGE_SIZE,
@@ -186,10 +168,7 @@ export function AdminRolesPage() {
               Tạo và quản lý vai trò người dùng trong hệ thống.
             </p>
           </div>
-          <Button
-            className="gap-2"
-            onClick={() => setRoleModal({ mode: "create", roleId: null })}
-          >
+          <Button className="gap-2" onClick={() => setRoleModal({ mode: "create", roleId: null })}>
             <Plus className="h-4 w-4" />
             Thêm vai trò
           </Button>
@@ -300,7 +279,10 @@ export function AdminRolesPage() {
                     {...table.resize("name")}
                   />
                   {table.isVisible("description") && (
-                    <ResizableTableHead className={TABLE_HEAD_LABEL} {...table.resize("description")}>
+                    <ResizableTableHead
+                      className={TABLE_HEAD_LABEL}
+                      {...table.resize("description")}
+                    >
                       Mô tả
                     </ResizableTableHead>
                   )}
@@ -343,17 +325,25 @@ export function AdminRolesPage() {
                   </ResizableTableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}>
+              <TableBody
+                className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}
+              >
                 {loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={table.tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       Đang tải vai trò...
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={table.tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       Chưa có vai trò — bấm Thêm vai trò để tạo.
                     </TableCell>
                   </TableRow>
@@ -368,7 +358,10 @@ export function AdminRolesPage() {
                       >
                         {rowNumber}
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium" style={table.cell("code")}>
+                      <TableCell
+                        className="font-mono text-sm font-medium"
+                        style={table.cell("code")}
+                      >
                         {row.code}
                       </TableCell>
                       <TableCell className="text-sm font-medium" style={table.cell("name")}>
@@ -382,7 +375,10 @@ export function AdminRolesPage() {
                         </Tooltip>
                       </TableCell>
                       {table.isVisible("description") && (
-                        <TableCell className="text-sm text-muted-foreground" style={table.cell("description")}>
+                        <TableCell
+                          className="text-sm text-muted-foreground"
+                          style={table.cell("description")}
+                        >
                           {row.description?.trim() ? (
                             <Tooltip>
                               <TooltipTrigger asChild>

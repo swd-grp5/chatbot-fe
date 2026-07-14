@@ -10,7 +10,11 @@ import {
   saveCourses,
   saveDocuments,
 } from "@/shared/lib/mock-storage";
-import { generateMockReply, MOCK_REPLY_DELAY_MS, newMessageId } from "@/features/student/lib/mock-chat";
+import {
+  generateMockReply,
+  MOCK_REPLY_DELAY_MS,
+  newMessageId,
+} from "@/features/student/lib/mock-chat";
 import { toSessionTimestamp, groupFor } from "@/shared/lib/format-time";
 import { getApiSession } from "@/features/auth/lib/auth-session";
 import { storageKey } from "@/shared/lib/storage-keys";
@@ -24,9 +28,12 @@ type Store = {
   sessionDocs: Record<string, string[]>;
   activeSessionId: string;
   initialized: boolean;
+  /** IDs của tài liệu student chọn cho hội thoại hiện tại */
+  selectedDocIds: string[];
 
   init: () => void;
   setActiveSession: (id: string) => void;
+  setSelectedDocIds: (ids: string[]) => void;
   loadUserData: (userId: string) => void;
   clear: () => void;
 
@@ -38,7 +45,9 @@ type Store = {
   updateDocument: (docId: string, patch: Partial<Doc>) => void;
   createSession: (title?: string) => string;
   deleteSession: (sessionId: string) => void;
-  sendMessage: (content: string) => Promise<void>;
+  renameSession: (sessionId: string, newTitle: string) => Promise<void>;
+  syncConversations: () => Promise<void>;
+  sendMessage: (content: string, documentIds?: string[]) => Promise<void>;
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -48,7 +57,10 @@ const sessionTitleFrom = (text: string) => {
   return t.length > 48 ? `${t.slice(0, 48)}…` : t;
 };
 
-const persistChat = (userId: string | null, data: Pick<Store, "sessions" | "conversations" | "sessionDocs" | "activeSessionId">) => {
+const persistChat = (
+  userId: string | null,
+  data: Pick<Store, "sessions" | "conversations" | "sessionDocs" | "activeSessionId">,
+) => {
   if (!userId) return;
   saveChatData(userId, {
     sessions: data.sessions,
@@ -94,6 +106,7 @@ export const useAppStore = create<Store>((set, get) => ({
   sessionDocs: {},
   activeSessionId: "",
   initialized: false,
+  selectedDocIds: [],
 
   init: () => {
     if (get().initialized) return;
@@ -119,10 +132,40 @@ export const useAppStore = create<Store>((set, get) => ({
   },
 
   setActiveSession: (id) => {
-    set({ activeSessionId: id });
+    set({ activeSessionId: id, selectedDocIds: [] });
     const { userId, sessions, conversations, sessionDocs } = get();
     persistChat(userId, { sessions, conversations, sessionDocs, activeSessionId: id });
+
+    if (getApiSession() && (!conversations[id] || conversations[id].length === 0)) {
+      import("@/features/student/api/chat-api").then(({ getMessages }) => {
+        getMessages(id, 0, 100)
+          .then((res) => {
+            if (res.content.length > 0) {
+              const messages = res.content.map((m) => ({
+                id: m.id,
+                role: m.role as "user" | "assistant",
+                content: m.content,
+                citations: [],
+              }));
+              const currentConversations = get().conversations;
+              if (!currentConversations[id] || currentConversations[id].length === 0) {
+                const newConversations = { ...currentConversations, [id]: messages };
+                set({ conversations: newConversations });
+                persistChat(get().userId, {
+                  sessions: get().sessions,
+                  conversations: newConversations,
+                  sessionDocs: get().sessionDocs,
+                  activeSessionId: get().activeSessionId,
+                });
+              }
+            }
+          })
+          .catch((e) => console.warn("Failed to fetch messages for session", id, e));
+      });
+    }
   },
+
+  setSelectedDocIds: (ids) => set({ selectedDocIds: ids }),
 
   clear: () =>
     set({
@@ -179,16 +222,12 @@ export const useAppStore = create<Store>((set, get) => ({
     if (!nextCode || !nextName) return false;
     if (nextCode !== oldCode && list.some((c) => c.code === nextCode)) return false;
 
-    const courses = list.map((c) =>
-      c.code === oldCode ? { code: nextCode, name: nextName } : c,
-    );
+    const courses = list.map((c) => (c.code === oldCode ? { code: nextCode, name: nextName } : c));
     saveCourses(courses);
 
     let documents = get().documents;
     if (nextCode !== oldCode) {
-      documents = documents.map((d) =>
-        d.course === oldCode ? { ...d, course: nextCode } : d,
-      );
+      documents = documents.map((d) => (d.course === oldCode ? { ...d, course: nextCode } : d));
       saveDocuments(documents);
     }
 
@@ -274,9 +313,115 @@ export const useAppStore = create<Store>((set, get) => ({
 
     set({ sessions, conversations, sessionDocs, activeSessionId });
     persistChat(userId, { sessions, conversations, sessionDocs, activeSessionId });
+
+    // Gọi API backend để soft-delete conversation (không chờ kết quả)
+    if (getApiSession()) {
+      import("@/features/student/api/chat-api").then(({ deleteConversation }) => {
+        deleteConversation(sessionId).catch((e) =>
+          console.warn("Failed to delete conversation on backend", e),
+        );
+      });
+    }
   },
 
-  sendMessage: async (content) => {
+  renameSession: async (sessionId, newTitle) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+
+    // Cập nhật local state ngay lập tức (optimistic update)
+    const sessions = get().sessions.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s));
+    set({ sessions });
+    persistChat(get().userId, {
+      sessions,
+      conversations: get().conversations,
+      sessionDocs: get().sessionDocs,
+      activeSessionId: get().activeSessionId,
+    });
+
+    // Gọi API backend nếu đang ở API mode
+    if (getApiSession()) {
+      try {
+        const { updateConversation } = await import("@/features/student/api/chat-api");
+        await updateConversation(sessionId, trimmed);
+      } catch (e) {
+        console.warn("Failed to rename conversation on backend", e);
+      }
+    }
+  },
+
+  syncConversations: async () => {
+    if (!getApiSession()) return;
+    try {
+      const { getConversations } = await import("@/features/student/api/chat-api");
+      const result = await getConversations(0, 100);
+      const backendSessions: UISession[] = result.content.map((conv) => ({
+        id: conv.id,
+        title: conv.title,
+        messageCount: conv.totalMessages,
+        updatedAt: conv.updatedAt,
+        group: groupFor(new Date(conv.updatedAt)),
+      }));
+
+      // Merge: ưu tiên backend, giữ conversations local
+      const localConversations = get().conversations;
+      const mergedConversations: Record<string, import("@/shared/lib/mock-data").ChatMessage[]> =
+        {};
+      backendSessions.forEach((s) => {
+        mergedConversations[s.id] = localConversations[s.id] ?? [];
+      });
+
+      const activeSessionId =
+        backendSessions.find((s) => s.id === get().activeSessionId)?.id ??
+        backendSessions[0]?.id ??
+        "";
+
+      set({ sessions: backendSessions, conversations: mergedConversations, activeSessionId });
+      persistChat(get().userId, {
+        sessions: backendSessions,
+        conversations: mergedConversations,
+        sessionDocs: get().sessionDocs,
+        activeSessionId,
+      });
+
+      if (
+        activeSessionId &&
+        (!mergedConversations[activeSessionId] || mergedConversations[activeSessionId].length === 0)
+      ) {
+        import("@/features/student/api/chat-api").then(({ getMessages }) => {
+          getMessages(activeSessionId, 0, 100)
+            .then((res) => {
+              if (res.content.length > 0) {
+                const messages = res.content.map((m) => ({
+                  id: m.id,
+                  role: m.role as "user" | "assistant",
+                  content: m.content,
+                  citations: [],
+                }));
+                const currentConversations = get().conversations;
+                if (
+                  !currentConversations[activeSessionId] ||
+                  currentConversations[activeSessionId].length === 0
+                ) {
+                  const newConversations = { ...currentConversations, [activeSessionId]: messages };
+                  set({ conversations: newConversations });
+                  persistChat(get().userId, {
+                    sessions: get().sessions,
+                    conversations: newConversations,
+                    sessionDocs: get().sessionDocs,
+                    activeSessionId: get().activeSessionId,
+                  });
+                }
+              }
+            })
+            .catch((e) => console.warn("Failed to fetch initial messages", e));
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to sync conversations from backend", e);
+    }
+  },
+
+  sendMessage: async (content, documentIds) => {
     const text = content.trim();
     if (!text) return;
 
@@ -287,39 +432,109 @@ export const useAppStore = create<Store>((set, get) => ({
 
     const userMsg: ChatMessage = { id: newMessageId(), role: "user", content: text };
     const existing = get().conversations[sessionId] ?? [];
-    const conversations = { ...get().conversations, [sessionId]: [...existing, userMsg] };
-
     const isFirst = existing.length === 0;
+
+    // ----- API MODE INTEGRATION -----
+    const useApi = !!getApiSession();
+    let backendConversationId = sessionId;
+
+    // Import một lần duy nhất tất cả các hàm cần dùng
+    const chatApi = useApi ? await import("@/features/student/api/chat-api") : null;
+
+    if (useApi && chatApi) {
+      if (isFirst) {
+        // Tạo conversation trên backend cho tin nhắn đầu tiên
+        try {
+          const newConv = await chatApi.createConversation({
+            title: sessionTitleFrom(text),
+          });
+          backendConversationId = newConv.id;
+
+          // Thay thế local session ID bằng backend ID nếu khác nhau
+          if (backendConversationId !== sessionId) {
+            const sessions = get().sessions.map((s) =>
+              s.id === sessionId ? { ...s, id: backendConversationId } : s,
+            );
+            const conversations = { ...get().conversations };
+            conversations[backendConversationId] = conversations[sessionId] || [];
+            delete conversations[sessionId];
+
+            const sessionDocs = { ...get().sessionDocs };
+            sessionDocs[backendConversationId] = sessionDocs[sessionId] || [];
+            delete sessionDocs[sessionId];
+
+            sessionId = backendConversationId;
+            set({ sessions, conversations, sessionDocs, activeSessionId: sessionId });
+          }
+        } catch (e) {
+          console.error("Failed to create conversation", e);
+          return;
+        }
+      }
+    }
+    // --------------------------------
+
+    const conversationsAfterUser = {
+      ...get().conversations,
+      [sessionId]: [...(get().conversations[sessionId] ?? []), userMsg],
+    };
+
     const now = new Date();
-    const sessions = get().sessions.map((s) =>
+    const sessionsAfterUser = get().sessions.map((s) =>
       s.id === sessionId
         ? {
             ...s,
-            title: isFirst ? sessionTitleFrom(text) : s.title,
-            messageCount: (conversations[sessionId]?.length ?? 0),
+            title: isFirst && !useApi ? sessionTitleFrom(text) : s.title, // API title is handled during creation
+            messageCount: conversationsAfterUser[sessionId]?.length ?? 0,
             updatedAt: toSessionTimestamp(now),
             group: groupFor(now),
           }
         : s,
     );
 
-    set({ conversations, sessions });
+    set({ conversations: conversationsAfterUser, sessions: sessionsAfterUser });
     persistChat(get().userId, {
-      sessions,
-      conversations,
+      sessions: sessionsAfterUser,
+      conversations: conversationsAfterUser,
       sessionDocs: get().sessionDocs,
       activeSessionId: sessionId,
     });
 
-    await new Promise((r) => setTimeout(r, MOCK_REPLY_DELAY_MS));
+    let assistantMsg: ChatMessage;
 
-    const { content: reply, citations } = generateMockReply(text, get().documents);
-    const assistantMsg: ChatMessage = {
-      id: newMessageId(),
-      role: "assistant",
-      content: reply,
-      citations,
-    };
+    if (useApi && chatApi) {
+      try {
+        const response = await chatApi.sendMessageApi(sessionId, { message: text, documentIds });
+        assistantMsg = {
+          id: response.message.id || newMessageId(),
+          role: "assistant",
+          content: response.message.content,
+          citations: response.citations?.map((c) => ({
+            docId: c.documentId,
+            docName: c.documentTitle,
+            snippet: c.quotedText,
+            page: c.pageStart ?? 1,
+            course: "",
+          })),
+        };
+      } catch (e) {
+        console.error("Failed to send message", e);
+        assistantMsg = {
+          id: newMessageId(),
+          role: "assistant",
+          content: "Lỗi kết nối đến máy chủ AI. Vui lòng thử lại.",
+        };
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, MOCK_REPLY_DELAY_MS));
+      const { content: reply, citations } = generateMockReply(text, get().documents);
+      assistantMsg = {
+        id: newMessageId(),
+        role: "assistant",
+        content: reply,
+        citations,
+      };
+    }
 
     const updatedConversations = {
       ...get().conversations,
@@ -327,7 +542,11 @@ export const useAppStore = create<Store>((set, get) => ({
     };
     const updatedSessions = get().sessions.map((s) =>
       s.id === sessionId
-        ? { ...s, messageCount: updatedConversations[sessionId].length, updatedAt: toSessionTimestamp() }
+        ? {
+            ...s,
+            messageCount: updatedConversations[sessionId].length,
+            updatedAt: toSessionTimestamp(),
+          }
         : s,
     );
 

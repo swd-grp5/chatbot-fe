@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  Columns2,
-  Eye,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Columns2, Eye, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { LecturerModal, type LecturerModalMode } from "@/features/admin/components/lecturer-modal";
-import {
-  useAdminTable,
-  userTableWidths,
-} from "@/features/admin/hooks/use-admin-table";
+import { useAdminTable, userTableWidths } from "@/features/admin/hooks/use-admin-table";
 import {
   ACTIVE_FILTER_OPTIONS,
   FilterTableHead,
@@ -52,13 +41,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/shared/components/ui/modal";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { TablePagination } from "@/shared/components/ui/table-pagination";
 import {
   Tooltip,
@@ -378,17 +361,25 @@ export function AdminLecturersPage() {
                   </ResizableTableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}>
+              <TableBody
+                className={cn(loading && rows.length > 0 && "pointer-events-none opacity-50")}
+              >
                 {loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={table.tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       Đang tải giảng viên...
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={table.tableColSpan} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell
+                      colSpan={table.tableColSpan}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       Chưa có giảng viên — bấm Thêm giảng viên để tạo.
                     </TableCell>
                   </TableRow>
@@ -413,7 +404,10 @@ export function AdminLecturersPage() {
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground" style={table.cell("email")}>
+                      <TableCell
+                        className="text-sm text-muted-foreground"
+                        style={table.cell("email")}
+                      >
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className="block cursor-default truncate">{row.email}</span>
@@ -445,7 +439,10 @@ export function AdminLecturersPage() {
                         </TableCell>
                       )}
                       {table.isVisible("provider") && (
-                        <TableCell className="text-sm text-muted-foreground" style={table.cell("provider")}>
+                        <TableCell
+                          className="text-sm text-muted-foreground"
+                          style={table.cell("provider")}
+                        >
                           {row.provider}
                         </TableCell>
                       )}
@@ -539,7 +536,11 @@ export function AdminLecturersPage() {
             ? Hành động này không thể hoàn tác.
           </p>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setDeleteLecturerRow(null)} disabled={deleting}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteLecturerRow(null)}
+              disabled={deleting}
+            >
               Huỷ
             </Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>

@@ -29,9 +29,7 @@ export function DocumentPagePreview({ doc, className }: DocumentPagePreviewProps
   );
   const canPreview = doc.status === "indexed";
   const docType = documentTypeStyle(doc.type);
-  const placeholder = (
-    <PlaceholderPreview label={docType.label} className={docType.className} />
-  );
+  const placeholder = <PlaceholderPreview label={docType.label} className={docType.className} />;
 
   useEffect(() => {
     const el = rootRef.current;

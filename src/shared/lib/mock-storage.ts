@@ -17,11 +17,7 @@ const DEMO_CHAT_KEY = storageKey("chat-demo");
 const COURSES_CHANGED_EVENT = storageKey("courses-changed");
 const DOCUMENTS_CHANGED_EVENT = storageKey("documents-changed");
 
-const DEMO_EMAILS = new Set([
-  "admin@demo.edu",
-  "student@demo.edu",
-  "lecturer@demo.edu",
-]);
+const DEMO_EMAILS = new Set(["admin@demo.edu", "student@demo.edu", "lecturer@demo.edu"]);
 
 const chatKey = (userId: string) => {
   const user = findUserById(userId);
@@ -65,8 +61,20 @@ export type MockUser = {
 
 const seedUsers: MockUser[] = [
   { id: "u-admin", email: "admin@demo.edu", password: "admin123", role: "admin", isBlocked: false },
-  { id: "u-lecturer", email: "lecturer@demo.edu", password: "lecturer123", role: "lecturer", isBlocked: false },
-  { id: "u-student", email: "student@demo.edu", password: "student123", role: "student", isBlocked: false },
+  {
+    id: "u-lecturer",
+    email: "lecturer@demo.edu",
+    password: "lecturer123",
+    role: "lecturer",
+    isBlocked: false,
+  },
+  {
+    id: "u-student",
+    email: "student@demo.edu",
+    password: "student123",
+    role: "student",
+    isBlocked: false,
+  },
 ];
 
 function ensureDemoUsers(users: MockUser[]): MockUser[] {
@@ -81,11 +89,7 @@ function ensureDemoUsers(users: MockUser[]): MockUser[] {
       changed = true;
       continue;
     }
-    if (
-      existing.password !== demo.password ||
-      existing.role !== demo.role ||
-      existing.isBlocked
-    ) {
+    if (existing.password !== demo.password || existing.role !== demo.role || existing.isBlocked) {
       byEmail.set(key, {
         ...existing,
         id: demo.id,
@@ -150,8 +154,7 @@ export function saveCourses(courses: Course[]) {
   window.dispatchEvent(new CustomEvent(COURSES_CHANGED_EVENT));
 }
 
-const isLegacyMockDoc = (doc: Doc) =>
-  doc.id.startsWith("d") || !!LEGACY_DOC_COURSE[doc.course];
+const isLegacyMockDoc = (doc: Doc) => doc.id.startsWith("d") || !!LEGACY_DOC_COURSE[doc.course];
 
 export function loadDocuments(): Doc[] {
   initMockStorage();

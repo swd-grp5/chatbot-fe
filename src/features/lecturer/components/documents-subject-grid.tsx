@@ -61,7 +61,9 @@ export function DocumentsSubjectGrid({
             </Badge>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
           </div>
-          <h3 className="mt-3 line-clamp-2 text-base font-semibold tracking-tight">{subject.name}</h3>
+          <h3 className="mt-3 line-clamp-2 text-base font-semibold tracking-tight">
+            {subject.name}
+          </h3>
           <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
             <BookOpen className="h-3.5 w-3.5 shrink-0" />
             {documentCountLabel(subject.totalDocuments)}

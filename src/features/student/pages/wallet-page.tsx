@@ -45,7 +45,9 @@ export function StudentWalletPage() {
   const [amountInput, setAmountInput] = useState("");
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [transactionTypeFilter, setTransactionTypeFilter] = useState<WalletTransactionType | "all">("all");
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<WalletTransactionType | "all">(
+    "all",
+  );
   const [statusFilter, setStatusFilter] = useState<WalletTransactionStatus | "all">("all");
   const [queryInput, setQueryInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");

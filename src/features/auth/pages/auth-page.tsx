@@ -11,7 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui
 import { toast } from "@/shared/lib/toast";
 import { findUserById, type MockUser } from "@/shared/lib/mock-storage";
 import { useAuth } from "@/features/auth/lib/auth-context";
-import { DEMO_ACCOUNTS, loginWithEmail, loginWithGoogle, registerWithEmail, resendVerificationEmail } from "@/features/auth/api/auth-api";
+import {
+  DEMO_ACCOUNTS,
+  loginWithEmail,
+  loginWithGoogle,
+  registerWithEmail,
+  resendVerificationEmail,
+} from "@/features/auth/api/auth-api";
 import { ApiError } from "@/shared/lib/api-client";
 import { setApiSession } from "@/features/auth/lib/auth-session";
 import { apiRoleToAppRole, routeForAppRole } from "@/features/auth/lib/auth-types";

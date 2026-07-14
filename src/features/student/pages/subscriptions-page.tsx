@@ -89,10 +89,7 @@ export function StudentSubscriptionsPage() {
               return (
                 <Card
                   key={plan.id}
-                  className={cn(
-                    "flex flex-col p-6",
-                    isCurrent && "ring-2 ring-primary/40",
-                  )}
+                  className={cn("flex flex-col p-6", isCurrent && "ring-2 ring-primary/40")}
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -102,7 +99,10 @@ export function StudentSubscriptionsPage() {
                       </div>
                     </div>
                     {isCurrent && (
-                      <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                      <Badge
+                        variant="outline"
+                        className="border-primary/30 bg-primary/10 text-primary"
+                      >
                         Gói hiện tại
                       </Badge>
                     )}

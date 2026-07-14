@@ -1,10 +1,6 @@
 import { LayoutGrid, List } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/shared/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 
 export type DocumentsViewMode = "table" | "cards";
@@ -24,10 +20,7 @@ export function DocumentsViewToggle({ value, onChange, disabled }: DocumentsView
             type="button"
             variant="ghost"
             size="sm"
-            className={cn(
-              "h-7 w-7 p-0",
-              value === "table" && "bg-secondary text-foreground",
-            )}
+            className={cn("h-7 w-7 p-0", value === "table" && "bg-secondary text-foreground")}
             onClick={() => onChange("table")}
             disabled={disabled}
             aria-pressed={value === "table"}
@@ -43,10 +36,7 @@ export function DocumentsViewToggle({ value, onChange, disabled }: DocumentsView
             type="button"
             variant="ghost"
             size="sm"
-            className={cn(
-              "h-7 w-7 p-0",
-              value === "cards" && "bg-secondary text-foreground",
-            )}
+            className={cn("h-7 w-7 p-0", value === "cards" && "bg-secondary text-foreground")}
             onClick={() => onChange("cards")}
             disabled={disabled}
             aria-pressed={value === "cards"}
