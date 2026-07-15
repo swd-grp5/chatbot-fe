@@ -404,56 +404,56 @@ export function LecturerQuizEditPage({ quizId }: LecturerQuizEditPageProps) {
           quiz.shuffleQuestions ||
           quiz.shuffleOptions ||
           quiz.showScore === false) && (
-          <Card className="space-y-3 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">Cấu hình đề</h2>
-              {quiz.status === QUIZ_STATUS.DRAFT && (quiz.variants ?? []).length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleRegenerateVariants()}
-                  disabled={regenerating}
-                >
-                  {regenerating ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                  )}
-                  Sinh lại đề
-                </Button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              {(quiz.variantCount ?? 0) > 1 && <span>{quiz.variantCount} đề</span>}
-              {quiz.questionsPerVariant != null && <span>{quiz.questionsPerVariant} câu/đề</span>}
-              {quiz.shuffleQuestions && <span>Xáo câu hỏi</span>}
-              {quiz.shuffleOptions && <span>Xáo đáp án</span>}
-              {quiz.showScore === false && <span>Ẩn điểm</span>}
-              {quiz.allowRetake === true && <span>Cho làm lại</span>}
-              {quiz.allowRetake !== true && <span>Một lần nộp</span>}
-            </div>
-            {(quiz.variants ?? []).length > 0 && (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(quiz.variants ?? []).map((v) => (
-                  <div
-                    key={v.id}
-                    className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs"
+            <Card className="space-y-3 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">Cấu hình đề</h2>
+                {quiz.status === QUIZ_STATUS.DRAFT && (quiz.variants ?? []).length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleRegenerateVariants()}
+                    disabled={regenerating}
                   >
-                    <span className="font-medium">Đề {v.variantNumber}</span>
-                    <span className="ml-2 text-muted-foreground">
-                      {v.questionCount ?? 0} câu · {v.totalPoints ?? 0} điểm
-                    </span>
-                  </div>
-                ))}
+                    {regenerating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Sinh lại đề
+                  </Button>
+                )}
               </div>
-            )}
-          </Card>
-        )}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                {(quiz.variantCount ?? 0) > 1 && <span>{quiz.variantCount} đề</span>}
+                {quiz.questionsPerVariant != null && <span>{quiz.questionsPerVariant} câu/đề</span>}
+                {quiz.shuffleQuestions && <span>Xáo câu hỏi</span>}
+                {quiz.shuffleOptions && <span>Xáo đáp án</span>}
+                {quiz.showScore === false && <span>Ẩn điểm</span>}
+                {quiz.allowRetake === true && <span>Cho làm lại</span>}
+                {quiz.allowRetake !== true && <span>Một lần nộp</span>}
+              </div>
+              {(quiz.variants ?? []).length > 0 && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(quiz.variants ?? []).map((v) => (
+                    <div
+                      key={v.id}
+                      className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs"
+                    >
+                      <span className="font-medium">Đề {v.variantNumber}</span>
+                      <span className="ml-2 text-muted-foreground">
+                        {v.questionCount ?? 0} câu · {v.totalPoints ?? 0} điểm
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
 
         <div className="space-y-4">
           {form.questions.length === 0 && (
             <Card className="p-6 text-sm text-muted-foreground">
-              Quiz này được lắp từ ngân hàng câu hỏi và dùng cấu hình đề/variants. Không có danh
+              Quiz này được lắp từ kho quiz và dùng cấu hình đề/variants. Không có danh
               sách câu hỏi cố định để chỉnh sửa trực tiếp ở màn hình này.
             </Card>
           )}

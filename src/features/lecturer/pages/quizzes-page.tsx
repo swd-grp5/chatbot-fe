@@ -173,7 +173,7 @@ export function LecturerQuizzesPage() {
     setAssembling(true);
     try {
       const quiz = await assembleQuiz(payload);
-      toast.success("Đã tạo quiz từ ngân hàng câu hỏi");
+      toast.success("Đã tạo quiz từ kho quiz");
       setAssembleOpen(false);
       await loadQuizzes();
       navigate({ to: "/lecturer/quizzes/$quizId", params: { quizId: quiz.id } });
@@ -192,12 +192,12 @@ export function LecturerQuizzesPage() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Quiz</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Tạo quiz bằng AI, lắp từ ngân hàng câu hỏi, chỉnh sửa và xuất bản.
+                Tạo quiz bằng AI, lắp từ kho quiz, chỉnh sửa và xuất bản.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" asChild>
-                <Link to="/lecturer/question-bank">Ngân hàng câu hỏi</Link>
+                <Link to="/lecturer/question-bank">Kho Quiz</Link>
               </Button>
               <Button
                 variant="outline"

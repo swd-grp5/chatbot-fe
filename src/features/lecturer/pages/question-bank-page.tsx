@@ -85,7 +85,7 @@ export function LecturerQuestionBankPage() {
       });
       setQuestions(page.content);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Không tải được ngân hàng câu hỏi");
+      toast.error(e instanceof ApiError ? e.message : "Không tải được kho Quiz");
       setQuestions([]);
     } finally {
       setLoading(false);
@@ -154,7 +154,7 @@ export function LecturerQuestionBankPage() {
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Ngân hàng câu hỏi</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Kho Quiz</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Lưu câu hỏi theo môn, dùng để lắp quiz hoặc sinh bằng AI.
             </p>
