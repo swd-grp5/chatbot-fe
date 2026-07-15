@@ -241,11 +241,6 @@ export function ChatPage() {
   const handleSend = useCallback(
     async (text: string) => {
       if (!text || sending) return;
-      if (isStudentApiMode && selectedDocIds.length === 0) {
-        setRightTab("documents");
-        toast.error("Hãy gắn ít nhất 1 tài liệu vào hội thoại (panel bên phải).");
-        return;
-      }
       setSending(true);
       try {
         await sendMessage(text);
@@ -253,7 +248,7 @@ export function ChatPage() {
         setSending(false);
       }
     },
-    [sending, isStudentApiMode, selectedDocIds.length, sendMessage],
+    [sending, sendMessage],
   );
 
   const citationsByDoc = useMemo(() => {
@@ -587,7 +582,7 @@ export function ChatPage() {
           <div className="border-t border-border bg-card px-6 py-4">
             <ChatComposer
               sending={sending}
-              requireDocs={isStudentApiMode}
+              requireDocs={false}
               selectedDocCount={selectedDocIds.length}
               onOpenDocs={() => setRightTab("documents")}
               onSend={handleSend}
@@ -630,98 +625,110 @@ export function ChatPage() {
               <span className="h-4 w-px rounded-full bg-muted-foreground/50 transition-colors group-hover:bg-primary" />
             </span>
           </div>
-          <Tabs
-            value={rightTab}
-            onValueChange={(v) => setRightTab(v as "documents" | "citations")}
-            className="flex h-full min-h-0 flex-col"
-          >
-            <div className="border-b border-border px-3 pt-3 pb-2">
-              <TabsList className="grid h-8 w-full grid-cols-2">
-                <TabsTrigger value="documents" className="gap-1 text-xs">
-                  <BookMarked className="h-3.5 w-3.5" />
-                  Tài liệu
-                  {selectedDocIds.length > 0 && (
-                    <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-                      {selectedDocIds.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="citations" className="gap-1 text-xs">
-                  <BookOpen className="h-3.5 w-3.5" />
-                  Trích dẫn
-                  {citationsByDoc.length > 0 && (
-                    <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-                      {citationsByDoc.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-              <p className="mt-2 truncate text-[10px] text-muted-foreground">{activeTitle}</p>
-            </div>
-
-            <TabsContent
-              value="documents"
-              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
-            >
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-                {selectedDocs.length > 0 && (
-                  <div className="mb-3 space-y-1.5">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Đã gắn vào chat
-                    </div>
-                    {selectedDocs.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 px-2 py-2"
-                      >
-                        <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-xs font-medium">
-                            {doc.title ?? doc.name}
+          {isStudentApiMode ? (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="border-b border-border px-4 pt-4 pb-3">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <BookOpen className="h-3.5 w-3.5 text-primary" />
+                  Trích dẫn tài liệu
+                </div>
+                <p className="mt-1 truncate text-[10px] text-muted-foreground">{activeTitle}</p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                <div className="space-y-3">
+                  {citationsByDoc.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-border bg-card/50 p-5">
+                      {showWelcome ? (
+                        <div className="space-y-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2 font-medium text-foreground">
+                            <BookOpen className="h-3.5 w-3.5 text-primary" />
+                            Sẵn sàng tra cứu
                           </div>
-                          <Badge
-                            variant="outline"
-                            className="mt-0.5 h-4 px-1 font-mono text-[9px] font-semibold"
-                          >
-                            {doc.course}
-                          </Badge>
+                          <p>
+                            Sau câu hỏi đầu tiên, các đoạn trích từ tài liệu (kèm mã môn) sẽ hiện tại
+                            đây.
+                          </p>
+                          {subscription?.plan && (
+                            <p className="text-[11px]">
+                              Gói {subscription.plan.name}: còn{" "}
+                              <strong className="text-foreground">
+                                {subscription.remainingCredits.toLocaleString("vi-VN")}
+                              </strong>{" "}
+                              credit.
+                            </p>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          disabled={docsSaving}
-                          onClick={() => void toggleDoc(doc.id)}
-                          className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          title="Bỏ khỏi hội thoại"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {selectedDocs.length > 0 ? "Thêm tài liệu" : "Chọn tài liệu"}
-                  </div>
-                  {indexedDocs.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                      Chưa có tài liệu nào được index.
-                    </div>
-                  ) : (
-                    indexedDocs
-                      .filter((d) => !selectedDocIds.includes(d.id))
-                      .map((doc) => (
-                        <button
-                          key={doc.id}
-                          type="button"
-                          disabled={docsSaving}
-                          onClick={() => void toggleDoc(doc.id)}
-                          className="flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-secondary/60"
-                        >
-                          <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border bg-background">
-                            <Plus className="h-2.5 w-2.5 text-muted-foreground" />
+                      ) : (
+                        <div className="text-center">
+                          <FileX className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+                          <div className="text-xs font-medium">Chưa có trích dẫn</div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground">
+                            Đặt câu hỏi để xem các đoạn tài liệu được hệ thống tham chiếu.
                           </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {citationsByDoc.map((d, i) => (
+                    <DocSourceCard
+                      key={d.docId}
+                      index={i + 1}
+                      docName={d.docName}
+                      courseCode={d.course}
+                      courseName={courseLabel(d.course, displayCourses)}
+                      citations={d.items}
+                      focusCitationIndex={focusCitationIndex}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Tabs
+              value={rightTab}
+              onValueChange={(v) => setRightTab(v as "documents" | "citations")}
+              className="flex h-full min-h-0 flex-col"
+            >
+              <div className="border-b border-border px-3 pt-3 pb-2">
+                <TabsList className="grid h-8 w-full grid-cols-2">
+                  <TabsTrigger value="documents" className="gap-1 text-xs">
+                    <BookMarked className="h-3.5 w-3.5" />
+                    Tài liệu
+                    {selectedDocIds.length > 0 && (
+                      <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                        {selectedDocIds.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="citations" className="gap-1 text-xs">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Trích dẫn
+                    {citationsByDoc.length > 0 && (
+                      <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                        {citationsByDoc.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                <p className="mt-2 truncate text-[10px] text-muted-foreground">{activeTitle}</p>
+              </div>
+
+              <TabsContent
+                value="documents"
+                className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+              >
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+                  {selectedDocs.length > 0 && (
+                    <div className="mb-3 space-y-1.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Đã gắn vào chat
+                      </div>
+                      {selectedDocs.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 px-2 py-2"
+                        >
+                          <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                           <div className="min-w-0 flex-1">
                             <div className="truncate text-xs font-medium">
                               {doc.title ?? doc.name}
@@ -733,71 +740,119 @@ export function ChatPage() {
                               {doc.course}
                             </Badge>
                           </div>
-                        </button>
-                      ))
-                  )}
-                  {indexedDocs.filter((d) => !selectedDocIds.includes(d.id)).length === 0 &&
-                    indexedDocs.length > 0 && (
-                      <p className="px-1 py-2 text-[11px] text-muted-foreground">
-                        Đã gắn hết tài liệu.
-                      </p>
-                    )}
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent
-              value="citations"
-              className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 data-[state=inactive]:hidden"
-            >
-              <div className="space-y-3">
-                {citationsByDoc.length === 0 && (
-                  <div className="rounded-lg border border-dashed border-border bg-card/50 p-5">
-                    {showWelcome ? (
-                      <div className="space-y-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-2 font-medium text-foreground">
-                          <BookOpen className="h-3.5 w-3.5 text-primary" />
-                          Sẵn sàng tra cứu
+                          <button
+                            type="button"
+                            disabled={docsSaving}
+                            onClick={() => void toggleDoc(doc.id)}
+                            className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            title="Bỏ khỏi hội thoại"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                        <p>
-                          Sau câu hỏi đầu tiên, các đoạn trích từ tài liệu (kèm mã môn) sẽ hiện tại
-                          đây.
-                        </p>
-                        {subscription?.plan && (
-                          <p className="text-[11px]">
-                            Gói {subscription.plan.name}: còn{" "}
-                            <strong className="text-foreground">
-                              {subscription.remainingCredits.toLocaleString("vi-VN")}
-                            </strong>{" "}
-                            credit.
-                          </p>
-                        )}
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {selectedDocs.length > 0 ? "Thêm tài liệu" : "Chọn tài liệu"}
+                    </div>
+                    {indexedDocs.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                        Chưa có tài liệu nào được index.
                       </div>
                     ) : (
-                      <div className="text-center">
-                        <FileX className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-                        <div className="text-xs font-medium">Chưa có trích dẫn</div>
-                        <div className="mt-0.5 text-[11px] text-muted-foreground">
-                          Đặt câu hỏi để xem các đoạn tài liệu được hệ thống tham chiếu.
-                        </div>
-                      </div>
+                      indexedDocs
+                        .filter((d) => !selectedDocIds.includes(d.id))
+                        .map((doc) => (
+                          <button
+                            key={doc.id}
+                            type="button"
+                            disabled={docsSaving}
+                            onClick={() => void toggleDoc(doc.id)}
+                            className="flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-secondary/60"
+                          >
+                            <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border bg-background">
+                              <Plus className="h-2.5 w-2.5 text-muted-foreground" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-xs font-medium">
+                                {doc.title ?? doc.name}
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className="mt-0.5 h-4 px-1 font-mono text-[9px] font-semibold"
+                              >
+                                {doc.course}
+                              </Badge>
+                            </div>
+                          </button>
+                        ))
                     )}
+                    {indexedDocs.filter((d) => !selectedDocIds.includes(d.id)).length === 0 &&
+                      indexedDocs.length > 0 && (
+                        <p className="px-1 py-2 text-[11px] text-muted-foreground">
+                          Đã gắn hết tài liệu.
+                        </p>
+                      )}
                   </div>
-                )}
-                {citationsByDoc.map((d, i) => (
-                  <DocSourceCard
-                    key={d.docId}
-                    index={i + 1}
-                    docName={d.docName}
-                    courseCode={d.course}
-                    courseName={courseLabel(d.course, displayCourses)}
-                    citations={d.items}
-                    focusCitationIndex={focusCitationIndex}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
+                </div>
+              </TabsContent>
+
+              <TabsContent
+                value="citations"
+                className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 data-[state=inactive]:hidden"
+              >
+                <div className="space-y-3">
+                  {citationsByDoc.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-border bg-card/50 p-5">
+                      {showWelcome ? (
+                        <div className="space-y-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2 font-medium text-foreground">
+                            <BookOpen className="h-3.5 w-3.5 text-primary" />
+                            Sẵn sàng tra cứu
+                          </div>
+                          <p>
+                            Sau câu hỏi đầu tiên, các đoạn trích từ tài liệu (kèm mã môn) sẽ hiện tại
+                            đây.
+                          </p>
+                          {subscription?.plan && (
+                            <p className="text-[11px]">
+                              Gói {subscription.plan.name}: còn{" "}
+                              <strong className="text-foreground">
+                                {subscription.remainingCredits.toLocaleString("vi-VN")}
+                              </strong>{" "}
+                              credit.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <FileX className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+                          <div className="text-xs font-medium">Chưa có trích dẫn</div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground">
+                            Đặt câu hỏi để xem các đoạn tài liệu được hệ thống tham chiếu.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {citationsByDoc.map((d, i) => (
+                    <DocSourceCard
+                      key={d.docId}
+                      index={i + 1}
+                      docName={d.docName}
+                      courseCode={d.course}
+                      courseName={courseLabel(d.course, displayCourses)}
+                      citations={d.items}
+                      focusCitationIndex={focusCitationIndex}
+                    />
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
         </aside>
       </div>
     </AppShell>
@@ -978,10 +1033,10 @@ const MessageBubble = memo(function MessageBubble({
     if (!onCiteClick) return undefined;
     const wrap =
       (Tag: "p" | "li" | "td" | "th" | "blockquote") =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ({ children, ...props }: any) => (
-        <Tag {...props}>{linkifyCitationMarkers(children, onCiteClick)}</Tag>
-      );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ({ children, ...props }: any) => (
+          <Tag {...props}>{linkifyCitationMarkers(children, onCiteClick)}</Tag>
+        );
     return {
       p: wrap("p"),
       li: wrap("li"),

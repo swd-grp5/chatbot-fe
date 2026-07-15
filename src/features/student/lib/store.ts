@@ -525,12 +525,12 @@ export const useAppStore = create<Store>((set, get) => ({
     const sessionsAfterUser = get().sessions.map((s) =>
       s.id === sessionId
         ? {
-            ...s,
-            title: isFirst ? sessionTitleFrom(text) : s.title,
-            messageCount: conversationsAfterUser[sessionId]?.length ?? 0,
-            updatedAt: toSessionTimestamp(now),
-            group: groupFor(now),
-          }
+          ...s,
+          title: isFirst ? sessionTitleFrom(text) : s.title,
+          messageCount: conversationsAfterUser[sessionId]?.length ?? 0,
+          updatedAt: toSessionTimestamp(now),
+          group: groupFor(now),
+        }
         : s,
     );
     set({ conversations: conversationsAfterUser, sessions: sessionsAfterUser });
@@ -664,10 +664,10 @@ export const useAppStore = create<Store>((set, get) => ({
     const updatedSessions = get().sessions.map((s) =>
       s.id === sessionId
         ? {
-            ...s,
-            messageCount: updatedConversations[sessionId].length,
-            updatedAt: toSessionTimestamp(),
-          }
+          ...s,
+          messageCount: updatedConversations[sessionId].length,
+          updatedAt: toSessionTimestamp(),
+        }
         : s,
     );
 
