@@ -18,6 +18,13 @@ export default defineConfig({
   },
   vite: {
     plugins: [copyPdfWorkerPlugin()],
+    build: {
+      // Limit parallel file ops to cut the RAM/CPU peak when building on the
+      // low-spec VPS (2GB, shared with the running BE container).
+      rollupOptions: {
+        maxParallelFileOps: 2,
+      },
+    },
     optimizeDeps: {
       include: [
         "react-pdf",
