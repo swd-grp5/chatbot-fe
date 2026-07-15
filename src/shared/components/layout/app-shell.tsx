@@ -107,26 +107,26 @@ export function AppShell({
 
   const navItems = isAdmin
     ? [
-        { to: "/admin/users", label: "Sinh viên", icon: Users },
-        { to: "/admin/lecturers", label: "Giảng viên", icon: GraduationCap },
-        { to: "/admin/roles", label: "Vai trò", icon: ShieldCheck },
-        { to: "/admin/subjects", label: "Môn học", icon: BookOpen },
-        { to: "/admin/subscriptions", label: "Gói tháng", icon: CreditCard },
-        { to: "/admin/ai-config", label: "Cấu hình AI", icon: Bot },
-      ]
+      { to: "/admin/users", label: "Sinh viên", icon: Users },
+      { to: "/admin/lecturers", label: "Giảng viên", icon: GraduationCap },
+      { to: "/admin/roles", label: "Vai trò", icon: ShieldCheck },
+      { to: "/admin/subjects", label: "Môn học", icon: BookOpen },
+      { to: "/admin/subscriptions", label: "Gói tháng", icon: CreditCard },
+      { to: "/admin/ai-config", label: "Cấu hình AI", icon: Bot },
+    ]
     : isLecturer
       ? [
-          { to: "/lecturer/documents", label: "Tài liệu", icon: FileText },
-          { to: "/lecturer/question-bank", label: "Ngân hàng", icon: BookOpen },
-          { to: "/lecturer/quizzes", label: "Quiz", icon: ClipboardList },
-        ]
+        { to: "/lecturer/documents", label: "Tài liệu", icon: FileText },
+        { to: "/lecturer/question-bank", label: "Kho Quiz", icon: BookOpen },
+        { to: "/lecturer/quizzes", label: "Quiz", icon: ClipboardList },
+      ]
       : [
-          { to: "/", label: "Chat", icon: MessageSquare },
-          { to: "/documents", label: "Tài liệu", icon: FileText },
-          { to: "/quizzes", label: "Quiz", icon: ClipboardList },
-          { to: "/wallet", label: "Ví", icon: Wallet },
-          { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
-        ];
+        { to: "/", label: "Chat", icon: MessageSquare },
+        { to: "/documents", label: "Tài liệu", icon: FileText },
+        { to: "/quizzes", label: "Quiz", icon: ClipboardList },
+        { to: "/wallet", label: "Ví", icon: Wallet },
+        { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
+      ];
 
   const initial = (user.email ?? "?")[0].toUpperCase();
   const isDemo = DEMO_EMAILS.has(user.email);
