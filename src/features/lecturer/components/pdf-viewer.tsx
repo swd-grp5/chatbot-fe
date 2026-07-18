@@ -3,12 +3,14 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Loader2 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import pdfWorkerDev from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import "./pdf-viewer.css";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+pdfjs.GlobalWorkerOptions.workerSrc = import.meta.env.DEV
+  ? pdfWorkerDev
+  : `${import.meta.env.BASE_URL}pdf.worker.min.js`;
 
 const PAGE_GAP = 32;
 const DEFAULT_PAGE_HEIGHT = 842;
@@ -47,6 +49,8 @@ type PdfViewerProps = {
   scale: number;
   onZoomWheel?: (delta: number) => void;
   onVisiblePageChange?: (page: number) => void;
+  scrollToPage?: number;
+  scrollToPageKey?: number;
 };
 
 export function PdfViewer({
@@ -54,6 +58,8 @@ export function PdfViewer({
   scale,
   onZoomWheel,
   onVisiblePageChange,
+  scrollToPage,
+  scrollToPageKey,
 }: PdfViewerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [numPages, setNumPages] = useState(0);
@@ -61,8 +67,7 @@ export function PdfViewer({
   const [pageWidth, setPageWidth] = useState(DEFAULT_PAGE_WIDTH);
 
   const estimatePageSize = useMemo(
-    () => (index: number) =>
-      (pageHeights[index] ?? DEFAULT_PAGE_HEIGHT) * scale + PAGE_GAP,
+    () => (index: number) => (pageHeights[index] ?? DEFAULT_PAGE_HEIGHT) * scale + PAGE_GAP,
     [pageHeights, scale],
   );
 
@@ -126,6 +131,28 @@ export function PdfViewer({
   }, [scale, pageHeights, numPages]);
 
   useEffect(() => {
+    if (scrollToPageKey == null || scrollToPage == null) return;
+    if (scrollToPage < 1 || scrollToPage > numPages) return;
+
+    virtualizer.scrollToIndex(scrollToPage - 1, { align: "start" });
+
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      onVisiblePageChangeRef.current?.(
+        getVisiblePage(
+          el.scrollTop,
+          el.clientHeight,
+          el.scrollHeight,
+          numPages,
+          pageHeights,
+          scale,
+        ),
+      );
+    });
+  }, [scrollToPageKey, scrollToPage, numPages, pageHeights, scale, virtualizer]);
+
+  useEffect(() => {
     const el = scrollRef.current;
     if (!el || !onZoomWheel) return;
 
@@ -172,7 +199,10 @@ export function PdfViewer({
   const defaultPageHeight = pageHeights[0] ?? DEFAULT_PAGE_HEIGHT;
 
   return (
-    <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-16">
+    <div
+      ref={scrollRef}
+      className="h-full min-h-0 overflow-y-auto overflow-x-hidden px-2 pt-4 pb-16"
+    >
       <Document
         file={file}
         loading={
@@ -181,16 +211,14 @@ export function PdfViewer({
             Đang render PDF...
           </div>
         }
-        error={
-          <p className="py-12 text-sm text-destructive">Không hiển thị được PDF.</p>
-        }
+        error={<p className="py-12 text-sm text-destructive">Không hiển thị được PDF.</p>}
         onLoadSuccess={handleLoadSuccess}
+        onLoadError={(err) => {
+          console.error("PDF viewer load failed:", err);
+        }}
       >
         {numPages > 0 && (
-          <div
-            className="relative mx-auto w-full"
-            style={{ height: virtualizer.getTotalSize() }}
-          >
+          <div className="relative mx-auto w-full" style={{ height: virtualizer.getTotalSize() }}>
             {virtualItems.map((virtualItem) => {
               const pageNumber = virtualItem.index + 1;
               const rowHeight = pageHeights[virtualItem.index] ?? defaultPageHeight;
@@ -228,7 +256,6 @@ export function PdfViewer({
           </div>
         )}
       </Document>
-
     </div>
   );
 }

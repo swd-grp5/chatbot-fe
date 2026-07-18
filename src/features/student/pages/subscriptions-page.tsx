@@ -1,44 +1,76 @@
-import { useEffect, useState } from "react";
-import { Check, CreditCard, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Check, CreditCard, Loader2, Sparkles, Wallet } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { useAuth } from "@/features/auth/lib/auth-context";
 import {
+  fetchActivePlans,
+  fetchCurrentSubscription,
+  formatCreditQuota,
   formatPlanPrice,
-  getActivePlans,
-  getUserPlan,
-  loadUserSubscription,
-  saveUserSubscription,
+  planDescriptionLines,
+  subscribeToPlan,
+  type CurrentUserSubscription,
   type SubscriptionPlan,
-} from "@/features/student/lib/subscriptions";
-import { toast } from "sonner";
+} from "@/features/student/api/subscription-api";
+import { ApiError } from "@/shared/lib/api-client";
+import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 
 export function StudentSubscriptionsPage() {
   const { user } = useAuth();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [currentPlanId, setCurrentPlanId] = useState<string>("");
+  const [current, setCurrent] = useState<CurrentUserSubscription | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [subscribingId, setSubscribingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [planList, currentSub] = await Promise.all([
+        fetchActivePlans(),
+        fetchCurrentSubscription(),
+      ]);
+      setPlans(planList);
+      setCurrent(currentSub);
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : "Không tải được gói đăng ký";
+      setLoadError(message);
+      setPlans([]);
+      setCurrent(null);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setPlans(getActivePlans());
-    if (user) setCurrentPlanId(loadUserSubscription(user.id).planId);
-  }, [user]);
+    if (!user || user.role !== "student") return;
+    void load();
+  }, [user, load]);
 
-  const currentPlan = user ? getUserPlan(user.id) : null;
+  const currentPlanId = current?.plan?.id ?? "";
 
-  const subscribe = (plan: SubscriptionPlan) => {
-    if (!user) return;
-    if (plan.id === currentPlanId) return;
-
-    saveUserSubscription(user.id, plan.id);
-    setCurrentPlanId(plan.id);
-
-    if (plan.pricePerMonth === 0) {
-      toast.success(`Đã chuyển sang gói ${plan.name}`);
-    } else {
-      toast.success(`Đã đăng ký gói ${plan.name}. Thanh toán demo — không thu phí thật.`);
+  const subscribe = async (plan: SubscriptionPlan) => {
+    if (!user || plan.id === currentPlanId || subscribingId) return;
+    setSubscribingId(plan.id);
+    try {
+      await subscribeToPlan(plan.id);
+      await load();
+      toast.success(
+        Number(plan.price) === 0
+          ? `Đã chuyển sang gói ${plan.name}`
+          : `Đã đăng ký gói ${plan.name}. Phí đã trừ từ ví.`,
+      );
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Đăng ký gói thất bại");
+    } finally {
+      setSubscribingId(null);
     }
   };
 
@@ -51,92 +83,138 @@ export function StudentSubscriptionsPage() {
             Gói đăng ký
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Chọn gói phù hợp để tăng giới hạn câu hỏi mỗi tháng.
+            Chọn gói phù hợp. Gói trả phí sẽ trừ tiền từ ví của bạn.
           </p>
         </div>
 
-        {currentPlan && (
-          <Card className="border-primary/20 bg-primary/5 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Gói hiện tại
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-lg font-semibold">{currentPlan.name}</span>
-                  <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
-                    Đang dùng
-                  </Badge>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {currentPlan.questionsPerMonth.toLocaleString("vi-VN")} câu hỏi / tháng ·{" "}
-                  {formatPlanPrice(currentPlan.pricePerMonth)}
-                </p>
-              </div>
-              <Sparkles className="h-8 w-8 text-primary/60" />
-            </div>
+        {loading ? (
+          <Card className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Đang tải gói đăng ký…
           </Card>
-        )}
-
-        {plans.length === 0 ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">
-            Hiện chưa có gói nào được mở bán. Vui lòng quay lại sau.
+        ) : loadError ? (
+          <Card className="space-y-3 p-8 text-center">
+            <p className="text-sm text-destructive">{loadError}</p>
+            <Button variant="outline" size="sm" onClick={() => void load()}>
+              Thử lại
+            </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {plans.map((plan) => {
-              const isCurrent = plan.id === currentPlanId;
-              return (
-                <Card
-                  key={plan.id}
-                  className={cn(
-                    "flex flex-col p-6",
-                    isCurrent && "ring-2 ring-primary/40",
-                  )}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="text-lg font-semibold">{plan.name}</div>
-                      <div className="mt-1 text-2xl font-bold tabular-nums">
-                        {formatPlanPrice(plan.pricePerMonth)}
-                      </div>
+          <>
+            {current?.plan && (
+              <Card className="border-primary/20 bg-primary/5 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Gói hiện tại
                     </div>
-                    {isCurrent && (
-                      <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
-                        Gói hiện tại
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-lg font-semibold">{current.plan.name}</span>
+                      <Badge
+                        variant="outline"
+                        className="border-primary/30 bg-primary/10 text-primary"
+                      >
+                        Đang dùng
                       </Badge>
-                    )}
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Còn{" "}
+                      <strong className="text-foreground">
+                        {current.remainingCredits.toLocaleString("vi-VN")}
+                      </strong>{" "}
+                      credit ·{" "}
+                      {formatCreditQuota(current.plan.creditAmount, current.plan.resetPeriod)}
+                    </p>
                   </div>
-
-                  <div className="mt-4 text-xs text-muted-foreground">
-                    {plan.questionsPerMonth.toLocaleString("vi-VN")} câu hỏi / tháng
+                  <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                      <Link to="/wallet">
+                        <Wallet className="h-3.5 w-3.5" />
+                        Nạp ví
+                      </Link>
+                    </Button>
+                    <Sparkles className="h-8 w-8 text-primary/60" />
                   </div>
+                </div>
+              </Card>
+            )}
 
-                  <ul className="mt-4 flex-1 space-y-1.5 text-sm">
-                    {plan.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-3.5 w-3.5 text-success" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
+            {plans.length === 0 ? (
+              <Card className="p-8 text-center text-sm text-muted-foreground">
+                Hiện chưa có gói nào được mở bán. Vui lòng quay lại sau.
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {plans.map((plan) => {
+                  const isCurrent = plan.id === currentPlanId;
+                  const features = planDescriptionLines(plan.description);
+                  const busy = subscribingId === plan.id;
+                  return (
+                    <Card
+                      key={plan.id}
+                      className={cn("flex flex-col p-6", isCurrent && "ring-2 ring-primary/40")}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-lg font-semibold">{plan.name}</div>
+                          <div className="mt-1 text-2xl font-bold tabular-nums">
+                            {formatPlanPrice(Number(plan.price))}
+                          </div>
+                        </div>
+                        {isCurrent && (
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 border-primary/30 bg-primary/10 text-primary"
+                          >
+                            Gói hiện tại
+                          </Badge>
+                        )}
+                      </div>
 
-                  <Button
-                    className="mt-5 w-full"
-                    variant={isCurrent ? "secondary" : "default"}
-                    disabled={isCurrent}
-                    onClick={() => subscribe(plan)}
-                  >
-                    {isCurrent
-                      ? "Đang sử dụng"
-                      : plan.pricePerMonth === 0
-                        ? "Chuyển sang gói này"
-                        : "Đăng ký ngay"}
-                  </Button>
-                </Card>
-              );
-            })}
-          </div>
+                      <div className="mt-4 text-xs text-muted-foreground">
+                        {formatCreditQuota(plan.creditAmount, plan.resetPeriod)}
+                      </div>
+
+                      {features.length > 0 ? (
+                        <ul className="mt-4 flex-1 space-y-1.5 text-sm">
+                          {features.map((f) => (
+                            <li key={f} className="flex items-start gap-2">
+                              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="mt-4 flex-1 text-sm text-muted-foreground">
+                          {plan.durationValue} {plan.durationUnit === "DAY" ? "ngày" : "tháng"} / kỳ
+                        </div>
+                      )}
+
+                      <Button
+                        className="mt-5 w-full"
+                        variant={isCurrent ? "secondary" : "default"}
+                        disabled={isCurrent || !!subscribingId}
+                        onClick={() => void subscribe(plan)}
+                      >
+                        {busy ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Đang xử lý…
+                          </>
+                        ) : isCurrent ? (
+                          "Đang sử dụng"
+                        ) : Number(plan.price) === 0 ? (
+                          "Chuyển sang gói này"
+                        ) : (
+                          "Đăng ký ngay"
+                        )}
+                      </Button>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </AppShell>

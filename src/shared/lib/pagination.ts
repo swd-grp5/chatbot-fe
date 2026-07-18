@@ -1,7 +1,4 @@
-export function getPaginationItems(
-  page: number,
-  totalPages: number,
-): Array<number | "ellipsis"> {
+export function getPaginationItems(page: number, totalPages: number): Array<number | "ellipsis"> {
   if (totalPages <= 0) return [];
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, i) => i);

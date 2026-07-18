@@ -54,14 +54,62 @@ export interface Session {
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 
 export const sessions: Session[] = [
-  { id: "s1", title: "Tóm tắt các loại UML diagram", messageCount: 8, updatedAt: ago(12 * 60 * 1000), group: "Hôm nay" },
-  { id: "s2", title: "Middleware trong Express là gì?", messageCount: 4, updatedAt: ago(2 * 3600000), group: "Hôm nay" },
-  { id: "s3", title: "Phân biệt Use Case và User Story", messageCount: 12, updatedAt: ago(86400000), group: "Hôm qua" },
-  { id: "s4", title: "Layered vs Microservices architecture", messageCount: 6, updatedAt: ago(3 * 86400000), group: "7 ngày qua" },
-  { id: "s5", title: "Kế thừa và đa hình trong Java", messageCount: 5, updatedAt: ago(5 * 86400000), group: "7 ngày qua" },
-  { id: "s6", title: "Checklist nộp SWP391", messageCount: 6, updatedAt: ago(6 * 86400000), group: "7 ngày qua" },
-  { id: "s7", title: "Thiết kế schema MongoDB", messageCount: 4, updatedAt: ago(9 * 86400000), group: "Cũ hơn" },
-  { id: "s8", title: "Sequence diagram cho đăng nhập", messageCount: 9, updatedAt: ago(11 * 86400000), group: "Cũ hơn" },
+  {
+    id: "s1",
+    title: "Tóm tắt các loại UML diagram",
+    messageCount: 8,
+    updatedAt: ago(12 * 60 * 1000),
+    group: "Hôm nay",
+  },
+  {
+    id: "s2",
+    title: "Middleware trong Express là gì?",
+    messageCount: 4,
+    updatedAt: ago(2 * 3600000),
+    group: "Hôm nay",
+  },
+  {
+    id: "s3",
+    title: "Phân biệt Use Case và User Story",
+    messageCount: 12,
+    updatedAt: ago(86400000),
+    group: "Hôm qua",
+  },
+  {
+    id: "s4",
+    title: "Layered vs Microservices architecture",
+    messageCount: 6,
+    updatedAt: ago(3 * 86400000),
+    group: "7 ngày qua",
+  },
+  {
+    id: "s5",
+    title: "Kế thừa và đa hình trong Java",
+    messageCount: 5,
+    updatedAt: ago(5 * 86400000),
+    group: "7 ngày qua",
+  },
+  {
+    id: "s6",
+    title: "Checklist nộp SWP391",
+    messageCount: 6,
+    updatedAt: ago(6 * 86400000),
+    group: "7 ngày qua",
+  },
+  {
+    id: "s7",
+    title: "Thiết kế schema MongoDB",
+    messageCount: 4,
+    updatedAt: ago(9 * 86400000),
+    group: "Cũ hơn",
+  },
+  {
+    id: "s8",
+    title: "Sequence diagram cho đăng nhập",
+    messageCount: 9,
+    updatedAt: ago(11 * 86400000),
+    group: "Cũ hơn",
+  },
 ];
 
 export interface Citation {
@@ -70,6 +118,10 @@ export interface Citation {
   course: string;
   page: number;
   snippet: string;
+  /** Số [n] trong câu trả lời LLM — khớp BE citationIndex */
+  citationIndex?: number;
+  /** Đoạn cần tô đậm trong snippet (quotedText) */
+  highlightText?: string | null;
 }
 
 export interface ChatMessage {
@@ -95,7 +147,14 @@ export const conversations: Record<string, ChatMessage[]> = {
 - **Use Case** — yêu cầu chức năng.
 - **Sequence / Activity / State Machine**.`,
       citations: [
-        { docId: "d1", docName: "UML_Basics.pdf", course: "SWD392", page: 12, snippet: "UML diagrams are categorized into structural and behavioral views, each capturing a distinct aspect of the system…" },
+        {
+          docId: "d1",
+          docName: "UML_Basics.pdf",
+          course: "SWD392",
+          page: 12,
+          snippet:
+            "UML diagrams are categorized into structural and behavioral views, each capturing a distinct aspect of the system…",
+        },
       ],
     },
   ],
@@ -115,7 +174,14 @@ app.use((req, res, next) => { console.log(req.method); next(); });
 
 > Thứ tự khai báo middleware quyết định pipeline xử lý request.`,
       citations: [
-        { docId: "d7", docName: "Express_REST_API_Guide.pdf", course: "SDN302", page: 34, snippet: "Middleware functions have access to the request and response objects and the next function in the application's request-response cycle…" },
+        {
+          docId: "d7",
+          docName: "Express_REST_API_Guide.pdf",
+          course: "SDN302",
+          page: 34,
+          snippet:
+            "Middleware functions have access to the request and response objects and the next function in the application's request-response cycle…",
+        },
       ],
     },
   ],
@@ -130,13 +196,32 @@ app.use((req, res, next) => { console.log(req.method); next(); });
 | Phạm vi | Hệ thống | Tính năng nhỏ |
 | Dùng cho | Phân tích | Agile backlog |`,
       citations: [
-        { docId: "d2", docName: "UseCases_Lecture_Slides.pptx", course: "SWD392", page: 8, snippet: "A use case describes a sequence of interactions between an actor and the system to achieve a goal…" },
-        { docId: "d2", docName: "UseCases_Lecture_Slides.pptx", course: "SWD392", page: 24, snippet: "User stories are short, informal descriptions written from the perspective of the end user…" },
+        {
+          docId: "d2",
+          docName: "UseCases_Lecture_Slides.pptx",
+          course: "SWD392",
+          page: 8,
+          snippet:
+            "A use case describes a sequence of interactions between an actor and the system to achieve a goal…",
+        },
+        {
+          docId: "d2",
+          docName: "UseCases_Lecture_Slides.pptx",
+          course: "SWD392",
+          page: 24,
+          snippet:
+            "User stories are short, informal descriptions written from the perspective of the end user…",
+        },
       ],
     },
   ],
   s4: [
-    { id: "m1", role: "user", content: "Tóm tắt sự khác biệt chính giữa Layered Architecture và Microservices Architecture." },
+    {
+      id: "m1",
+      role: "user",
+      content:
+        "Tóm tắt sự khác biệt chính giữa Layered Architecture và Microservices Architecture.",
+    },
     {
       id: "m2",
       role: "assistant",
@@ -160,8 +245,22 @@ Microservices:  [Auth] [Orders] [Payments] ↔ API Gateway
 
 > Lựa chọn kiến trúc phụ thuộc vào quy mô, đội ngũ và yêu cầu vận hành.`,
       citations: [
-        { docId: "d3", docName: "Design_Patterns_GoF.pdf", course: "SWD392", page: 142, snippet: "A layered architecture organizes the system into horizontal layers where each layer provides services to the layer above it…" },
-        { docId: "d4", docName: "Software_Architectures_Notes.docx", course: "SWD392", page: 23, snippet: "Microservices decompose an application into a suite of small, independently deployable services communicating over lightweight protocols…" },
+        {
+          docId: "d3",
+          docName: "Design_Patterns_GoF.pdf",
+          course: "SWD392",
+          page: 142,
+          snippet:
+            "A layered architecture organizes the system into horizontal layers where each layer provides services to the layer above it…",
+        },
+        {
+          docId: "d4",
+          docName: "Software_Architectures_Notes.docx",
+          course: "SWD392",
+          page: 23,
+          snippet:
+            "Microservices decompose an application into a suite of small, independently deployable services communicating over lightweight protocols…",
+        },
       ],
     },
   ],
@@ -179,7 +278,14 @@ Animal a = new Dog();
 a.speak(); // "Woof" — runtime polymorphism
 \`\`\``,
       citations: [
-        { docId: "d12", docName: "Java_OOP_Lab_Workbook.pdf", course: "LAB211", page: 18, snippet: "Polymorphism allows objects of different classes to be treated as objects of a common superclass through method overriding…" },
+        {
+          docId: "d12",
+          docName: "Java_OOP_Lab_Workbook.pdf",
+          course: "LAB211",
+          page: 18,
+          snippet:
+            "Polymorphism allows objects of different classes to be treated as objects of a common superclass through method overriding…",
+        },
       ],
     },
   ],
@@ -197,7 +303,14 @@ a.speak(); // "Woof" — runtime polymorphism
 
 > Nộp đúng deadline trên LMS và đính kèm link repository.`,
       citations: [
-        { docId: "d10", docName: "SWP391_Project_Brief.pdf", course: "SWP391", page: 3, snippet: "Final submission must include source repository, deployment guide, and sprint retrospective…" },
+        {
+          docId: "d10",
+          docName: "SWP391_Project_Brief.pdf",
+          course: "SWP391",
+          page: 3,
+          snippet:
+            "Final submission must include source repository, deployment guide, and sprint retrospective…",
+        },
       ],
     },
   ],
@@ -213,7 +326,14 @@ a.speak(); // "Woof" — runtime polymorphism
 
 > Embed khi đọc cùng lúc; reference khi dữ liệu lớn hoặc dùng chung nhiều nơi.`,
       citations: [
-        { docId: "d8", docName: "MongoDB_Schema_Design.pdf", course: "SDN302", page: 22, snippet: "Embedding related data in a single document reduces the need for joins but increases document size…" },
+        {
+          docId: "d8",
+          docName: "MongoDB_Schema_Design.pdf",
+          course: "SDN302",
+          page: 22,
+          snippet:
+            "Embedding related data in a single document reduces the need for joins but increases document size…",
+        },
       ],
     },
   ],
@@ -229,26 +349,62 @@ a.speak(); // "Woof" — runtime polymorphism
 3. **AuthService** → \`UserRepo\`: \`findByUsername(u)\`
 4. **AuthService** trả về **token JWT**`,
       citations: [
-        { docId: "d5", docName: "Object_Interaction_Examples.pdf", course: "SWD392", page: 45, snippet: "Sequence diagrams show object interactions arranged in time sequence, depicting messages exchanged between participants…" },
+        {
+          docId: "d5",
+          docName: "Object_Interaction_Examples.pdf",
+          course: "SWD392",
+          page: 45,
+          snippet:
+            "Sequence diagrams show object interactions arranged in time sequence, depicting messages exchanged between participants…",
+        },
       ],
     },
   ],
 };
 
 export const followUpsBySession: Record<string, string[]> = {
-  s1: ["Sự khác nhau giữa Class và Object diagram?", "Khi nào dùng State Machine?", "Activity diagram khác gì Flowchart?"],
-  s2: ["Cách viết custom error middleware?", "express.json() làm gì?", "Phân biệt app.use và app.get"],
-  s3: ["Cách viết acceptance criteria cho User Story?", "Khi nào nên dùng Use Case?", "INVEST nghĩa là gì?"],
-  s4: ["Khi nào nên chọn Microservices thay vì Monolithic?", "Cho ví dụ thực tế về Layered Architecture", "Microservices có nhược điểm gì?"],
-  s5: ["abstract class khác interface?", "Ví dụ overload vs override", "Composition thay inheritance?"],
+  s1: [
+    "Sự khác nhau giữa Class và Object diagram?",
+    "Khi nào dùng State Machine?",
+    "Activity diagram khác gì Flowchart?",
+  ],
+  s2: [
+    "Cách viết custom error middleware?",
+    "express.json() làm gì?",
+    "Phân biệt app.use và app.get",
+  ],
+  s3: [
+    "Cách viết acceptance criteria cho User Story?",
+    "Khi nào nên dùng Use Case?",
+    "INVEST nghĩa là gì?",
+  ],
+  s4: [
+    "Khi nào nên chọn Microservices thay vì Monolithic?",
+    "Cho ví dụ thực tế về Layered Architecture",
+    "Microservices có nhược điểm gì?",
+  ],
+  s5: [
+    "abstract class khác interface?",
+    "Ví dụ overload vs override",
+    "Composition thay inheritance?",
+  ],
   s6: ["Template sprint trong SWP391?", "Cách viết user story cho capstone?", "Tiêu chí chấm demo"],
   s7: ["Index nào nên tạo cho orders?", "Mongoose validation example", "Khi nào dùng aggregate"],
-  s8: ["Sequence diagram khác Communication diagram?", "Mô hình hoá lỗi đăng nhập", "Vẽ luồng OAuth2"],
+  s8: [
+    "Sequence diagram khác Communication diagram?",
+    "Mô hình hoá lỗi đăng nhập",
+    "Vẽ luồng OAuth2",
+  ],
 };
 
 export const uploadActivity = [
-  { day: "Mon", uploads: 3 }, { day: "Tue", uploads: 5 }, { day: "Wed", uploads: 2 },
-  { day: "Thu", uploads: 7 }, { day: "Fri", uploads: 4 }, { day: "Sat", uploads: 1 }, { day: "Sun", uploads: 6 },
+  { day: "Mon", uploads: 3 },
+  { day: "Tue", uploads: 5 },
+  { day: "Wed", uploads: 2 },
+  { day: "Thu", uploads: 7 },
+  { day: "Fri", uploads: 4 },
+  { day: "Sat", uploads: 1 },
+  { day: "Sun", uploads: 6 },
 ];
 
 export const topReferenced = [
@@ -261,8 +417,13 @@ export const topReferenced = [
 ];
 
 export const chatUsage = [
-  { day: "Mon", queries: 12 }, { day: "Tue", queries: 18 }, { day: "Wed", queries: 9 },
-  { day: "Thu", queries: 22 }, { day: "Fri", queries: 15 }, { day: "Sat", queries: 5 }, { day: "Sun", queries: 20 },
+  { day: "Mon", queries: 12 },
+  { day: "Tue", queries: 18 },
+  { day: "Wed", queries: 9 },
+  { day: "Thu", queries: 22 },
+  { day: "Fri", queries: 15 },
+  { day: "Sat", queries: 5 },
+  { day: "Sun", queries: 20 },
 ];
 
 // Backwards-compat exports (used by other routes)

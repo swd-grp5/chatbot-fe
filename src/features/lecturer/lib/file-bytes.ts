@@ -1,15 +1,9 @@
-export const DOCX_MIME =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export function isPdfBytes(data: ArrayBuffer): boolean {
   if (data.byteLength < 4) return false;
   const view = new Uint8Array(data, 0, 4);
-  return (
-    view[0] === 0x25 &&
-    view[1] === 0x50 &&
-    view[2] === 0x44 &&
-    view[3] === 0x46
-  );
+  return view[0] === 0x25 && view[1] === 0x50 && view[2] === 0x44 && view[3] === 0x46;
 }
 
 export function isZipBytes(data: ArrayBuffer): boolean {

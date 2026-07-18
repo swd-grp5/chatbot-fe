@@ -1,19 +1,6 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-} from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
-import { TableHead } from "@/shared/components/ui/table";
+import { useCallback, useMemo } from "react";
 import type { DocStatus } from "@/shared/lib/mock-data";
-import type { DocumentSortField, SortDirection } from "@/features/lecturer/api/document-api";
-import { cn } from "@/shared/lib/utils";
+import { useResizableColumns } from "@/shared/components/ui/table-head";
 
 export const documentTypeStyles: Record<string, { label: string; className: string }> = {
   pdf: {
@@ -79,8 +66,6 @@ export type ApiDocColumnKey =
   | "createdAt"
   | "updatedAt";
 
-export type ActiveFilter = "all" | "true" | "false";
-
 export const API_DOC_COLUMNS: { key: ApiDocColumnKey; label: string }[] = [
   { key: "documentType", label: "Loại" },
   { key: "description", label: "Mô tả" },
@@ -91,172 +76,46 @@ export const API_DOC_COLUMNS: { key: ApiDocColumnKey; label: string }[] = [
   { key: "updatedAt", label: "Cập nhật" },
 ];
 
-export const activeStyles = {
-  active: {
-    label: "Đã bật",
-    className: "bg-success/10 text-success border-success/20",
-  },
-  inactive: {
-    label: "Đã khóa",
-    className: "bg-secondary text-muted-foreground border-border",
-  },
-} as const;
-
-export const ACTIVE_FILTER_OPTIONS: { value: ActiveFilter; label: string }[] = [
-  { value: "true", label: activeStyles.active.label },
-  { value: "false", label: activeStyles.inactive.label },
-];
-
-export function loadColumnVisibility<T extends string>(
-  storageKey: string,
-  keys: readonly T[],
-): Record<T, boolean> {
-  const defaults = Object.fromEntries(keys.map((key) => [key, true])) as Record<T, boolean>;
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return defaults;
-    const parsed = JSON.parse(raw) as Partial<Record<T, boolean>>;
-    return Object.fromEntries(keys.map((key) => [key, parsed[key] !== false])) as Record<T, boolean>;
-  } catch {
-    return defaults;
-  }
-}
-
-export const TABLE_HEAD_LABEL =
-  "whitespace-nowrap text-sm font-medium text-muted-foreground";
-
-export const FILTER_HEAD_BASE =
-  "flex w-full min-w-0 items-center gap-0.5 rounded-md border border-border px-1.5 py-1 transition-colors";
-
 export const FILTER_COL_WIDTH = {
   documentType: "w-24 min-w-24 max-w-24 text-center",
   status: "w-36 min-w-36 max-w-36 text-center",
   active: "w-32 min-w-32 max-w-32 text-center",
 } as const;
 
-export const FILTER_HEAD_ACTIVE = "border-primary/20 bg-primary/5";
+export const DOCUMENT_COLUMN_WIDTHS = {
+  stt: 48,
+  title: 192,
+  documentType: 96,
+  description: 144,
+  status: 144,
+  active: 128,
+  size: 112,
+  createdAt: 144,
+  updatedAt: 144,
+  actions: 80,
+} as const;
 
-export function SortArrowButton({
-  field,
-  activeField,
-  direction,
-  onSort,
-}: {
-  field: DocumentSortField;
-  activeField: DocumentSortField | null;
-  direction: SortDirection | null;
-  onSort: (field: DocumentSortField) => void;
-}) {
-  const isActive = activeField === field && direction != null;
-  const SortIcon = isActive ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+export type DocumentColumnWidthKey = keyof typeof DOCUMENT_COLUMN_WIDTHS;
 
-  return (
-    <button
-      type="button"
-      className={cn(
-        "inline-flex shrink-0 rounded p-0.5 transition-colors hover:bg-secondary hover:text-foreground",
-        isActive ? "text-foreground" : "text-muted-foreground",
-      )}
-      onClick={() => onSort(field)}
-      title="Sắp xếp"
-    >
-      <SortIcon className={cn("h-3.5 w-3.5", !isActive && "opacity-40")} />
-    </button>
+export function useDocumentTableResize(storageKey: string) {
+  const { widths, startResize, columnStyle } = useResizableColumns(
+    storageKey,
+    DOCUMENT_COLUMN_WIDTHS,
   );
-}
 
-export function SortableTableHead({
-  label,
-  field,
-  activeField,
-  direction,
-  onSort,
-  className,
-}: {
-  label: string;
-  field: DocumentSortField;
-  activeField: DocumentSortField | null;
-  direction: SortDirection | null;
-  onSort: (field: DocumentSortField) => void;
-  className?: string;
-}) {
-  return (
-    <TableHead className={cn(TABLE_HEAD_LABEL, className)}>
-      <div className="flex items-center gap-0.5">
-        <SortArrowButton
-          field={field}
-          activeField={activeField}
-          direction={direction}
-          onSort={onSort}
-        />
-        <span>{label}</span>
-      </div>
-    </TableHead>
+  const resize = useCallback(
+    (key: DocumentColumnWidthKey) => ({
+      resizeKey: key,
+      width: widths[key],
+      onResizeStart: startResize as (key: string, clientX: number) => void,
+    }),
+    [widths, startResize],
   );
-}
 
-export function FilterTableHead({
-  label,
-  filterValue,
-  onFilterChange,
-  filterOptions,
-  field,
-  activeField,
-  direction,
-  onSort,
-  className,
-  disabled,
-}: {
-  label: string;
-  filterValue: string;
-  onFilterChange: (value: string) => void;
-  filterOptions: { value: string; label: string }[];
-  field?: DocumentSortField;
-  activeField?: DocumentSortField | null;
-  direction?: SortDirection | null;
-  onSort?: (field: DocumentSortField) => void;
-  className?: string;
-  disabled?: boolean;
-}) {
-  const isFiltered = filterValue !== "all";
-  const selectedLabel =
-    filterValue === "all"
-      ? label
-      : (filterOptions.find((option) => option.value === filterValue)?.label ?? label);
-
-  return (
-    <TableHead className={cn(TABLE_HEAD_LABEL, className)}>
-      <div className={cn(FILTER_HEAD_BASE, "justify-center", isFiltered && FILTER_HEAD_ACTIVE)}>
-        {field && onSort && (
-          <SortArrowButton
-            field={field}
-            activeField={activeField ?? null}
-            direction={direction ?? null}
-            onSort={onSort}
-          />
-        )}
-        <Select value={filterValue} onValueChange={onFilterChange} disabled={disabled}>
-          <SelectTrigger
-            title={selectedLabel}
-            className={cn(
-              "h-auto w-full min-w-0 flex-1 justify-center gap-1 overflow-hidden border-0 bg-transparent p-0 text-center text-sm shadow-none focus:ring-0 [&>span]:block [&>span]:truncate [&>svg]:hidden",
-              isFiltered
-                ? "font-medium text-foreground"
-                : "font-medium text-muted-foreground",
-            )}
-          >
-            <SelectValue placeholder={label} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{label}</SelectItem>
-            {filterOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </TableHead>
+  const tableMinWidth = useMemo(
+    () => Object.values(widths).reduce((sum, width) => sum + width, 0),
+    [widths],
   );
+
+  return { resize, cell: columnStyle, tableMinWidth };
 }

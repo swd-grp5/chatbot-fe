@@ -9,7 +9,11 @@ type GoogleSignInButtonProps = {
   useOneTap?: boolean;
 };
 
-export function GoogleSignInButton({ onSuccess, onError, useOneTap = true }: GoogleSignInButtonProps) {
+export function GoogleSignInButton({
+  onSuccess,
+  onError,
+  useOneTap = true,
+}: GoogleSignInButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [buttonWidth, setButtonWidth] = useState(GOOGLE_BUTTON_MAX_WIDTH);
 

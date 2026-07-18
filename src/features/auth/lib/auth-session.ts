@@ -1,28 +1,54 @@
-import type { ApiAuthSession } from "@/features/auth/lib/auth-types";
+import {
+  normalizeApiUser,
+  type ApiAuthSession,
+  type ApiUserResponse,
+} from "@/features/auth/lib/auth-types";
+import { resetMySubjectsQueries } from "@/shared/lib/query-client";
+import { migrateStorageKey, storageKey } from "@/shared/lib/storage-keys";
 
-const API_AUTH_KEY = "sdn-api-auth";
+const API_AUTH_KEY = storageKey("api-auth");
+const AUTH_CHANGED_EVENT = storageKey("auth-changed");
+
+type ApiAuthSessionInput = {
+  token: string;
+  user: ApiUserResponse;
+};
+
+function normalizeSession(session: ApiAuthSessionInput): ApiAuthSession {
+  return {
+    token: session.token,
+    user: normalizeApiUser(session.user),
+  };
+}
 
 export function getApiSession(): ApiAuthSession | null {
   if (typeof window === "undefined") return null;
+  migrateStorageKey(API_AUTH_KEY, "sdn-api-auth");
   try {
     const raw = localStorage.getItem(API_AUTH_KEY);
     if (!raw) return null;
-    const session = JSON.parse(raw) as ApiAuthSession;
+    const session = JSON.parse(raw) as ApiAuthSessionInput;
     if (!session.token || !session.user?.id) return null;
-    return session;
+    return normalizeSession(session);
   } catch {
     return null;
   }
 }
 
-export function setApiSession(session: ApiAuthSession | null) {
+export function setApiSession(
+  session: ApiAuthSessionInput | null,
+  options?: { resetQueries?: boolean },
+) {
   if (typeof window === "undefined") return;
   if (session) {
-    localStorage.setItem(API_AUTH_KEY, JSON.stringify(session));
+    localStorage.setItem(API_AUTH_KEY, JSON.stringify(normalizeSession(session)));
   } else {
     localStorage.removeItem(API_AUTH_KEY);
   }
-  window.dispatchEvent(new CustomEvent("sdn-auth-changed"));
+  if (options?.resetQueries !== false) {
+    resetMySubjectsQueries();
+  }
+  window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
 }
 
 export function getApiToken(): string | null {

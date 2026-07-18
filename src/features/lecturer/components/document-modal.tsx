@@ -7,12 +7,29 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
-import { Download, ExternalLink, FileText, Loader2, Trash2, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
-import { toast } from "sonner";
+import {
+  Download,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Trash2,
+  Upload,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import { toast } from "@/shared/lib/toast";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { Switch } from "@/shared/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -41,9 +58,9 @@ import {
   type DocumentChunkResponse,
   type DocumentViewerResponse,
 } from "@/features/lecturer/api/document-api";
+import type { SubjectOption } from "@/features/lecturer/api/subject-api";
 import { DocxPreviewViewer } from "@/features/lecturer/components/docx-preview-viewer";
 import { DOCX_MIME, isPdfBytes, isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
-import { getApiToken } from "@/features/auth/lib/auth-session";
 import { ApiError } from "@/shared/lib/api-client";
 import { cn } from "@/shared/lib/utils";
 import type { Doc } from "@/shared/lib/mock-data";
@@ -53,6 +70,8 @@ type PdfDocumentViewerProps = {
   scale: number;
   onZoomWheel: (direction: number) => void;
   onVisiblePageChange: (page: number) => void;
+  scrollToPage?: number;
+  scrollToPageKey?: number;
 };
 
 export type DocumentViewMode = "file" | "index";
@@ -77,6 +96,8 @@ export type DocumentModalProps = {
   onOpenChange: (open: boolean) => void;
   onDocumentsChange?: () => void | Promise<void>;
   courseLabel?: (code: string) => string;
+  subjects?: SubjectOption[];
+  defaultSubjectId?: string;
 };
 
 const MIN_ZOOM = 0.6;
@@ -243,6 +264,8 @@ export function DocumentModal({
   onOpenChange,
   onDocumentsChange,
   courseLabel,
+  subjects = [],
+  defaultSubjectId,
 }: DocumentModalProps) {
   const documentId = mode === "view" ? (document?.id ?? null) : null;
   const documentName = document?.name;
@@ -252,6 +275,7 @@ export function DocumentModal({
   const [description, setDescription] = useState("");
   const [active, setActive] = useState(true);
   const [uploadDrafts, setUploadDrafts] = useState<UploadFileDraft[]>([]);
+  const [uploadSubjectId, setUploadSubjectId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [meta, setMeta] = useState<DocumentViewerResponse | null>(null);
@@ -268,21 +292,19 @@ export function DocumentModal({
   const [scale, setScale] = useState(1);
   const [zoomInput, setZoomInput] = useState("100");
   const [visiblePage, setVisiblePage] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
+  const [pageScrollRequest, setPageScrollRequest] = useState<{
+    page: number;
+    key: number;
+  } | null>(null);
   const [docxTotalPages, setDocxTotalPages] = useState(0);
-  const [PdfViewer, setPdfViewer] = useState<ComponentType<PdfDocumentViewerProps> | null>(
-    null,
-  );
+  const [PdfViewer, setPdfViewer] = useState<ComponentType<PdfDocumentViewerProps> | null>(null);
   const isEditingZoom = useRef(false);
+  const isEditingPage = useRef(false);
   const chunksLoadedFor = useRef<string | null>(null);
 
-  const zoomIn = useCallback(
-    () => setScale((s) => clampZoom(s + ZOOM_STEP)),
-    [],
-  );
-  const zoomOut = useCallback(
-    () => setScale((s) => clampZoom(s - ZOOM_STEP)),
-    [],
-  );
+  const zoomIn = useCallback(() => setScale((s) => clampZoom(s + ZOOM_STEP)), []);
+  const zoomOut = useCallback(() => setScale((s) => clampZoom(s - ZOOM_STEP)), []);
   const setScaleImmediate = useCallback((next: number) => {
     const clamped = clampZoom(next);
     setScale(clamped);
@@ -291,12 +313,9 @@ export function DocumentModal({
 
   const resetZoom = useCallback(() => setScaleImmediate(1), [setScaleImmediate]);
 
-  const handleZoomWheel = useCallback(
-    (direction: number) => {
-      setScale((s) => clampZoom(s + direction * ZOOM_WHEEL_STEP));
-    },
-    [],
-  );
+  const handleZoomWheel = useCallback((direction: number) => {
+    setScale((s) => clampZoom(s + direction * ZOOM_WHEEL_STEP));
+  }, []);
 
   const applyZoomInput = useCallback(() => {
     isEditingZoom.current = false;
@@ -314,11 +333,37 @@ export function DocumentModal({
     }
   }, [scale]);
 
+  const applyPageInput = useCallback(() => {
+    isEditingPage.current = false;
+    const total = fileKind === "pdf" ? meta?.totalPages : fileKind === "docx" ? docxTotalPages : 0;
+    if (!total) {
+      setPageInput(String(visiblePage));
+      return;
+    }
+
+    const parsed = Number.parseInt(pageInput, 10);
+    if (Number.isNaN(parsed)) {
+      setPageInput(String(visiblePage));
+      return;
+    }
+
+    const page = Math.min(Math.max(1, parsed), total);
+    setPageInput(String(page));
+    setPageScrollRequest({ page, key: Date.now() });
+  }, [pageInput, visiblePage, fileKind, meta?.totalPages, docxTotalPages]);
+
+  useEffect(() => {
+    if (!isEditingPage.current) {
+      setPageInput(String(visiblePage));
+    }
+  }, [visiblePage]);
+
   const resetFormState = useCallback(() => {
     setTitle("");
     setDescription("");
     setActive(true);
     setUploadDrafts([]);
+    setUploadSubjectId("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -345,6 +390,19 @@ export function DocumentModal({
   }, [open, mode, initialViewMode, documentId, document, resetFormState]);
 
   useEffect(() => {
+    if (!open || mode !== "create" || subjects.length === 0) return;
+
+    const preferred =
+      (defaultSubjectId && subjects.some((s) => s.id === defaultSubjectId)
+        ? defaultSubjectId
+        : null) ??
+      subjects[0]?.id ??
+      "";
+
+    setUploadSubjectId(preferred);
+  }, [open, mode, defaultSubjectId, subjects]);
+
+  useEffect(() => {
     if (!open || mode !== "view" || viewMode !== "index" || !documentId) return;
     if (chunksLoadedFor.current === documentId) return;
 
@@ -352,18 +410,12 @@ export function DocumentModal({
     let cancelled = false;
 
     async function loadChunks() {
-      const token = getApiToken();
-      if (!token) {
-        setChunksError("Phiên đăng nhập hết hạn");
-        return;
-      }
-
       setChunksLoading(true);
       setChunksError(null);
       setChunks([]);
 
       try {
-        const data = await fetchDocumentChunks(id, token);
+        const data = await fetchDocumentChunks(id);
         if (cancelled) return;
         setChunks(data.sort((a, b) => a.chunkIndex - b.chunkIndex));
         chunksLoadedFor.current = id;
@@ -389,12 +441,6 @@ export function DocumentModal({
     let cancelled = false;
 
     async function load() {
-      const token = getApiToken();
-      if (!token) {
-        setError("Phiên đăng nhập hết hạn");
-        return;
-      }
-
       setLoading(true);
       setError(null);
       setMeta(null);
@@ -406,6 +452,8 @@ export function DocumentModal({
       setScale(1);
       setZoomInput("100");
       setVisiblePage(1);
+      setPageInput("1");
+      setPageScrollRequest(null);
       setDocxTotalPages(0);
       setPdfViewer(null);
       setChunks([]);
@@ -414,11 +462,11 @@ export function DocumentModal({
       chunksLoadedFor.current = null;
 
       try {
-        const viewer = await fetchDocumentViewer(id, token);
+        const viewer = await fetchDocumentViewer(id);
         if (cancelled) return;
         setMeta(viewer);
 
-        const blob = await fetchDocumentFile(id, token);
+        const blob = await fetchDocumentFile(id);
         if (cancelled) return;
 
         if (viewer.mimeType === "text/plain" || viewer.documentType === "TXT") {
@@ -475,6 +523,8 @@ export function DocumentModal({
       setScale(1);
       setZoomInput("100");
       setVisiblePage(1);
+      setPageInput("1");
+      setPageScrollRequest(null);
       setDocxTotalPages(0);
       setPdfViewer(null);
       return;
@@ -582,6 +632,11 @@ export function DocumentModal({
   };
 
   const handleCreate = async () => {
+    if (!uploadSubjectId) {
+      toast.error("Chọn môn học");
+      return;
+    }
+
     if (!uploadDrafts.length) {
       toast.error("Chọn file để tải lên");
       return;
@@ -598,21 +653,16 @@ export function DocumentModal({
       }
     }
 
-    const token = getApiToken();
-    if (!token) {
-      toast.error("Phiên đăng nhập hết hạn");
-      return;
-    }
-
     const items = uploadDrafts.map((draft) => ({
       file: draft.file,
+      subjectId: uploadSubjectId,
       title: draft.title.trim(),
       description: draft.description.trim() || undefined,
     }));
 
     setSubmitting(true);
     try {
-      await uploadDocuments(items, token);
+      await uploadDocuments(items);
       await onDocumentsChange?.();
       toast.success(
         items.length === 1 ? "Đã tải lên tài liệu" : `Đã tải lên ${items.length} tài liệu`,
@@ -634,15 +684,9 @@ export function DocumentModal({
       return;
     }
 
-    const token = getApiToken();
-    if (!token) {
-      toast.error("Phiên đăng nhập hết hạn");
-      return;
-    }
-
     setSubmitting(true);
     try {
-      await updateDocumentApi(document.id, token, {
+      await updateDocumentApi(document.id, {
         title: trimmedTitle,
         description: description.trim(),
         active,
@@ -769,6 +813,25 @@ export function DocumentModal({
       {mode === "create" ? (
         <div className="min-w-0 space-y-3 overflow-hidden">
           <div className="space-y-1.5">
+            <Label htmlFor="doc-upload-subject">Môn học *</Label>
+            <Select
+              value={uploadSubjectId || undefined}
+              onValueChange={setUploadSubjectId}
+              disabled={submitting || subjects.length === 0}
+            >
+              <SelectTrigger id="doc-upload-subject" className="w-full">
+                <SelectValue placeholder="Chọn môn học" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((subject) => (
+                  <SelectItem key={subject.id} value={subject.id}>
+                    {subject.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
             <Label>File *</Label>
             <Button
               type="button"
@@ -811,15 +874,12 @@ export function DocumentModal({
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor={`doc-upload-title-${draft.key}`}>
-                      Tiêu đề *
-                      {uploadDrafts.length > 1 ? ` (${index + 1})` : ""}
+                      Tiêu đề *{uploadDrafts.length > 1 ? ` (${index + 1})` : ""}
                     </Label>
                     <Input
                       id={`doc-upload-title-${draft.key}`}
                       value={draft.title}
-                      onChange={(e) =>
-                        updateUploadDraft(draft.key, { title: e.target.value })
-                      }
+                      onChange={(e) => updateUploadDraft(draft.key, { title: e.target.value })}
                       placeholder="Tiêu đề tài liệu"
                       disabled={submitting}
                     />
@@ -871,9 +931,7 @@ export function DocumentModal({
             <Label htmlFor="doc-modal-active" className="text-sm font-medium">
               Kích hoạt
             </Label>
-            <p className="text-xs text-muted-foreground">
-              Tài liệu tắt sẽ không dùng cho chatbot
-            </p>
+            <p className="text-xs text-muted-foreground">Tài liệu tắt sẽ không dùng cho chatbot</p>
           </div>
           <Switch
             id="doc-modal-active"
@@ -927,153 +985,183 @@ export function DocumentModal({
 
           {mode === "view" && (
             <>
-          {showIndexContent && (
-            <DocumentIndexPanel chunks={chunks} loading={chunksLoading} error={chunksError} />
-          )}
+              {showIndexContent && (
+                <DocumentIndexPanel chunks={chunks} loading={chunksLoading} error={chunksError} />
+              )}
 
-          {showFileContent && loading && (
-            <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <p className="text-sm">Đang tải tài liệu...</p>
-            </div>
-          )}
+              {showFileContent && loading && (
+                <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <p className="text-sm">Đang tải tài liệu...</p>
+                </div>
+              )}
 
-          {showFileContent && !loading && error && (
-            <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 px-6 text-center">
-              <FileText className="h-10 w-10 text-muted-foreground" />
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
+              {showFileContent && !loading && error && (
+                <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 px-6 text-center">
+                  <FileText className="h-10 w-10 text-muted-foreground" />
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
 
-          {showFileContent && open && !loading && !error && pdfBlob && isPdf && (
-            <div className="h-full min-h-0">
-              {PdfViewer ? (
-                <PdfViewerErrorBoundary
-                  key={documentId ?? "pdf"}
-                  fallback={
-                    <p className="py-12 text-center text-sm text-destructive">
-                      Không hiển thị được PDF. Thử tải file xuống.
+              {showFileContent && open && !loading && !error && pdfBlob && isPdf && (
+                <div className="h-full min-h-0">
+                  {PdfViewer ? (
+                    <PdfViewerErrorBoundary
+                      key={documentId ?? "pdf"}
+                      fallback={
+                        <p className="py-12 text-center text-sm text-destructive">
+                          Không hiển thị được PDF. Thử tải file xuống.
+                        </p>
+                      }
+                    >
+                      <PdfViewer
+                        file={pdfBlob}
+                        scale={scale}
+                        onZoomWheel={handleZoomWheel}
+                        onVisiblePageChange={setVisiblePage}
+                        scrollToPage={pageScrollRequest?.page}
+                        scrollToPageKey={pageScrollRequest?.key}
+                      />
+                    </PdfViewerErrorBoundary>
+                  ) : (
+                    <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Đang khởi tạo PDF viewer...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showFileContent && !loading && !error && fileKind === "docx" && docxBlob && (
+                <DocxPreviewViewer
+                  key={documentId ?? "docx"}
+                  data={docxBlob}
+                  className="h-full min-h-0"
+                  scale={scale}
+                  onZoomWheel={handleZoomWheel}
+                  onPageChange={handleDocxPageChange}
+                  scrollToPage={pageScrollRequest?.page}
+                  scrollToPageKey={pageScrollRequest?.key}
+                />
+              )}
+
+              {showFileContent && !loading && !error && textContent != null && (
+                <pre className="whitespace-pre-wrap wrap-break-word p-6 font-sans text-sm leading-relaxed">
+                  {textContent}
+                </pre>
+              )}
+
+              {showFileContent &&
+                !loading &&
+                !error &&
+                fileKind === "other" &&
+                fileData &&
+                textContent == null && (
+                  <div className="flex h-full min-h-64 flex-col items-center justify-center gap-4 px-6 text-center">
+                    <FileText className="h-10 w-10 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Định dạng {meta?.documentType} chưa hỗ trợ xem trực tiếp.
                     </p>
-                  }
-                >
-                  <PdfViewer
-                    file={pdfBlob}
-                    scale={scale}
-                    onZoomWheel={handleZoomWheel}
-                    onVisiblePageChange={setVisiblePage}
-                  />
-                </PdfViewerErrorBoundary>
-              ) : (
-                <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Đang khởi tạo PDF viewer...
-                </div>
-              )}
-            </div>
-          )}
+                    <Button className="gap-1.5" onClick={downloadFile}>
+                      <Download className="h-4 w-4" />
+                      Tải file để xem
+                    </Button>
+                  </div>
+                )}
 
-          {showFileContent && !loading && !error && fileKind === "docx" && docxBlob && (
-            <DocxPreviewViewer
-              key={documentId ?? "docx"}
-              data={docxBlob}
-              className="h-full min-h-0"
-              scale={scale}
-              onZoomWheel={handleZoomWheel}
-              onPageChange={handleDocxPageChange}
-            />
-          )}
+              {showFileContent &&
+                !loading &&
+                !error &&
+                ((isPdf && pdfBlob) || (isDocx && docxBlob)) && (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 p-4">
+                    <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border/60 bg-background/90 px-2 py-1.5 shadow-md backdrop-blur-sm">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={scale <= MIN_ZOOM}
+                        onClick={zoomOut}
+                        title="Thu nhỏ (Ctrl + -)"
+                      >
+                        <ZoomOut className="h-4 w-4" />
+                      </Button>
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          aria-label="Tỷ lệ zoom"
+                          className="h-8 w-16 border-border/60 bg-background px-2 pr-5 text-center text-xs tabular-nums shadow-none"
+                          value={zoomInput}
+                          onFocus={() => {
+                            isEditingZoom.current = true;
+                          }}
+                          onChange={(event) => {
+                            setZoomInput(event.target.value.replace(/\D/g, ""));
+                          }}
+                          onBlur={applyZoomInput}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              applyZoomInput();
+                              event.currentTarget.blur();
+                            }
+                            if (event.key === "Escape") {
+                              isEditingZoom.current = false;
+                              setZoomInput(scaleToPercent(scale));
+                              event.currentTarget.blur();
+                            }
+                          }}
+                        />
+                        <span className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-xs text-muted-foreground">
+                          %
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={scale >= MAX_ZOOM}
+                        onClick={zoomIn}
+                        title="Phóng to (Ctrl + +)"
+                      >
+                        <ZoomIn className="h-4 w-4" />
+                      </Button>
+                    </div>
 
-          {showFileContent && !loading && !error && textContent != null && (
-            <pre className="whitespace-pre-wrap wrap-break-word p-6 font-sans text-sm leading-relaxed">
-              {textContent}
-            </pre>
-          )}
-
-          {showFileContent &&
-            !loading &&
-            !error &&
-            fileKind === "other" &&
-            fileData &&
-            textContent == null && (
-            <div className="flex h-full min-h-64 flex-col items-center justify-center gap-4 px-6 text-center">
-              <FileText className="h-10 w-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Định dạng {meta?.documentType} chưa hỗ trợ xem trực tiếp.
-              </p>
-              <Button className="gap-1.5" onClick={downloadFile}>
-                <Download className="h-4 w-4" />
-                Tải file để xem
-              </Button>
-            </div>
-          )}
-
-          {showFileContent &&
-            !loading &&
-            !error &&
-            ((isPdf && pdfBlob) || (isDocx && docxBlob)) && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 p-4">
-              <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border/60 bg-background/90 px-2 py-1.5 shadow-md backdrop-blur-sm">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  disabled={scale <= MIN_ZOOM}
-                  onClick={zoomOut}
-                  title="Thu nhỏ (Ctrl + -)"
-                >
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-                <div className="relative">
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    aria-label="Tỷ lệ zoom"
-                    className="h-8 w-16 border-border/60 bg-background px-2 pr-5 text-center text-xs tabular-nums shadow-none"
-                    value={zoomInput}
-                    onFocus={() => {
-                      isEditingZoom.current = true;
-                    }}
-                    onChange={(event) => {
-                      setZoomInput(event.target.value.replace(/\D/g, ""));
-                    }}
-                    onBlur={applyZoomInput}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        applyZoomInput();
-                        event.currentTarget.blur();
-                      }
-                      if (event.key === "Escape") {
-                        isEditingZoom.current = false;
-                        setZoomInput(scaleToPercent(scale));
-                        event.currentTarget.blur();
-                      }
-                    }}
-                  />
-                  <span className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-xs text-muted-foreground">
-                    %
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  disabled={scale >= MAX_ZOOM}
-                  onClick={zoomIn}
-                  title="Phóng to (Ctrl + +)"
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {((isPdf && meta && meta.totalPages > 0) ||
-                (isDocx && docxTotalPages > 0)) && (
-                <div className="rounded-lg border border-border/60 bg-background/90 px-3 py-2 text-xs tabular-nums text-muted-foreground shadow-md backdrop-blur-sm">
-                  Trang {visiblePage}/{isPdf ? meta!.totalPages : docxTotalPages}
-                </div>
-              )}
-            </div>
-          )}
+                    {((isPdf && meta && meta.totalPages > 0) || (isDocx && docxTotalPages > 0)) && (
+                      <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border/60 bg-background/90 px-2 py-1.5 text-xs tabular-nums text-muted-foreground shadow-md backdrop-blur-sm">
+                        <span>Trang</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          aria-label="Số trang"
+                          className="h-8 w-12 border-border/60 bg-background px-2 text-center text-xs tabular-nums shadow-none"
+                          value={pageInput}
+                          onFocus={() => {
+                            isEditingPage.current = true;
+                          }}
+                          onChange={(event) => {
+                            setPageInput(event.target.value.replace(/\D/g, ""));
+                          }}
+                          onBlur={applyPageInput}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              applyPageInput();
+                              event.currentTarget.blur();
+                            }
+                            if (event.key === "Escape") {
+                              isEditingPage.current = false;
+                              setPageInput(String(visiblePage));
+                              event.currentTarget.blur();
+                            }
+                          }}
+                        />
+                        <span>/{isPdf ? meta!.totalPages : docxTotalPages}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
             </>
           )}
         </div>

@@ -9,20 +9,44 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WalletRouteImport } from './features/student/routes/wallet'
 import { Route as SubscriptionsRouteImport } from './features/student/routes/subscriptions'
+import { Route as QuizzesRouteImport } from './features/student/routes/quizzes'
 import { Route as DocumentsRouteImport } from './features/student/routes/documents'
 import { Route as AuthRouteImport } from './features/auth/routes/auth'
 import { Route as LecturerRouteRouteImport } from './features/lecturer/routes/route'
 import { Route as AdminRouteRouteImport } from './features/admin/routes/route'
 import { Route as IndexRouteImport } from './features/student/routes/index'
+import { Route as WalletDotindexRouteImport } from './features/student/routes/wallet.index'
+import { Route as QuizzesDotindexRouteImport } from './features/student/routes/quizzes.index'
+import { Route as WalletDotcheckoutRouteImport } from './features/student/routes/wallet.checkout'
+import { Route as QuizzesDotquizIdRouteImport } from './features/student/routes/quizzes.$quizId'
+import { Route as LecturerQuizzesRouteImport } from './features/lecturer/routes/quizzes'
+import { Route as LecturerQuestionBankRouteImport } from './features/lecturer/routes/question-bank'
 import { Route as LecturerDocumentsRouteImport } from './features/lecturer/routes/documents'
 import { Route as AdminUsersRouteImport } from './features/admin/routes/users'
 import { Route as AdminSubscriptionsRouteImport } from './features/admin/routes/subscriptions'
+import { Route as AdminSubjectsRouteImport } from './features/admin/routes/subjects'
+import { Route as AdminRolesRouteImport } from './features/admin/routes/roles'
+import { Route as AdminLecturersRouteImport } from './features/admin/routes/lecturers'
 import { Route as AdminAiConfigRouteImport } from './features/admin/routes/ai-config'
+import { Route as LecturerQuizzesDotindexRouteImport } from './features/lecturer/routes/quizzes.index'
+import { Route as LecturerQuizzesDotquizIdRouteImport } from './features/lecturer/routes/quizzes.$quizId'
+import { Route as LecturerQuizResultsDotquizIdRouteImport } from './features/lecturer/routes/quiz-results.$quizId'
 
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubscriptionsRoute = SubscriptionsRouteImport.update({
   id: '/subscriptions',
   path: '/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuizzesRoute = QuizzesRouteImport.update({
+  id: '/quizzes',
+  path: '/quizzes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentsRoute = DocumentsRouteImport.update({
@@ -50,6 +74,36 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WalletDotindexRoute = WalletDotindexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WalletRoute,
+} as any)
+const QuizzesDotindexRoute = QuizzesDotindexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => QuizzesRoute,
+} as any)
+const WalletDotcheckoutRoute = WalletDotcheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => WalletRoute,
+} as any)
+const QuizzesDotquizIdRoute = QuizzesDotquizIdRouteImport.update({
+  id: '/$quizId',
+  path: '/$quizId',
+  getParentRoute: () => QuizzesRoute,
+} as any)
+const LecturerQuizzesRoute = LecturerQuizzesRouteImport.update({
+  id: '/quizzes',
+  path: '/quizzes',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerQuestionBankRoute = LecturerQuestionBankRouteImport.update({
+  id: '/question-bank',
+  path: '/question-bank',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
 const LecturerDocumentsRoute = LecturerDocumentsRouteImport.update({
   id: '/documents',
   path: '/documents',
@@ -65,11 +119,43 @@ const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
   path: '/subscriptions',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminSubjectsRoute = AdminSubjectsRouteImport.update({
+  id: '/subjects',
+  path: '/subjects',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminRolesRoute = AdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminLecturersRoute = AdminLecturersRouteImport.update({
+  id: '/lecturers',
+  path: '/lecturers',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminAiConfigRoute = AdminAiConfigRouteImport.update({
   id: '/ai-config',
   path: '/ai-config',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const LecturerQuizzesDotindexRoute = LecturerQuizzesDotindexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LecturerQuizzesRoute,
+} as any)
+const LecturerQuizzesDotquizIdRoute =
+  LecturerQuizzesDotquizIdRouteImport.update({
+    id: '/$quizId',
+    path: '/$quizId',
+    getParentRoute: () => LecturerQuizzesRoute,
+  } as any)
+const LecturerQuizResultsDotquizIdRoute =
+  LecturerQuizResultsDotquizIdRouteImport.update({
+    id: '/quiz-results/$quizId',
+    path: '/quiz-results/$quizId',
+    getParentRoute: () => LecturerRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -77,11 +163,25 @@ export interface FileRoutesByFullPath {
   '/lecturer': typeof LecturerRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
+  '/quizzes': typeof QuizzesRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
+  '/wallet': typeof WalletRouteWithChildren
   '/admin/ai-config': typeof AdminAiConfigRoute
+  '/admin/lecturers': typeof AdminLecturersRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/subjects': typeof AdminSubjectsRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
+  '/lecturer/question-bank': typeof LecturerQuestionBankRoute
+  '/lecturer/quizzes': typeof LecturerQuizzesRouteWithChildren
+  '/quizzes/$quizId': typeof QuizzesDotquizIdRoute
+  '/wallet/checkout': typeof WalletDotcheckoutRoute
+  '/quizzes/': typeof QuizzesDotindexRoute
+  '/wallet/': typeof WalletDotindexRoute
+  '/lecturer/quiz-results/$quizId': typeof LecturerQuizResultsDotquizIdRoute
+  '/lecturer/quizzes/$quizId': typeof LecturerQuizzesDotquizIdRoute
+  '/lecturer/quizzes/': typeof LecturerQuizzesDotindexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,9 +191,20 @@ export interface FileRoutesByTo {
   '/documents': typeof DocumentsRoute
   '/subscriptions': typeof SubscriptionsRoute
   '/admin/ai-config': typeof AdminAiConfigRoute
+  '/admin/lecturers': typeof AdminLecturersRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/subjects': typeof AdminSubjectsRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
+  '/lecturer/question-bank': typeof LecturerQuestionBankRoute
+  '/quizzes/$quizId': typeof QuizzesDotquizIdRoute
+  '/wallet/checkout': typeof WalletDotcheckoutRoute
+  '/quizzes': typeof QuizzesDotindexRoute
+  '/wallet': typeof WalletDotindexRoute
+  '/lecturer/quiz-results/$quizId': typeof LecturerQuizResultsDotquizIdRoute
+  '/lecturer/quizzes/$quizId': typeof LecturerQuizzesDotquizIdRoute
+  '/lecturer/quizzes': typeof LecturerQuizzesDotindexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -102,11 +213,25 @@ export interface FileRoutesById {
   '/lecturer': typeof LecturerRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/documents': typeof DocumentsRoute
+  '/quizzes': typeof QuizzesRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
+  '/wallet': typeof WalletRouteWithChildren
   '/admin/ai-config': typeof AdminAiConfigRoute
+  '/admin/lecturers': typeof AdminLecturersRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/subjects': typeof AdminSubjectsRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/lecturer/documents': typeof LecturerDocumentsRoute
+  '/lecturer/question-bank': typeof LecturerQuestionBankRoute
+  '/lecturer/quizzes': typeof LecturerQuizzesRouteWithChildren
+  '/quizzes/$quizId': typeof QuizzesDotquizIdRoute
+  '/wallet/checkout': typeof WalletDotcheckoutRoute
+  '/quizzes/': typeof QuizzesDotindexRoute
+  '/wallet/': typeof WalletDotindexRoute
+  '/lecturer/quiz-results/$quizId': typeof LecturerQuizResultsDotquizIdRoute
+  '/lecturer/quizzes/$quizId': typeof LecturerQuizzesDotquizIdRoute
+  '/lecturer/quizzes/': typeof LecturerQuizzesDotindexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -116,11 +241,25 @@ export interface FileRouteTypes {
     | '/lecturer'
     | '/auth'
     | '/documents'
+    | '/quizzes'
     | '/subscriptions'
+    | '/wallet'
     | '/admin/ai-config'
+    | '/admin/lecturers'
+    | '/admin/roles'
+    | '/admin/subjects'
     | '/admin/subscriptions'
     | '/admin/users'
     | '/lecturer/documents'
+    | '/lecturer/question-bank'
+    | '/lecturer/quizzes'
+    | '/quizzes/$quizId'
+    | '/wallet/checkout'
+    | '/quizzes/'
+    | '/wallet/'
+    | '/lecturer/quiz-results/$quizId'
+    | '/lecturer/quizzes/$quizId'
+    | '/lecturer/quizzes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,9 +269,20 @@ export interface FileRouteTypes {
     | '/documents'
     | '/subscriptions'
     | '/admin/ai-config'
+    | '/admin/lecturers'
+    | '/admin/roles'
+    | '/admin/subjects'
     | '/admin/subscriptions'
     | '/admin/users'
     | '/lecturer/documents'
+    | '/lecturer/question-bank'
+    | '/quizzes/$quizId'
+    | '/wallet/checkout'
+    | '/quizzes'
+    | '/wallet'
+    | '/lecturer/quiz-results/$quizId'
+    | '/lecturer/quizzes/$quizId'
+    | '/lecturer/quizzes'
   id:
     | '__root__'
     | '/'
@@ -140,11 +290,25 @@ export interface FileRouteTypes {
     | '/lecturer'
     | '/auth'
     | '/documents'
+    | '/quizzes'
     | '/subscriptions'
+    | '/wallet'
     | '/admin/ai-config'
+    | '/admin/lecturers'
+    | '/admin/roles'
+    | '/admin/subjects'
     | '/admin/subscriptions'
     | '/admin/users'
     | '/lecturer/documents'
+    | '/lecturer/question-bank'
+    | '/lecturer/quizzes'
+    | '/quizzes/$quizId'
+    | '/wallet/checkout'
+    | '/quizzes/'
+    | '/wallet/'
+    | '/lecturer/quiz-results/$quizId'
+    | '/lecturer/quizzes/$quizId'
+    | '/lecturer/quizzes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -153,16 +317,32 @@ export interface RootRouteChildren {
   LecturerRouteRoute: typeof LecturerRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   DocumentsRoute: typeof DocumentsRoute
+  QuizzesRoute: typeof QuizzesRouteWithChildren
   SubscriptionsRoute: typeof SubscriptionsRoute
+  WalletRoute: typeof WalletRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/subscriptions': {
       id: '/subscriptions'
       path: '/subscriptions'
       fullPath: '/subscriptions'
       preLoaderRoute: typeof SubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quizzes': {
+      id: '/quizzes'
+      path: '/quizzes'
+      fullPath: '/quizzes'
+      preLoaderRoute: typeof QuizzesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documents': {
@@ -200,6 +380,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wallet/': {
+      id: '/wallet/'
+      path: '/'
+      fullPath: '/wallet/'
+      preLoaderRoute: typeof WalletDotindexRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/quizzes/': {
+      id: '/quizzes/'
+      path: '/'
+      fullPath: '/quizzes/'
+      preLoaderRoute: typeof QuizzesDotindexRouteImport
+      parentRoute: typeof QuizzesRoute
+    }
+    '/wallet/checkout': {
+      id: '/wallet/checkout'
+      path: '/checkout'
+      fullPath: '/wallet/checkout'
+      preLoaderRoute: typeof WalletDotcheckoutRouteImport
+      parentRoute: typeof WalletRoute
+    }
+    '/quizzes/$quizId': {
+      id: '/quizzes/$quizId'
+      path: '/$quizId'
+      fullPath: '/quizzes/$quizId'
+      preLoaderRoute: typeof QuizzesDotquizIdRouteImport
+      parentRoute: typeof QuizzesRoute
+    }
+    '/lecturer/quizzes': {
+      id: '/lecturer/quizzes'
+      path: '/quizzes'
+      fullPath: '/lecturer/quizzes'
+      preLoaderRoute: typeof LecturerQuizzesRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/question-bank': {
+      id: '/lecturer/question-bank'
+      path: '/question-bank'
+      fullPath: '/lecturer/question-bank'
+      preLoaderRoute: typeof LecturerQuestionBankRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
     '/lecturer/documents': {
       id: '/lecturer/documents'
       path: '/documents'
@@ -221,6 +443,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSubscriptionsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/subjects': {
+      id: '/admin/subjects'
+      path: '/subjects'
+      fullPath: '/admin/subjects'
+      preLoaderRoute: typeof AdminSubjectsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/roles': {
+      id: '/admin/roles'
+      path: '/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/lecturers': {
+      id: '/admin/lecturers'
+      path: '/lecturers'
+      fullPath: '/admin/lecturers'
+      preLoaderRoute: typeof AdminLecturersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/ai-config': {
       id: '/admin/ai-config'
       path: '/ai-config'
@@ -228,17 +471,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAiConfigRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/lecturer/quizzes/': {
+      id: '/lecturer/quizzes/'
+      path: '/'
+      fullPath: '/lecturer/quizzes/'
+      preLoaderRoute: typeof LecturerQuizzesDotindexRouteImport
+      parentRoute: typeof LecturerQuizzesRoute
+    }
+    '/lecturer/quizzes/$quizId': {
+      id: '/lecturer/quizzes/$quizId'
+      path: '/$quizId'
+      fullPath: '/lecturer/quizzes/$quizId'
+      preLoaderRoute: typeof LecturerQuizzesDotquizIdRouteImport
+      parentRoute: typeof LecturerQuizzesRoute
+    }
+    '/lecturer/quiz-results/$quizId': {
+      id: '/lecturer/quiz-results/$quizId'
+      path: '/quiz-results/$quizId'
+      fullPath: '/lecturer/quiz-results/$quizId'
+      preLoaderRoute: typeof LecturerQuizResultsDotquizIdRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
   }
 }
 
 interface AdminRouteRouteChildren {
   AdminAiConfigRoute: typeof AdminAiConfigRoute
+  AdminLecturersRoute: typeof AdminLecturersRoute
+  AdminRolesRoute: typeof AdminRolesRoute
+  AdminSubjectsRoute: typeof AdminSubjectsRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAiConfigRoute: AdminAiConfigRoute,
+  AdminLecturersRoute: AdminLecturersRoute,
+  AdminRolesRoute: AdminRolesRoute,
+  AdminSubjectsRoute: AdminSubjectsRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
@@ -247,17 +517,63 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
   AdminRouteRouteChildren,
 )
 
+interface LecturerQuizzesRouteChildren {
+  LecturerQuizzesDotquizIdRoute: typeof LecturerQuizzesDotquizIdRoute
+  LecturerQuizzesDotindexRoute: typeof LecturerQuizzesDotindexRoute
+}
+
+const LecturerQuizzesRouteChildren: LecturerQuizzesRouteChildren = {
+  LecturerQuizzesDotquizIdRoute: LecturerQuizzesDotquizIdRoute,
+  LecturerQuizzesDotindexRoute: LecturerQuizzesDotindexRoute,
+}
+
+const LecturerQuizzesRouteWithChildren = LecturerQuizzesRoute._addFileChildren(
+  LecturerQuizzesRouteChildren,
+)
+
 interface LecturerRouteRouteChildren {
   LecturerDocumentsRoute: typeof LecturerDocumentsRoute
+  LecturerQuestionBankRoute: typeof LecturerQuestionBankRoute
+  LecturerQuizzesRoute: typeof LecturerQuizzesRouteWithChildren
+  LecturerQuizResultsDotquizIdRoute: typeof LecturerQuizResultsDotquizIdRoute
 }
 
 const LecturerRouteRouteChildren: LecturerRouteRouteChildren = {
   LecturerDocumentsRoute: LecturerDocumentsRoute,
+  LecturerQuestionBankRoute: LecturerQuestionBankRoute,
+  LecturerQuizzesRoute: LecturerQuizzesRouteWithChildren,
+  LecturerQuizResultsDotquizIdRoute: LecturerQuizResultsDotquizIdRoute,
 }
 
 const LecturerRouteRouteWithChildren = LecturerRouteRoute._addFileChildren(
   LecturerRouteRouteChildren,
 )
+
+interface QuizzesRouteChildren {
+  QuizzesDotquizIdRoute: typeof QuizzesDotquizIdRoute
+  QuizzesDotindexRoute: typeof QuizzesDotindexRoute
+}
+
+const QuizzesRouteChildren: QuizzesRouteChildren = {
+  QuizzesDotquizIdRoute: QuizzesDotquizIdRoute,
+  QuizzesDotindexRoute: QuizzesDotindexRoute,
+}
+
+const QuizzesRouteWithChildren =
+  QuizzesRoute._addFileChildren(QuizzesRouteChildren)
+
+interface WalletRouteChildren {
+  WalletDotcheckoutRoute: typeof WalletDotcheckoutRoute
+  WalletDotindexRoute: typeof WalletDotindexRoute
+}
+
+const WalletRouteChildren: WalletRouteChildren = {
+  WalletDotcheckoutRoute: WalletDotcheckoutRoute,
+  WalletDotindexRoute: WalletDotindexRoute,
+}
+
+const WalletRouteWithChildren =
+  WalletRoute._addFileChildren(WalletRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -265,7 +581,9 @@ const rootRouteChildren: RootRouteChildren = {
   LecturerRouteRoute: LecturerRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   DocumentsRoute: DocumentsRoute,
+  QuizzesRoute: QuizzesRouteWithChildren,
   SubscriptionsRoute: SubscriptionsRoute,
+  WalletRoute: WalletRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

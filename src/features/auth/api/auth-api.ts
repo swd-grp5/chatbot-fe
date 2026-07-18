@@ -3,8 +3,18 @@ import type { AppRole, AuthApiResponse } from "@/features/auth/lib/auth-types";
 
 export const DEMO_ACCOUNTS = [
   { label: "Admin demo", email: "admin@gmail.com", password: "123456", role: "admin" as const },
-  { label: "Lecturer demo", email: "lecturer@gmail.com", password: "123456", role: "lecturer" as const },
-  { label: "Student demo", email: "student@gmail.com", password: "123456", role: "student" as const },
+  {
+    label: "Lecturer demo",
+    email: "lecturer@gmail.com",
+    password: "123456",
+    role: "lecturer" as const,
+  },
+  {
+    label: "Student demo",
+    email: "student@gmail.com",
+    password: "123456",
+    role: "student" as const,
+  },
 ];
 
 export const DEMO_ACCOUNT_BY_ROLE: Record<AppRole, { email: string; password: string }> = {
@@ -25,6 +35,7 @@ export type RegisterRequest = {
 export async function registerWithEmail(payload: RegisterRequest) {
   return apiFetch<AuthApiResponse>("/auth/register", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify(payload),
   });
 }
@@ -32,6 +43,7 @@ export async function registerWithEmail(payload: RegisterRequest) {
 export async function resendVerificationEmail(email: string) {
   return apiFetch<void>("/auth/resend-verification", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify({ email }),
   });
 }
@@ -39,6 +51,7 @@ export async function resendVerificationEmail(email: string) {
 export async function loginWithEmail(email: string, password: string, rememberMe = true) {
   return apiFetch<AuthApiResponse>("/auth/login", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify({ email, password, rememberMe }),
   });
 }
@@ -46,6 +59,7 @@ export async function loginWithEmail(email: string, password: string, rememberMe
 export async function loginWithGoogle(idToken: string, rememberMe = false) {
   return apiFetch<AuthApiResponse>("/auth/google", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify({ idToken, rememberMe }),
   });
 }

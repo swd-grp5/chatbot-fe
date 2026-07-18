@@ -1,15 +1,32 @@
 import { useEffect } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { FileText, Users, LogOut, ShieldCheck, GraduationCap, BookOpen, Loader2, Bot, CreditCard, MessageSquare } from "lucide-react";
+import {
+  FileText,
+  Users,
+  LogOut,
+  ShieldCheck,
+  GraduationCap,
+  BookOpen,
+  Loader2,
+  Bot,
+  CreditCard,
+  MessageSquare,
+  Wallet,
+  ClipboardList,
+} from "lucide-react";
 import { Logo } from "@/shared/components/layout/logo";
 import { cn } from "@/shared/lib/utils";
 import { useAuth } from "@/features/auth/lib/auth-context";
 import { useRole, type AppRole } from "@/features/auth/hooks/use-role";
 import { DEMO_EMAILS, loginDemoAccount } from "@/features/auth/api/auth-api";
-import { setApiSession } from "@/features/auth/lib/auth-session";
 import { routeForAppRole } from "@/features/auth/lib/auth-types";
 import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/shared/components/ui/dropdown-menu";
 
 const HOME_FOR_ROLE: Record<AppRole, string> = {
@@ -34,13 +51,29 @@ export function AppShell({
   mainClassName?: string;
 }) {
   const { location } = useRouterState();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, applyApiSession } = useAuth();
   const { role, loading: roleLoading, isAdmin, isLecturer } = useRole();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [loading, user, navigate]);
+
+  // Full-bleed pages (chat) must lock document scroll so only inner panes scroll.
+  useEffect(() => {
+    if (!fullBleed) return;
+    const html = document.documentElement;
+    const { body } = document;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    window.scrollTo(0, 0);
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+    };
+  }, [fullBleed]);
 
   useEffect(() => {
     if (roleLoading || !role) return;
@@ -55,7 +88,11 @@ export function AppShell({
       navigate({ to: home, replace: true });
       return;
     }
-    if (!isAdmin && !isLecturer && (location.pathname.startsWith("/admin") || location.pathname.startsWith("/lecturer"))) {
+    if (
+      !isAdmin &&
+      !isLecturer &&
+      (location.pathname.startsWith("/admin") || location.pathname.startsWith("/lecturer"))
+    ) {
       navigate({ to: "/", replace: true });
     }
   }, [roleLoading, role, isAdmin, isLecturer, location.pathname, navigate]);
@@ -70,36 +107,57 @@ export function AppShell({
 
   const navItems = isAdmin
     ? [
-        { to: "/admin/users", label: "Người dùng", icon: Users },
-        { to: "/admin/subscriptions", label: "Gói tháng", icon: CreditCard },
-        { to: "/admin/ai-config", label: "Cấu hình AI", icon: Bot },
-      ]
+      { to: "/admin/users", label: "Sinh viên", icon: Users },
+      { to: "/admin/lecturers", label: "Giảng viên", icon: GraduationCap },
+      { to: "/admin/roles", label: "Vai trò", icon: ShieldCheck },
+      { to: "/admin/subjects", label: "Môn học", icon: BookOpen },
+      { to: "/admin/subscriptions", label: "Gói tháng", icon: CreditCard },
+      { to: "/admin/ai-config", label: "Cấu hình AI", icon: Bot },
+    ]
     : isLecturer
-      ? [{ to: "/lecturer/documents", label: "Tài liệu", icon: FileText }]
+      ? [
+        { to: "/lecturer/documents", label: "Tài liệu", icon: FileText },
+        { to: "/lecturer/question-bank", label: "Kho Quiz", icon: BookOpen },
+        { to: "/lecturer/quizzes", label: "Quiz", icon: ClipboardList },
+      ]
       : [
-          { to: "/", label: "Chat", icon: MessageSquare },
-          { to: "/documents", label: "Tài liệu", icon: FileText },
-          { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
-        ];
+        { to: "/", label: "Chat", icon: MessageSquare },
+        { to: "/documents", label: "Tài liệu", icon: FileText },
+        { to: "/quizzes", label: "Quiz", icon: ClipboardList },
+        { to: "/wallet", label: "Ví", icon: Wallet },
+        { to: "/subscriptions", label: "Gói tháng", icon: CreditCard },
+      ];
 
   const initial = (user.email ?? "?")[0].toUpperCase();
   const isDemo = DEMO_EMAILS.has(user.email);
-  const otherDemoRoles: AppRole[] = (["admin", "lecturer", "student"] as AppRole[]).filter((r) => r !== role);
+  const otherDemoRoles: AppRole[] = (["admin", "lecturer", "student"] as AppRole[]).filter(
+    (r) => r !== role,
+  );
 
   const switchDemoRole = async (targetRole: AppRole) => {
     try {
       const data = await loginDemoAccount(targetRole);
       if (!data.token) return;
-      setApiSession({ token: data.token, user: data.user });
-      navigate({ to: routeForAppRole(targetRole) });
+      applyApiSession({ token: data.token, user: data.user });
+      navigate({ to: routeForAppRole(targetRole), replace: true });
     } catch {
       /* ignore */
     }
   };
 
   return (
-    <div className={cn("flex flex-col bg-background", fullBleed ? "h-svh overflow-hidden" : "min-h-screen")}>
-      <header className={cn("z-30 border-b border-border bg-card/95 backdrop-blur", fullBleed ? "shrink-0" : "sticky top-0")}>
+    <div
+      className={cn(
+        "flex flex-col bg-background",
+        fullBleed ? "h-dvh max-h-dvh overflow-hidden overscroll-none" : "min-h-screen",
+      )}
+    >
+      <header
+        className={cn(
+          "z-30 border-b border-border bg-card/95 backdrop-blur",
+          fullBleed ? "shrink-0" : "sticky top-0",
+        )}
+      >
         <div className="flex h-16 items-center gap-6 px-6">
           <Link to={HOME_FOR_ROLE[role]} className="flex items-center gap-2.5">
             <Logo height={40} className="h-10" />
@@ -112,7 +170,8 @@ export function AppShell({
           {navItems.length > 0 && (
             <nav className="ml-4 flex items-center gap-1">
               {navItems.map((item) => {
-                const active = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+                const active =
+                  location.pathname === item.to || location.pathname.startsWith(item.to + "/");
                 const Icon = item.icon;
                 return (
                   <Link
@@ -120,7 +179,9 @@ export function AppShell({
                     to={item.to}
                     className={cn(
                       "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                      active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+                      active
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -138,13 +199,15 @@ export function AppShell({
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
                     {initial}
                   </span>
-                  <span className="max-w-[160px] truncate font-medium">{user.email}</span>
+                  <span className="max-w-40 truncate font-medium">{user.email}</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
                   Đã đăng nhập ({ROLE_META[role].label})
-                  <div className="mt-0.5 truncate text-sm font-medium text-foreground">{user.email}</div>
+                  <div className="mt-0.5 truncate text-sm font-medium text-foreground">
+                    {user.email}
+                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {isDemo &&
@@ -159,9 +222,13 @@ export function AppShell({
                   })}
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
-                  onClick={() => { signOut(); navigate({ to: "/auth" }); }}
+                  onClick={() => {
+                    signOut();
+                    navigate({ to: "/auth" });
+                  }}
                 >
-                  <LogOut className="mr-2 h-3.5 w-3.5" />Đăng xuất
+                  <LogOut className="mr-2 h-3.5 w-3.5" />
+                  Đăng xuất
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -172,10 +239,14 @@ export function AppShell({
       <main
         className={cn(
           "min-h-0 flex-1",
-          fullBleed ? "overflow-hidden" : (mainClassName ?? "px-6 py-6"),
+          fullBleed ? "flex flex-col overflow-hidden" : (mainClassName ?? "px-6 py-6"),
         )}
       >
-        {children}
+        {fullBleed ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        ) : (
+          children
+        )}
       </main>
     </div>
   );

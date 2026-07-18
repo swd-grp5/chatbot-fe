@@ -1,15 +1,4 @@
-import type { DocumentViewerResponse } from "@/features/lecturer/api/document-api";
 import { isZipBytes, toDocxBlob } from "@/features/lecturer/lib/file-bytes";
-
-export function isDocxViewer(
-  viewer: Pick<DocumentViewerResponse, "mimeType" | "documentType">,
-): boolean {
-  return (
-    viewer.documentType === "DOCX" ||
-    viewer.mimeType.includes("wordprocessingml") ||
-    viewer.mimeType === "application/msword"
-  );
-}
 
 type RenderOptions = {
   compact?: boolean;
@@ -54,8 +43,7 @@ export async function renderDocxPreview(
   compact = false,
 ) {
   const blob = toDocxBlob(data);
-  const buffer =
-    data instanceof ArrayBuffer ? data : await data.arrayBuffer().catch(() => null);
+  const buffer = data instanceof ArrayBuffer ? data : await data.arrayBuffer().catch(() => null);
 
   if (buffer && !isZipBytes(buffer)) {
     throw new Error("File is not a valid DOCX archive");

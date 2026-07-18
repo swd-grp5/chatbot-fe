@@ -16,16 +16,15 @@ export const MODAL_OVERLAY_CLASS = "bg-black/30";
 
 type ModalContentProps = React.ComponentPropsWithoutRef<typeof DialogContent>;
 
-const ModalContent = React.forwardRef<
-  React.ElementRef<typeof DialogContent>,
-  ModalContentProps
->(({ overlayClassName, ...props }, ref) => (
-  <DialogContent
-    ref={ref}
-    overlayClassName={cn(MODAL_OVERLAY_CLASS, overlayClassName)}
-    {...props}
-  />
-));
+const ModalContent = React.forwardRef<React.ElementRef<typeof DialogContent>, ModalContentProps>(
+  ({ overlayClassName, ...props }, ref) => (
+    <DialogContent
+      ref={ref}
+      overlayClassName={cn(MODAL_OVERLAY_CLASS, overlayClassName)}
+      {...props}
+    />
+  ),
+);
 ModalContent.displayName = "ModalContent";
 
 export {

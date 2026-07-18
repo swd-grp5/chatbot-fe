@@ -1,5 +1,23 @@
 export type ApiUserRole = "ADMIN" | "STUDENT" | "LECTURER";
 
+export type ApiRoleResponse = {
+  id: string;
+  code: ApiUserRole;
+  name: string;
+  description?: string | null;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** Role from API: legacy string or nested object. */
+export type ApiUserRoleInput = ApiUserRole | ApiRoleResponse;
+
+export function parseApiUserRole(role: ApiUserRoleInput): ApiUserRole {
+  if (typeof role === "string") return role;
+  return role.code;
+}
+
 export type ApiUser = {
   id: string;
   fullName: string;
@@ -8,9 +26,20 @@ export type ApiUser = {
   isActive: boolean;
 };
 
+export type ApiUserResponse = Omit<ApiUser, "role"> & {
+  role: ApiUserRoleInput;
+};
+
+export function normalizeApiUser(user: ApiUserResponse): ApiUser {
+  return {
+    ...user,
+    role: parseApiUserRole(user.role),
+  };
+}
+
 export type AuthApiResponse = {
   token: string | null;
-  user: ApiUser;
+  user: ApiUserResponse;
   message?: string;
 };
 
@@ -21,8 +50,8 @@ export type ApiAuthSession = {
 
 export type AppRole = "admin" | "lecturer" | "student";
 
-export function apiRoleToAppRole(role: ApiUserRole): AppRole {
-  switch (role) {
+export function apiRoleToAppRole(role: ApiUserRoleInput): AppRole {
+  switch (parseApiUserRole(role)) {
     case "ADMIN":
       return "admin";
     case "LECTURER":

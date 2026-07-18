@@ -1,27 +1,24 @@
 import { Link } from "@tanstack/react-router";
-import {
-  Bot,
-  BookOpen,
-  FileText,
-  Sparkles,
-  MessageSquare,
-  ArrowRight,
-} from "lucide-react";
+import { Bot, BookOpen, FileText, Sparkles, MessageSquare, ArrowRight } from "lucide-react";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
 import type { Course, Doc } from "@/shared/lib/mock-data";
-import type { SubscriptionPlan } from "@/features/student/lib/subscriptions";
+import {
+  formatCreditQuota,
+  type CurrentUserSubscription,
+} from "@/features/student/api/subscription-api";
 import { cn } from "@/shared/lib/utils";
 
 type ChatWelcomeProps = {
   courses: Course[];
   documents: Doc[];
-  plan: SubscriptionPlan;
+  subscription?: CurrentUserSubscription | null;
 };
 
-export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
+export function ChatWelcome({ courses, documents, subscription }: ChatWelcomeProps) {
   const indexed = documents.filter((d) => d.status === "indexed");
+  const plan = subscription?.plan;
 
   const byCourse = courses.map((c) => ({
     course: c,
@@ -30,21 +27,19 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
 
   return (
     <div className="space-y-4 text-left">
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-card p-6">
+      <Card className="border-primary/20 bg-linear-to-br from-primary/5 to-card p-6">
         <div className="flex gap-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Bot className="h-6 w-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold tracking-tight">
-              Chào mừng đến EduBuddy
-            </h2>
+            <h2 className="text-base font-semibold tracking-tight">Chào mừng đến EduBuddy</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               EduBuddy là trợ lý học tập AI — trả lời câu hỏi dựa trên{" "}
-              <strong className="font-medium text-foreground">tài liệu môn học</strong> do
-              giảng viên cung cấp, kèm{" "}
-              <strong className="font-medium text-foreground">trích dẫn nguồn</strong> ở khung
-              bên phải để bạn đối chiếu.
+              <strong className="font-medium text-foreground">tài liệu môn học</strong> do giảng
+              viên cung cấp, kèm{" "}
+              <strong className="font-medium text-foreground">trích dẫn nguồn</strong> ở khung bên
+              phải để bạn đối chiếu.
             </p>
           </div>
         </div>
@@ -57,8 +52,8 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
         </div>
         <p className="mb-4 text-xs text-muted-foreground">
           Hiện tại hệ thống có {indexed.length} tài liệu sẵn sàng trên{" "}
-          {byCourse.filter((g) => g.docs.length > 0).length} môn. Gõ câu hỏi bên dưới để bắt
-          đầu — ví dụ: &quot;Tóm tắt nội dung tài liệu&quot;, &quot;Scrum là gì?&quot;
+          {byCourse.filter((g) => g.docs.length > 0).length} môn. Gõ câu hỏi bên dưới để bắt đầu —
+          ví dụ: &quot;Tóm tắt nội dung tài liệu&quot;, &quot;Scrum là gì?&quot;
         </p>
         <div className="space-y-3">
           {byCourse.map(({ course, docs }) => (
@@ -111,41 +106,36 @@ export function ChatWelcome({ courses, documents, plan }: ChatWelcomeProps) {
         </Button>
       </Card>
 
-      <Card className="border-dashed p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">
-            Gói {plan.name} — miễn phí khi đăng ký
-          </h3>
-        </div>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex items-start gap-2">
-            <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-            <span>
-              <strong className="text-foreground">
-                {plan.questionsPerMonth.toLocaleString("vi-VN")} câu hỏi / tháng
-              </strong>{" "}
-              — đủ để thử nghiệm và ôn tập cơ bản.
-            </span>
-          </li>
-          {plan.features.map((f) => (
-            <li key={f} className="flex items-start gap-2 pl-5 text-xs">
-              <span className="text-primary">·</span>
-              {f}
+      {plan && (
+        <Card className="border-dashed p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Gói {plan.name}</h3>
+          </div>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              <span>
+                Còn{" "}
+                <strong className="text-foreground">
+                  {(subscription?.remainingCredits ?? 0).toLocaleString("vi-VN")} credit
+                </strong>
+                {" · "}
+                {formatCreditQuota(plan.creditAmount, plan.resetPeriod)}.
+              </span>
             </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Cần hỏi nhiều hơn hoặc ưu tiên tốc độ? Nâng cấp gói Pro / Education trên trang Gói
-          tháng.
-        </p>
-        <Button size="sm" variant="outline" className="mt-3 gap-1.5" asChild>
-          <Link to="/subscriptions">
-            Xem các gói
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </Button>
-      </Card>
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Cần hỏi nhiều hơn? Nâng cấp gói trên trang Gói tháng (trừ tiền từ ví).
+          </p>
+          <Button size="sm" variant="outline" className="mt-3 gap-1.5" asChild>
+            <Link to="/subscriptions">
+              Xem các gói
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        </Card>
+      )}
     </div>
   );
 }

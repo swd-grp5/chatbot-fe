@@ -11,6 +11,10 @@ ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
+# Cap Node heap so the build does not exhaust RAM on the small VPS
+# (the BE container runs on the same host). Pair this with host swap.
+ENV NODE_OPTIONS=--max-old-space-size=2048
+
 RUN test -n "$VITE_API_BASE_URL" || (echo "ERROR: set VITE_API_BASE_URL in .env before build" >&2 && exit 1)
 
 RUN npm run build
