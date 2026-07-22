@@ -9,6 +9,8 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
     image: swdchatbox-fe:latest
+    # Image is built on the VPS — skip registry pull so Portainer redeploy does not fail
+    pull_policy: build
     container_name: swdchatbox-fe
     restart: unless-stopped
     ports:
