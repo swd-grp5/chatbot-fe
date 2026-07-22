@@ -31,10 +31,13 @@ type Store = {
   initialized: boolean;
   /** IDs của tài liệu student chọn cho hội thoại hiện tại */
   selectedDocIds: string[];
+  /** Môn học đang chọn cho hội thoại mới / draft (API mode) */
+  selectedSubjectId: string | null;
 
   init: () => void;
   setActiveSession: (id: string) => void;
   setSelectedDocIds: (ids: string[]) => void;
+  setSelectedSubjectId: (id: string | null) => void;
   /** Cập nhật tài liệu gắn hội thoại (local + PATCH BE nếu đã có conversation) */
   setSessionDocumentIds: (ids: string[]) => Promise<void>;
   loadUserData: (userId: string) => void;
@@ -110,6 +113,7 @@ export const useAppStore = create<Store>((set, get) => ({
   activeSessionId: "",
   initialized: false,
   selectedDocIds: [],
+  selectedSubjectId: null,
 
   init: () => {
     if (get().initialized) return;
@@ -134,9 +138,18 @@ export const useAppStore = create<Store>((set, get) => ({
     });
   },
 
+  setSelectedSubjectId: (id) => {
+    set({ selectedSubjectId: id });
+  },
+
   setActiveSession: (id) => {
     const docs = get().sessionDocs[id] ?? [];
-    set({ activeSessionId: id, selectedDocIds: docs });
+    const sessionSubjectId = get().sessions.find((s) => s.id === id)?.subjectId ?? null;
+    set({
+      activeSessionId: id,
+      selectedDocIds: docs,
+      selectedSubjectId: sessionSubjectId ?? get().selectedSubjectId,
+    });
     const { userId, sessions, conversations, sessionDocs } = get();
     persistChat(userId, { sessions, conversations, sessionDocs, activeSessionId: id });
 
@@ -152,9 +165,23 @@ export const useAppStore = create<Store>((set, get) => ({
             // Không ghi đè selection local vừa gắn nếu BE còn trống (race với PATCH)
             if (docIds.length === 0 && localDocs.length > 0) return;
             const nextSessionDocs = { ...get().sessionDocs, [id]: docIds };
-            set({ selectedDocIds: docIds, sessionDocs: nextSessionDocs });
+            const nextSessions = get().sessions.map((s) =>
+              s.id === id
+                ? {
+                    ...s,
+                    subjectId: conv.subjectId ?? s.subjectId,
+                    subjectName: conv.subjectName ?? s.subjectName,
+                  }
+                : s,
+            );
+            set({
+              sessions: nextSessions,
+              selectedDocIds: docIds,
+              sessionDocs: nextSessionDocs,
+              selectedSubjectId: conv.subjectId ?? get().selectedSubjectId,
+            });
             persistChat(get().userId, {
-              sessions: get().sessions,
+              sessions: nextSessions,
               conversations: get().conversations,
               sessionDocs: nextSessionDocs,
               activeSessionId: id,
@@ -233,6 +260,7 @@ export const useAppStore = create<Store>((set, get) => ({
       sessionDocs: {},
       activeSessionId: "",
       selectedDocIds: [],
+      selectedSubjectId: null,
     }),
 
   loadUserData: (userId) => {
@@ -413,6 +441,8 @@ export const useAppStore = create<Store>((set, get) => ({
         messageCount: conv.totalMessages,
         updatedAt: conv.updatedAt,
         group: groupFor(new Date(conv.updatedAt)),
+        subjectId: conv.subjectId,
+        subjectName: conv.subjectName,
       }));
 
       // Merge: ưu tiên backend, giữ conversations local + draft local đang mở (chưa sync BE)
@@ -452,6 +482,8 @@ export const useAppStore = create<Store>((set, get) => ({
       }
 
       const selectedDocIds = activeSessionId ? (sessionDocs[activeSessionId] ?? []) : [];
+      const activeSubjectId =
+        sessions.find((s) => s.id === activeSessionId)?.subjectId ?? get().selectedSubjectId;
 
       set({
         sessions,
@@ -459,6 +491,7 @@ export const useAppStore = create<Store>((set, get) => ({
         sessionDocs,
         activeSessionId,
         selectedDocIds,
+        selectedSubjectId: activeSubjectId,
       });
       persistChat(get().userId, {
         sessions,
@@ -514,6 +547,7 @@ export const useAppStore = create<Store>((set, get) => ({
     const existing = get().conversations[sessionId] ?? [];
     const isFirst = existing.length === 0;
     const documentIds = get().selectedDocIds;
+    const selectedSubjectId = get().selectedSubjectId;
     const useApi = !!getApiSession();
 
     // 1) Hiện tin user ngay — trước mọi await (tránh loading bot hiện trước)
@@ -545,23 +579,44 @@ export const useAppStore = create<Store>((set, get) => ({
 
     if (useApi && chatApi) {
       if (isFirst) {
+        if (!selectedSubjectId) {
+          const failed: ChatMessage = {
+            id: newMessageId(),
+            role: "assistant",
+            content: "Hãy chọn môn học trước khi hỏi. Hệ thống sẽ trả lời từ toàn bộ tài liệu của môn đó.",
+          };
+          const conversations = {
+            ...get().conversations,
+            [sessionId]: [...(get().conversations[sessionId] ?? []), failed],
+          };
+          set({ conversations });
+          return;
+        }
         try {
           const newConv = await chatApi.createConversation({
             title: sessionTitleFrom(text),
-            documentIds: documentIds.length > 0 ? documentIds : undefined,
+            subjectId: selectedSubjectId,
           });
           const backendConversationId = newConv.id;
 
           if (backendConversationId !== sessionId) {
             const sessions = get().sessions.map((s) =>
-              s.id === sessionId ? { ...s, id: backendConversationId, title: newConv.title } : s,
+              s.id === sessionId
+                ? {
+                    ...s,
+                    id: backendConversationId,
+                    title: newConv.title,
+                    subjectId: newConv.subjectId ?? selectedSubjectId,
+                    subjectName: newConv.subjectName,
+                  }
+                : s,
             );
             const conversations = { ...get().conversations };
             conversations[backendConversationId] = conversations[sessionId] || [];
             delete conversations[sessionId];
 
             const sessionDocs = { ...get().sessionDocs };
-            sessionDocs[backendConversationId] = (newConv.documentIds ?? documentIds).map(String);
+            sessionDocs[backendConversationId] = (newConv.documentIds ?? []).map(String);
             delete sessionDocs[sessionId];
 
             sessionId = backendConversationId;
@@ -570,7 +625,8 @@ export const useAppStore = create<Store>((set, get) => ({
               conversations,
               sessionDocs,
               activeSessionId: sessionId,
-              selectedDocIds: sessionDocs[sessionId] ?? documentIds,
+              selectedDocIds: sessionDocs[sessionId] ?? [],
+              selectedSubjectId: newConv.subjectId ?? selectedSubjectId,
             });
             persistChat(get().userId, {
               sessions,
@@ -579,11 +635,25 @@ export const useAppStore = create<Store>((set, get) => ({
               activeSessionId: sessionId,
             });
           } else {
+            const sessions = get().sessions.map((s) =>
+              s.id === sessionId
+                ? {
+                    ...s,
+                    subjectId: newConv.subjectId ?? selectedSubjectId,
+                    subjectName: newConv.subjectName,
+                  }
+                : s,
+            );
             const sessionDocs = {
               ...get().sessionDocs,
-              [sessionId]: (newConv.documentIds ?? documentIds).map(String),
+              [sessionId]: (newConv.documentIds ?? []).map(String),
             };
-            set({ sessionDocs, selectedDocIds: sessionDocs[sessionId] });
+            set({
+              sessions,
+              sessionDocs,
+              selectedDocIds: sessionDocs[sessionId],
+              selectedSubjectId: newConv.subjectId ?? selectedSubjectId,
+            });
           }
         } catch (e) {
           console.error("Failed to create conversation", e);

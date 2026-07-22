@@ -49,6 +49,9 @@ export interface Session {
   messageCount: number;
   updatedAt: string; // ISO timestamp
   group: SessionGroup;
+  /** Môn học gắn hội thoại (API mode) — dùng toàn bộ tài liệu môn, không chọn từng file */
+  subjectId?: string;
+  subjectName?: string;
 }
 
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();

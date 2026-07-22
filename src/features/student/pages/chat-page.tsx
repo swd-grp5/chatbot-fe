@@ -62,6 +62,7 @@ import {
   sessionGroupOrder,
 } from "@/shared/lib/mock-data";
 import { fetchDocuments, mapDocumentResponse } from "@/features/lecturer/api/document-api";
+import { DocumentsSubjectSelect } from "@/features/lecturer/components/documents-subject-select";
 import { useStudentMySubjects } from "@/features/student/hooks/use-my-subjects";
 import { useAppStore } from "@/features/student/lib/store";
 import type { Course, Doc } from "@/shared/lib/mock-data";
@@ -131,10 +132,12 @@ export function ChatPage() {
   const init = useAppStore((s) => s.init);
   const selectedDocIds = useAppStore((s) => s.selectedDocIds);
   const setSessionDocumentIds = useAppStore((s) => s.setSessionDocumentIds);
+  const selectedSubjectId = useAppStore((s) => s.selectedSubjectId);
+  const setSelectedSubjectId = useAppStore((s) => s.setSelectedSubjectId);
   const { user } = useAuth();
   const isStudentApiMode = user?.source === "api" && user.role === "student";
 
-  const { data: subjectRows } = useStudentMySubjects(isStudentApiMode);
+  const { data: subjectRows, isLoading: subjectsLoading } = useStudentMySubjects(isStudentApiMode);
   const apiCourses = useMemo(
     () =>
       (subjectRows ?? []).map((subject) => ({
@@ -143,6 +146,17 @@ export function ChatPage() {
       })),
     [subjectRows],
   );
+
+  const selectedSubjectCode = useMemo(
+    () => (subjectRows ?? []).find((s) => s.id === selectedSubjectId)?.code ?? "",
+    [subjectRows, selectedSubjectId],
+  );
+
+  useEffect(() => {
+    if (!isStudentApiMode || !subjectRows?.length) return;
+    if (selectedSubjectId && subjectRows.some((s) => s.id === selectedSubjectId)) return;
+    setSelectedSubjectId(subjectRows[0].id);
+  }, [isStudentApiMode, subjectRows, selectedSubjectId, setSelectedSubjectId]);
 
   const [apiDocuments, setApiDocuments] = useState<Doc[]>([]);
   const [subscription, setSubscription] = useState<CurrentUserSubscription | null>(null);
@@ -199,6 +213,7 @@ export function ChatPage() {
   }, [user]);
 
   const messages: ChatMessage[] = conversations[activeSession] ?? [];
+  const subjectLocked = messages.length > 0;
 
   const hasEverChatted = useMemo(
     () => Object.values(conversations).some((msgs) => msgs.length > 0),
@@ -535,8 +550,25 @@ export function ChatPage() {
 
         {/* CENTER: Chat */}
         <section className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-          <div className="border-b border-border bg-card px-6 py-3">
-            <h1 className="truncate text-base font-semibold">{activeTitle}</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-6 py-3">
+            <h1 className="min-w-0 flex-1 truncate text-base font-semibold">{activeTitle}</h1>
+            {isStudentApiMode && (
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="hidden text-xs text-muted-foreground sm:inline">Môn học</span>
+                <DocumentsSubjectSelect
+                  subjects={subjectRows ?? []}
+                  value={selectedSubjectCode}
+                  onValueChange={(code) => {
+                    const subject = (subjectRows ?? []).find((s) => s.code === code);
+                    setSelectedSubjectId(subject?.id ?? null);
+                  }}
+                  loading={subjectsLoading}
+                  disabled={subjectLocked || subjectsLoading || (subjectRows?.length ?? 0) === 0}
+                  defaultPlaceholder="Chọn môn để hỏi"
+                  emptyPlaceholder="Chưa được gán môn"
+                />
+              </div>
+            )}
           </div>
 
           <div
@@ -556,7 +588,9 @@ export function ChatPage() {
                   <Bot className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                   <div className="text-sm font-medium">Hội thoại mới</div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Đặt câu hỏi về tài liệu môn học — trích dẫn hiển thị bên phải.
+                    {isStudentApiMode
+                      ? "Chọn môn học phía trên rồi hỏi — hệ thống dùng toàn bộ tài liệu môn đó."
+                      : "Đặt câu hỏi về tài liệu môn học — trích dẫn hiển thị bên phải."}
                   </p>
                 </div>
               )}
@@ -582,7 +616,9 @@ export function ChatPage() {
           <div className="border-t border-border bg-card px-6 py-4">
             <ChatComposer
               sending={sending}
-              requireDocs={false}
+              requireDocs={!isStudentApiMode}
+              requireSubject={isStudentApiMode}
+              hasSubject={!!selectedSubjectId}
               selectedDocCount={selectedDocIds.length}
               onOpenDocs={() => setRightTab("documents")}
               onSend={handleSend}
@@ -863,22 +899,32 @@ export function ChatPage() {
 function ChatComposer({
   sending,
   requireDocs,
+  requireSubject = false,
+  hasSubject = true,
   selectedDocCount,
   onOpenDocs,
   onSend,
 }: {
   sending: boolean;
   requireDocs: boolean;
+  requireSubject?: boolean;
+  hasSubject?: boolean;
   selectedDocCount: number;
   onOpenDocs: () => void;
   onSend: (text: string) => Promise<void>;
 }) {
   const [input, setInput] = useState("");
   const needsDocs = requireDocs && selectedDocCount === 0;
+  const needsSubject = requireSubject && !hasSubject;
+  const blocked = needsDocs || needsSubject;
 
   const submit = async () => {
     const text = input.trim();
     if (!text || sending) return;
+    if (needsSubject) {
+      toast.error("Hãy chọn môn học trước khi hỏi.");
+      return;
+    }
     if (needsDocs) {
       onOpenDocs();
       toast.error("Hãy gắn ít nhất 1 tài liệu vào hội thoại (panel bên phải).");
@@ -902,7 +948,11 @@ function ChatComposer({
           }}
           disabled={sending}
           placeholder={
-            needsDocs ? "Gắn tài liệu ở panel bên phải trước khi hỏi..." : "Hỏi về nội dung môn học"
+            needsSubject
+              ? "Chọn môn học phía trên trước khi hỏi..."
+              : needsDocs
+                ? "Gắn tài liệu ở panel bên phải trước khi hỏi..."
+                : "Hỏi về nội dung môn học"
           }
           className="min-h-15 resize-none border-0 bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0"
           rows={2}
@@ -922,7 +972,7 @@ function ChatComposer({
           <Button
             size="sm"
             className="h-7 gap-1.5"
-            disabled={!input.trim() || sending || needsDocs}
+            disabled={!input.trim() || sending || blocked}
             onClick={() => void submit()}
           >
             {sending ? (
@@ -935,10 +985,16 @@ function ChatComposer({
         </div>
       </div>
       <p className="mt-1 text-center text-[11px] text-muted-foreground">
-        {needsDocs ? (
+        {needsSubject ? (
+          <span className="text-amber-500 dark:text-amber-400">
+            ⚠ Chọn môn học ở thanh trên — câu trả lời lấy từ toàn bộ tài liệu môn đó.
+          </span>
+        ) : needsDocs ? (
           <span className="text-amber-500 dark:text-amber-400">
             ⚠ Gắn tài liệu ở panel bên phải (tab Tài liệu) để bắt đầu hỏi.
           </span>
+        ) : requireSubject ? (
+          "Câu trả lời được sinh từ tài liệu môn học đã chọn. Luôn đối chiếu với giảng viên khi cần thiết."
         ) : (
           "Câu trả lời được sinh từ tài liệu gắn với hội thoại này. Luôn đối chiếu với giảng viên khi cần thiết."
         )}
